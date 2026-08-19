@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import type { Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import { useToast } from "@/components/Toast";
 
 const NOTE_COLORS = [
   { name: "Yellow", value: "#FEF9C3" },
@@ -30,6 +31,7 @@ function NotesContent() {
   const [color, setColor] = useState("#FEF9C3");
   const [mounted, setMounted] = useState(false);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const { toast } = useToast();
 
   useEffect(() => setMounted(true), []);
 
@@ -61,13 +63,16 @@ function NotesContent() {
     try {
       if (editing) {
         await updateNote(editing.id, { title: title.trim(), content: content.trim(), color });
+        toast("Note updated");
       } else {
         await addNote({ user_id: "", title: title.trim(), content: content.trim(), color, pinned: false });
+        toast("Note added");
       }
       resetForm();
       setShowEditor(false);
     } catch (err) {
       console.error("Failed to save note:", err);
+      toast("Failed to save note", "error");
     }
   };
 
@@ -155,13 +160,13 @@ function NotesContent() {
                   <h3 className="font-handwritten text-lg text-ink-dark flex-1 truncate">{note.title || "Untitled"}</h3>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); updateNote(note.id, { pinned: !note.pinned }); }}
+                      onClick={(e) => { e.stopPropagation(); updateNote(note.id, { pinned: !note.pinned }); toast(note.pinned ? "Note unpinned" : "Note pinned"); }}
                       className="p-1 text-ink-light hover:text-ink-dark"
                     >
                       {note.pinned ? <PinOff size={12} /> : <Pin size={12} />}
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                      onClick={(e) => { e.stopPropagation(); deleteNote(note.id); toast("Note deleted"); }}
                       className="p-1 text-ink-light hover:text-accent-red"
                     >
                       <Trash2 size={12} />

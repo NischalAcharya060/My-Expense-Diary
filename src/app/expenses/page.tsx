@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import { useToast } from "@/components/Toast";
 
 function ExpensesPageInner() {
   const { expenses, loaded, deleteExpense } = useExpenses();
@@ -20,10 +21,16 @@ function ExpensesPageInner() {
   const [filterCategory, setFilterCategory] = useState("All");
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (searchParams.get("add") === "true") requireAuth(() => setShowAdd(true));
   }, [searchParams]);
+
+  const handleDelete = async (id: string) => {
+    await deleteExpense(id);
+    toast("Expense deleted");
+  };
 
   if (!loaded) {
     return (
@@ -119,7 +126,7 @@ function ExpensesPageInner() {
                       </div>
                       <span className="text-sm text-ink-medium amount shrink-0">{formatCurrency(expense.amount)}</span>
                       <button
-                        onClick={() => deleteExpense(expense.id)}
+                        onClick={() => handleDelete(expense.id)}
                         className="p-1 opacity-0 group-hover:opacity-100 hover:text-accent-red transition-all"
                         aria-label="Delete"
                       >

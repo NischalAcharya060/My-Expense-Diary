@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ToastProvider } from "@/components/Toast";
 import Sidebar from "@/components/Sidebar";
 
 const geistSans = Geist({
@@ -30,10 +31,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex">
         <ThemeProvider>
           <AuthProvider>
-            <Sidebar />
-            <main className="flex-1 min-h-screen overflow-x-hidden">
-              {children}
-            </main>
+            <ToastProvider>
+              <Sidebar />
+              <main className="flex-1 min-h-screen overflow-x-hidden">
+                {children}
+              </main>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -8,6 +8,7 @@ import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import { useToast } from "@/components/Toast";
 import { format } from "date-fns";
 
 const MONTH_NAMES = [
@@ -33,6 +34,7 @@ function SettingsContent() {
   const [mounted, setMounted] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const { toast } = useToast();
   const budgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -78,6 +80,7 @@ function SettingsContent() {
     if (!isNaN(amt) && amt > 0 && !isNaN(yr) && !isNaN(mo) && mo >= 1 && mo <= 12) {
       await setBudget(yr, mo, amt);
       setBudgetAmount("");
+      toast("Budget saved");
     }
   };
 
@@ -89,12 +92,14 @@ function SettingsContent() {
         await setBudget(b.year, b.month, amt, b.category);
         setEditingId(null);
         setEditAmount("");
+        toast("Budget updated");
       }
     }
   };
 
   const handleDeleteBudget = async (id: string) => {
     await deleteBudget(id);
+    toast("Budget deleted");
   };
 
   const sortedBudgets = [...budgets].sort((a, b) =>
@@ -115,6 +120,7 @@ function SettingsContent() {
     a.download = `expense-diary-backup-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast("Data exported");
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,6 +153,7 @@ function SettingsContent() {
             await addNote(rest);
           }
         }
+        toast("Data imported");
       } catch {
         alert("Invalid backup file");
       }
@@ -160,8 +167,10 @@ function SettingsContent() {
       for (const p of payments) await deletePayment(p.id);
       for (const b of budgets) await deleteBudget(b.id);
       for (const n of notes) await deleteNote(n.id);
+      toast("All data cleared");
     } catch (err) {
       console.error("Failed to clear data:", err);
+      toast("Failed to clear data", "error");
     }
   };
 

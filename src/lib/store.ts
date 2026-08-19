@@ -187,7 +187,7 @@ export function useBudgets(lazy = false) {
       const budget = await upsertBudget(year, month, amount, category);
       setBudgets((prev) => {
         const existing = prev.find(
-          (b) => b.year === year && b.month === month && b.category === (category || undefined)
+          (b) => b.year === year && b.month === month && (b.category || null) === (category || null)
         );
         if (existing) {
           return prev.map((b) => (b.id === existing.id ? budget : b));
@@ -201,7 +201,7 @@ export function useBudgets(lazy = false) {
   const getBudget = useCallback(
     (year: number, month: number, category?: string) =>
       budgets.find(
-        (b) => b.year === year && b.month === month && b.category === (category || undefined)
+        (b) => b.year === year && b.month === month && (b.category || null) === (category || null)
       ),
     [budgets]
   );

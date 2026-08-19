@@ -7,6 +7,7 @@ import { formatCurrency, FREQUENCIES } from "@/lib/utils";
 import type { RecurringPayment } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import { useToast } from "@/components/Toast";
 
 export default function RecurringPage() {
   const { payments, loaded, addPayment, updatePayment, deletePayment } = useRecurringPayments();
@@ -24,6 +25,7 @@ export default function RecurringPage() {
   const [reminderDays, setReminderDays] = useState("3");
   const [mounted, setMounted] = useState(false);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const { toast } = useToast();
 
   useEffect(() => setMounted(true), []);
 
@@ -56,8 +58,10 @@ export default function RecurringPage() {
     try {
       if (editing) {
         await updatePayment(editing.id, data);
+        toast("Payment updated");
       } else {
         await addPayment(data);
+        toast("Payment added");
       }
       resetForm();
       setShowForm(false);
@@ -72,6 +76,16 @@ export default function RecurringPage() {
     setCategory(p.category); setFrequency(p.frequency); setDueDay(p.due_day.toString());
     setStartDate(p.start_date); setEndDate(p.end_date || ""); setReminderDays(p.reminder_days.toString());
     setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deletePayment(id);
+    toast("Payment deleted");
+  };
+
+  const handleToggle = async (id: string, isActive: boolean) => {
+    await updatePayment(id, { is_active: isActive });
+    toast(isActive ? "Payment activated" : "Payment deactivated");
   };
 
   const active = payments.filter((p) => p.is_active);
@@ -172,7 +186,7 @@ export default function RecurringPage() {
             <div className="space-y-2">
               {active.map((p) => (
                 <div key={p.id} className="paper-card px-4 py-3 flex items-center gap-3">
-                  <button onClick={() => updatePayment(p.id, { is_active: false })} className="text-accent-green hover:opacity-70" title="Deactivate">
+                  <button onClick={() => handleToggle(p.id, false)} className="text-accent-green hover:opacity-70" title="Deactivate">
                     <ToggleRight size={22} />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -183,7 +197,7 @@ export default function RecurringPage() {
                     {p.is_variable ? "Variable" : formatCurrency(p.amount)}
                   </span>
                   <button onClick={() => startEdit(p)} className="p-1 text-ink-light hover:text-ink-dark transition-colors"><Edit2 size={14} /></button>
-                  <button onClick={() => deletePayment(p.id)} className="p-1 text-ink-light hover:text-accent-red transition-colors"><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(p.id)} className="p-1 text-ink-light hover:text-accent-red transition-colors"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
@@ -197,7 +211,7 @@ export default function RecurringPage() {
             <div className="space-y-2">
               {inactive.map((p) => (
                 <div key={p.id} className="paper-card px-4 py-3 flex items-center gap-3 opacity-60">
-                  <button onClick={() => updatePayment(p.id, { is_active: true })} className="text-ink-light hover:text-accent-green transition-colors" title="Activate">
+                  <button onClick={() => handleToggle(p.id, true)} className="text-ink-light hover:text-accent-green transition-colors" title="Activate">
                     <ToggleLeft size={22} />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -205,7 +219,7 @@ export default function RecurringPage() {
                     <p className="text-xs text-ink-light">{p.category}</p>
                   </div>
                   <span className="text-sm text-ink-medium amount">{p.is_variable ? "Variable" : formatCurrency(p.amount)}</span>
-                  <button onClick={() => deletePayment(p.id)} className="p-1 text-ink-light hover:text-accent-red transition-colors"><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(p.id)} className="p-1 text-ink-light hover:text-accent-red transition-colors"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>

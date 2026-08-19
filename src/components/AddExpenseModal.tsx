@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Check, Plus } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, EXPENSE_TYPES, getToday } from "@/lib/utils";
+import { useToast } from "@/components/Toast";
 
 interface Props {
   open: boolean;
@@ -26,6 +27,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("🏷️");
   const [newCatColor, setNewCatColor] = useState("#6B7280");
+  const { toast } = useToast();
 
   useEffect(() => {
     if (defaultDate) setDate(defaultDate);
@@ -58,6 +60,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       setNewCatName("");
       setNewCatIcon("🏷️");
       setNewCatColor("#6B7280");
+      toast("Category added");
     } catch (err) {
       console.error("Failed to add category:", err);
     }
@@ -79,9 +82,11 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
         expense_type: expenseType as any,
         note: note.trim() || undefined,
       });
+      toast("Expense added");
       onClose();
     } catch (err) {
       console.error("Failed to save expense:", err);
+      toast("Failed to save expense", "error");
     } finally {
       setSaving(false);
     }
