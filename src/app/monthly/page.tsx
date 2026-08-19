@@ -130,7 +130,7 @@ export default function MonthlySummaryPage() {
                 .sort((a, b) => b[1] - a[1])
                 .map(([cat, total]) => (
                     <div key={cat} className="flex items-center">
-                      <div className="w-3 h-3 rounded-full mr-3 shrink-0" style={{ backgroundColor: getCategoryByName(cat)?.color || "#6B7280" }} />
+                      <span className="text-sm mr-3 shrink-0">{getCategoryByName(cat)?.icon || "🏷️"}</span>
                     <span className="text-sm text-ink-dark w-28">{cat}</span>
                     <div className="flex-1 mx-3">
                       <div className="w-full h-1.5 bg-paper-dark rounded-full overflow-hidden">

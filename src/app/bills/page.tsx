@@ -11,6 +11,7 @@ import AddBillModal from "@/components/AddBillModal";
 import { format, differenceInDays } from "date-fns";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import type { RecurringPayment } from "@/types";
 
@@ -21,6 +22,8 @@ export default function BillsPage() {
   const [editingPayment, setEditingPayment] = useState<RecurringPayment | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "history">("list");
   const [mounted, setMounted] = useState(false);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -145,13 +148,7 @@ export default function BillsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this recurring payment?")) return;
-    try {
-      await deletePayment(id);
-      toast("Recurring payment deleted");
-    } catch (err) {
-      console.error(err);
-    }
+    setDeletePaymentId(id);
   };
 
   return (
@@ -531,10 +528,7 @@ export default function BillsPage() {
                                 </span>
                                 <button
                                   onClick={async () => {
-                                    if (confirm("Delete this expense log?")) {
-                                      await deleteExpense(e.id);
-                                      toast("Expense log deleted");
-                                    }
+                                    setDeleteExpenseId(e.id);
                                   }}
                                   className="p-1 hover:bg-paper-dark text-ink-light hover:text-accent-red rounded transition-colors cursor-pointer"
                                   title="Delete log"
@@ -565,6 +559,36 @@ export default function BillsPage() {
         editingPayment={editingPayment}
       />
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="managing bills" />
+      <ConfirmDialog
+        open={!!deletePaymentId}
+        onClose={() => setDeletePaymentId(null)}
+        onConfirm={async () => {
+          if (deletePaymentId) {
+            try {
+              await deletePayment(deletePaymentId);
+              toast("Recurring payment deleted");
+            } catch (err) {
+              console.error(err);
+            }
+            setDeletePaymentId(null);
+          }
+        }}
+        title="Delete recurring payment?"
+        message="This will permanently remove this payment and cannot be undone."
+      />
+      <ConfirmDialog
+        open={!!deleteExpenseId}
+        onClose={() => setDeleteExpenseId(null)}
+        onConfirm={async () => {
+          if (deleteExpenseId) {
+            await deleteExpense(deleteExpenseId);
+            toast("Expense log deleted");
+            setDeleteExpenseId(null);
+          }
+        }}
+        title="Delete expense log?"
+        message="This will permanently remove this expense record."
+      />
     </div>
   );
 }

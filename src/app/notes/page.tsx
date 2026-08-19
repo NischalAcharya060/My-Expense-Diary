@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import type { Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
 const NOTE_COLORS = [
@@ -39,6 +40,7 @@ function NotesContent() {
   const [content, setContent] = useState("");
   const [color, setColor] = useState("#FEF9C3");
   const [mounted, setMounted] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -192,7 +194,7 @@ function NotesContent() {
 
                   {/* Header / Pin Button */}
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-handwritten text-lg font-bold text-ink-dark flex-1 truncate pr-2">
+                    <h3 className="font-handwritten text-lg font-bold text-ink-dark dark:text-black flex-1 truncate pr-2">
                       {note.title || "Untitled Note"}
                     </h3>
                     
@@ -204,7 +206,7 @@ function NotesContent() {
                           updateNote(note.id, { pinned: !note.pinned });
                           toast(note.pinned ? "Note unpinned" : "Note pinned");
                         }}
-                        className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-ink-dark cursor-pointer"
+                        className="p-1 hover:bg-black/5 dark:hover:bg-black/10 rounded text-ink-light dark:text-black/60 hover:text-ink-dark dark:hover:text-black cursor-pointer"
                         title={note.pinned ? "Unpin note" : "Pin note"}
                       >
                         {note.pinned ? <PinOff size={13} /> : <Pin size={13} />}
@@ -212,12 +214,9 @@ function NotesContent() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm("Delete this note?")) {
-                            deleteNote(note.id);
-                            toast("Note deleted");
-                          }
+                          setDeleteConfirm(note.id);
                         }}
-                        className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-accent-red cursor-pointer"
+                        className="p-1 hover:bg-black/5 dark:hover:bg-black/10 rounded text-ink-light dark:text-black/60 hover:text-accent-red cursor-pointer"
                         title="Delete note"
                       >
                         <Trash2 size={13} />
@@ -226,16 +225,16 @@ function NotesContent() {
                   </div>
                   
                   {note.pinned && (
-                    <span className="inline-block text-[9px] bg-black/5 text-ink-medium font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-2">
+                    <span className="inline-block text-[9px] bg-black/5 dark:bg-black/10 text-ink-medium dark:text-black/70 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-2">
                       📌 Pinned
                     </span>
                   )}
                   
-                  <p className="text-xs text-ink-medium line-clamp-5 whitespace-pre-wrap leading-relaxed mt-1">
+                  <p className="text-xs text-ink-medium dark:text-black/80 line-clamp-5 whitespace-pre-wrap leading-relaxed mt-1">
                     {note.content}
                   </p>
                   
-                  <p className="text-[9px] text-ink-light/80 mt-4 border-t border-black/5 pt-2 text-right font-medium">
+                  <p className="text-[9px] text-ink-light/80 dark:text-black/50 mt-4 border-t border-black/5 pt-2 text-right font-medium">
                     Updated: {format(new Date(note.updated_at), "MMM d, yyyy")}
                   </p>
                 </div>
@@ -246,6 +245,19 @@ function NotesContent() {
       </div>
 
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="notes" />
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => {
+          if (deleteConfirm) {
+            deleteNote(deleteConfirm);
+            toast("Note deleted");
+            setDeleteConfirm(null);
+          }
+        }}
+        title="Delete note?"
+        message="This will permanently remove this note."
+      />
     </div>
   );
 }

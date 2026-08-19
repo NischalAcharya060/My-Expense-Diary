@@ -12,6 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
 function ExpensesPageInner() {
@@ -21,6 +22,7 @@ function ExpensesPageInner() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
@@ -30,9 +32,7 @@ function ExpensesPageInner() {
   }, [searchParams]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
-    await deleteExpense(id);
-    toast("Expense deleted");
+    setDeleteId(id);
   };
 
   if (!loaded) {
@@ -174,6 +174,19 @@ function ExpensesPageInner() {
       <AddExpenseModal open={showAdd} onClose={() => setShowAdd(false)} />
       <EditExpenseModal open={!!editingExpense} onClose={() => setEditingExpense(null)} expense={editingExpense} />
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={async () => {
+          if (deleteId) {
+            await deleteExpense(deleteId);
+            toast("Expense deleted");
+            setDeleteId(null);
+          }
+        }}
+        title="Delete expense?"
+        message="This will permanently remove this expense record."
+      />
     </div>
   );
 }

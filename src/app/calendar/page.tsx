@@ -48,10 +48,10 @@ export default function CalendarPage() {
     return expenses.filter((e) => e.date === dateStr).reduce((s, e) => s + e.amount, 0);
   };
 
-  const getDayCategoryColors = (dateStr: string): string[] => {
+  const getDayCategoryIcons = (dateStr: string): string[] => {
     const dayExpenses = expenses.filter((e) => e.date === dateStr);
     const uniqueCategories = Array.from(new Set(dayExpenses.map((e) => e.category)));
-    return uniqueCategories.map((cat) => getCategoryByName(cat)?.color || "#6B7280");
+    return uniqueCategories.map((cat) => getCategoryByName(cat)?.icon || "📝");
   };
 
   const selectedExpenses = selectedDate
@@ -122,7 +122,7 @@ export default function CalendarPage() {
               const isToday = isSameDay(day, new Date());
               const isSelected = selectedDate === dateStr;
               const dayTotal = getDayTotal(day);
-              const categoryColors = getDayCategoryColors(dateStr);
+              const categoryIcons = getDayCategoryIcons(dateStr);
 
               return (
                 <button
@@ -146,15 +146,16 @@ export default function CalendarPage() {
                       </span>
                     )}
                     
-                    {/* Category Dots */}
-                    {categoryColors.length > 0 && isCurrentMonth && (
+                    {/* Category Icons */}
+                    {categoryIcons.length > 0 && isCurrentMonth && (
                       <div className="flex gap-0.5 mt-1 flex-wrap justify-start">
-                        {categoryColors.slice(0, 4).map((color, idx) => (
+                        {categoryIcons.slice(0, 4).map((icon, idx) => (
                           <span
                             key={idx}
-                            className="w-1 h-1 rounded-full shrink-0"
-                            style={{ backgroundColor: color }}
-                          />
+                            className="text-[8px] sm:text-[9px] leading-none shrink-0"
+                          >
+                            {icon}
+                          </span>
                         ))}
                       </div>
                     )}
@@ -181,10 +182,12 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-3">
                 {selectedExpenses.map((e) => {
-                  const catColor = getCategoryByName(e.category)?.color || "#6B7280";
+                  const cat = getCategoryByName(e.category);
+                  const catColor = cat?.color || "#6B7280";
+                  const catIcon = cat?.icon || "📝";
                   return (
                     <div key={e.id} className="flex items-center py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
-                      <div className="w-2.5 h-2.5 rounded-full mr-3 shrink-0" style={{ backgroundColor: catColor }} />
+                      <span className="text-sm mr-3 shrink-0">{catIcon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-ink-dark truncate">{e.name}</p>
                         <p className="text-[10px] text-ink-light">{e.category} · {e.payment_method}</p>
