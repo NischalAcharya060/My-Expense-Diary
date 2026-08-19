@@ -81,12 +81,17 @@ export default function Sidebar() {
 
         {/* Logo */}
         <div className="p-5 pb-3 border-b border-[rgba(0,0,0,0.06)]">
-          <h1 className="font-handwritten text-3xl text-ink-dark tracking-tight">
-            My Expense Diary
-          </h1>
-          <p className="text-xs text-ink-light mt-1 font-sans">
-            Personal Finance Notebook
-          </p>
+          <div className="flex items-center gap-3">
+            <img src="/logo/org-logo.png" alt="Logo" className="w-9 h-9 rounded-lg" />
+            <div>
+              <h1 className="font-handwritten text-2xl text-ink-dark tracking-tight leading-tight">
+                My Expense Diary
+              </h1>
+              <p className="text-[10px] text-ink-light mt-0.5 font-sans">
+                Personal Finance Notebook
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
