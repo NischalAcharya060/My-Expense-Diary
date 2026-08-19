@@ -26,7 +26,7 @@ import AuthPrompt from "@/components/AuthPrompt";
 
 const navItems = [
   { href: "/", label: "Notebook", icon: BookOpen },
-  { href: "/expenses", label: "Daily Expenses", icon: Receipt },
+  { href: "/expenses", label: "Expenses", icon: Receipt },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/monthly", label: "Monthly Summary", icon: BarChart3 },
   { href: "/recurring", label: "Recurring", icon: RefreshCw },

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Edit2 } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AddExpenseModal from "@/components/AddExpenseModal";
+import EditExpenseModal from "@/components/EditExpenseModal";
 import type { Expense } from "@/types";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -17,6 +18,7 @@ function ExpensesPageInner() {
   const { expenses, loaded, deleteExpense } = useExpenses();
   const { categories, getCategoryByName } = useCategories();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const searchParams = useSearchParams();
@@ -119,12 +121,19 @@ function ExpensesPageInner() {
                       key={expense.id}
                       className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-shadow"
                     >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getCategoryByName(expense.category)?.color || "#6B7280" }} />
+                      <span className="text-base shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-ink-dark truncate">{expense.name}</p>
-                        <p className="text-xs text-ink-light">{getCategoryByName(expense.category)?.icon} {expense.category} · {expense.payment_method}</p>
+                        <p className="text-xs text-ink-light">{expense.category} · {expense.payment_method}</p>
                       </div>
                       <span className="text-sm text-ink-medium amount shrink-0">{formatCurrency(expense.amount)}</span>
+                      <button
+                        onClick={() => requireAuth(() => setEditingExpense(expense))}
+                        className="p-1 opacity-0 group-hover:opacity-100 hover:text-accent-warm transition-all"
+                        aria-label="Edit"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                       <button
                         onClick={() => handleDelete(expense.id)}
                         className="p-1 opacity-0 group-hover:opacity-100 hover:text-accent-red transition-all"
@@ -142,6 +151,7 @@ function ExpensesPageInner() {
       </div>
 
       <AddExpenseModal open={showAdd} onClose={() => setShowAdd(false)} />
+      <EditExpenseModal open={!!editingExpense} onClose={() => setEditingExpense(null)} expense={editingExpense} />
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
     </div>
   );
