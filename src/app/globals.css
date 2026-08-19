@@ -1,0 +1,274 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Patrick+Hand&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --paper-bg: #FDF8F0;
+  --paper-dark: #F5EDE0;
+  --paper-line: #C8D8E4;
+  --margin-line: #E8A0A0;
+  --ink-dark: #2C2C2C;
+  --ink-medium: #555555;
+  --ink-light: #888888;
+  --accent-warm: #D4854A;
+  --accent-green: #4A8C6F;
+  --accent-red: #C45C5C;
+  --accent-blue: #5C7CC4;
+  --shadow-paper: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-lifted: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.dark {
+  --paper-bg: #1E1E1E;
+  --paper-dark: #252525;
+  --paper-line: #3A3A3A;
+  --margin-line: #5C3A3A;
+  --ink-dark: #E8E0D8;
+  --ink-medium: #B8AFA5;
+  --ink-light: #7A7268;
+  --accent-warm: #D4854A;
+  --accent-green: #6AAF8F;
+  --accent-red: #E87070;
+  --accent-blue: #7C9CE8;
+  --shadow-paper: 0 1px 3px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-lifted: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+}
+
+@theme inline {
+  --color-paper-bg: var(--paper-bg);
+  --color-paper-dark: var(--paper-dark);
+  --color-paper-line: var(--paper-line);
+  --color-margin-line: var(--margin-line);
+  --color-ink-dark: var(--ink-dark);
+  --color-ink-medium: var(--ink-medium);
+  --color-ink-light: var(--ink-light);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-accent-blue: var(--accent-blue);
+  --font-handwritten: 'Caveat', cursive;
+  --font-handwritten-alt: 'Patrick Hand', cursive;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--paper-bg);
+  color: var(--ink-dark);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Notebook paper background */
+.notebook-paper {
+  background-color: var(--paper-bg);
+  background-image:
+          repeating-linear-gradient(
+                  transparent,
+                  transparent 31px,
+                  var(--paper-line) 31px,
+                  var(--paper-line) 32px
+          );
+  background-position: 0 16px;
+  position: relative;
+}
+
+.notebook-paper::before {
+  content: '';
+  position: absolute;
+  left: 60px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--margin-line);
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .notebook-paper::before {
+    left: 32px;
+  }
+}
+
+/* Paper card effect */
+.paper-card {
+  background: var(--paper-bg);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 2px;
+  box-shadow: var(--shadow-paper);
+  position: relative;
+}
+
+.paper-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.03) 50%);
+}
+
+.dark .paper-card::after {
+  background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.02) 50%);
+}
+
+/* Tape element */
+.tape {
+  position: relative;
+}
+
+.tape::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 60px;
+  height: 16px;
+  background: rgba(255, 235, 180, 0.7);
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Paper clip */
+.paper-clip {
+  position: relative;
+}
+
+.paper-clip::before {
+  content: '📎';
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  font-size: 20px;
+  transform: rotate(15deg);
+}
+
+/* Sticky note */
+.sticky-note {
+  background: #FEF9C3;
+  padding: 12px 16px;
+  transform: rotate(-1deg);
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.sticky-note::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: 5px;
+  width: 30px;
+  height: 8px;
+  background: rgba(0,0,0,0.05);
+  transform: skewX(-40deg);
+}
+
+/* Handwritten entry style */
+.handwritten-entry {
+  font-family: 'Caveat', cursive;
+  font-size: 1.25rem;
+  line-height: 32px;
+  padding: 0 12px 0 72px;
+}
+
+@media (max-width: 640px) {
+  .handwritten-entry {
+    padding-left: 44px;
+  }
+}
+
+/* Dotted line connector */
+.dots {
+  flex: 1;
+  border-bottom: 1px dotted var(--ink-light);
+  margin: 0 8px;
+  min-width: 20px;
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+
+/* Notebook tab */
+.notebook-tab {
+  padding: 6px 16px;
+  border-radius: 4px 4px 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+/* Page turn animation */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) rotate(-0.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+.page-enter {
+  animation: pageIn 0.3s ease-out;
+}
+
+/* Worn edge effect */
+.worn-edge {
+  position: relative;
+}
+
+.worn-edge::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,0.02) 2px,
+          rgba(0,0,0,0.02) 4px
+  );
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+
+/* Transitions */
+.transition-page {
+  transition: all 0.2s ease;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+}
+
+/* Number formatting */
+.amount {
+  font-variant-numeric: tabular-nums;
+}
