@@ -141,7 +141,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...`}
               <img src="/logo/org-logo.png" alt="Logo" className="w-12 h-12 rounded-xl" />
             </div>
             <h1 className="font-handwritten text-4xl text-ink-dark font-bold leading-tight">My Expense Diary</h1>
-            <p className="text-xs text-ink-light mt-1.5 uppercase tracking-widest font-semibold font-sans">Cozy Financial Journal</p>
+            <p className="text-xs text-ink-light mt-1.5 uppercase tracking-widest font-semibold font-sans">Finance Tracker</p>
           </div>
 
           {/* Alert Error Message Box */}

@@ -26,6 +26,14 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 
+const AVATARS: Record<string, string> = Object.fromEntries(
+  Array.from({ length: 11 }, (_, i) => [`av-${i + 1}`, `/profiles/${i + 1}.png`])
+);
+
+function getAvatarUrl(avatarId: string): string {
+  return AVATARS[avatarId] || "";
+}
+
 const navSections = [
   {
     label: "Main",
@@ -255,12 +263,20 @@ export default function Sidebar() {
                   )}
                 </div>
               ) : user ? (
-                <div
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 p-2 rounded-xl hover:bg-paper-bg/50 transition-colors ${collapsed ? "justify-center" : ""}`}
                   title={collapsed ? (user.user_metadata?.full_name || user.email) : undefined}
                 >
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-warm/20 to-accent-warm/5 flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-paper-dark shadow-sm">
-                    {user.user_metadata?.avatar_url ? (
+                    {user.user_metadata?.avatar_id && getAvatarUrl(user.user_metadata.avatar_id) ? (
+                      <img
+                        src={getAvatarUrl(user.user_metadata.avatar_id)}
+                        alt=""
+                        className="w-9 h-9 rounded-full"
+                      />
+                    ) : user.user_metadata?.avatar_url ? (
                       <img
                         src={user.user_metadata.avatar_url}
                         alt=""
@@ -287,7 +303,7 @@ export default function Sidebar() {
                       </button>
                     </>
                   )}
-                </div>
+                </Link>
               ) : (
                 <Link
                   href="/login"
