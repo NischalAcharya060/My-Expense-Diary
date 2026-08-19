@@ -18,7 +18,7 @@ import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 
 export default function CalendarPage() {
-  const { expenses, loaded, getExpensesByDate } = useExpenses();
+  const { expenses, loaded } = useExpenses();
   const { getCategoryByName } = useCategories();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -48,6 +48,12 @@ export default function CalendarPage() {
     return expenses.filter((e) => e.date === dateStr).reduce((s, e) => s + e.amount, 0);
   };
 
+  const getDayCategoryColors = (dateStr: string): string[] => {
+    const dayExpenses = expenses.filter((e) => e.date === dateStr);
+    const uniqueCategories = Array.from(new Set(dayExpenses.map((e) => e.category)));
+    return uniqueCategories.map((cat) => getCategoryByName(cat)?.color || "#6B7280");
+  };
+
   const selectedExpenses = selectedDate
     ? expenses
         .filter((e) => e.date === selectedDate)
@@ -61,100 +67,139 @@ export default function CalendarPage() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Calendar</h1>
+        
+        {/* Header */}
+        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+          <h1 className="font-handwritten text-4xl text-ink-dark">Expense Calendar</h1>
+          <p className="text-xs text-ink-light mt-0.5">Visualize your cash flow calendar month by month.</p>
+        </div>
 
-        {/* Month navigation */}
-        <div className="paper-card p-4 mb-6">
+        {/* Month navigation card */}
+        <div className="paper-card p-4 mb-6 relative">
           <div className="flex items-center justify-between mb-4">
             <button
-              onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-              className="p-2 hover:bg-paper-dark rounded transition-colors"
+              onClick={() => {
+                setCurrentDate(subMonths(currentDate, 1));
+                setSelectedDate(null);
+              }}
+              className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer"
             >
               <ChevronLeft size={18} className="text-ink-dark" />
             </button>
             <div className="text-center">
-              <h2 className="font-handwritten text-2xl text-ink-dark">
+              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark font-semibold">
                 {format(currentDate, "MMMM yyyy")}
               </h2>
-              <p className="text-xs text-ink-light mt-1">
-                Total: <span className="text-accent-warm amount">{formatCurrency(monthTotal)}</span>
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-semibold mt-0.5">
+                Monthly Total: <span className="text-accent-warm amount font-bold">{formatCurrency(monthTotal)}</span>
               </p>
             </div>
             <button
-              onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-              className="p-2 hover:bg-paper-dark rounded transition-colors"
+              onClick={() => {
+                setCurrentDate(addMonths(currentDate, 1));
+                setSelectedDate(null);
+              }}
+              className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer"
             >
               <ChevronRight size={18} className="text-ink-dark" />
             </button>
           </div>
 
-          {/* Day headers */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 gap-1.5 mb-2 border-b border-[rgba(0,0,0,0.04)] pb-1">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-xs text-ink-light font-medium py-1">
+              <div key={d} className="text-center text-[10px] text-ink-light font-bold uppercase tracking-wider py-1">
                 {d}
               </div>
             ))}
           </div>
 
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
+          {/* Days Grid */}
+          <div className="grid grid-cols-7 gap-1.5">
             {days.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isToday = isSameDay(day, new Date());
               const isSelected = selectedDate === dateStr;
               const dayTotal = getDayTotal(day);
+              const categoryColors = getDayCategoryColors(dateStr);
 
               return (
                 <button
                   key={dateStr}
                   onClick={() => setSelectedDate(isSelected ? null : dateStr)}
                   className={`
-                    relative p-1.5 sm:p-2 rounded text-center transition-all min-h-[52px] sm:min-h-[64px]
-                    ${!isCurrentMonth ? "opacity-30" : ""}
-                    ${isToday ? "ring-1 ring-accent-warm" : ""}
-                    ${isSelected ? "bg-accent-warm/10 ring-1 ring-accent-warm" : "hover:bg-paper-dark/50"}
+                    relative p-2 rounded-lg text-left transition-all min-h-[56px] sm:min-h-[68px] flex flex-col justify-between cursor-pointer
+                    ${!isCurrentMonth ? "opacity-25" : ""}
+                    ${isToday ? "bg-accent-warm/5 ring-1 ring-accent-warm" : "bg-paper-dark/20 border border-[rgba(0,0,0,0.02)]"}
+                    ${isSelected ? "bg-accent-warm/15 ring-2 ring-accent-warm scale-[1.02] shadow-sm" : "hover:bg-paper-dark/45"}
                   `}
                 >
-                  <span className={`text-xs sm:text-sm ${isToday ? "font-bold text-accent-warm" : "text-ink-dark"}`}>
+                  <span className={`text-xs font-semibold ${isToday ? "text-accent-warm font-bold" : "text-ink-dark"}`}>
                     {format(day, "d")}
                   </span>
-                  {dayTotal > 0 && isCurrentMonth && (
-                    <span className="block text-[10px] sm:text-xs text-accent-red amount mt-0.5">
-                      {formatCurrency(dayTotal)}
-                    </span>
-                  )}
+                  
+                  <div>
+                    {dayTotal > 0 && isCurrentMonth && (
+                      <span className="block text-[9px] sm:text-[10px] font-bold text-accent-red amount leading-none text-right truncate">
+                        {formatCurrency(dayTotal)}
+                      </span>
+                    )}
+                    
+                    {/* Category Dots */}
+                    {categoryColors.length > 0 && isCurrentMonth && (
+                      <div className="flex gap-0.5 mt-1 flex-wrap justify-start">
+                        {categoryColors.slice(0, 4).map((color, idx) => (
+                          <span
+                            key={idx}
+                            className="w-1 h-1 rounded-full shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Selected day expenses */}
+        {/* Selected Date detail ledger sheet */}
         {selectedDate && (
-          <div className="paper-card p-6 page-enter">
-            <h3 className="font-handwritten text-xl text-ink-dark mb-3">
-              {format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d, yyyy")}
+          <div className="paper-card p-6 page-enter border-t-4 border-t-accent-warm relative">
+            {/* Folder notch corner */}
+            <div className="absolute top-0 right-0 w-4 h-4 bg-gradient-to-bl from-accent-warm/20 to-transparent" />
+            <h3 className="font-handwritten text-xl sm:text-2xl text-ink-dark mb-4 border-b border-[rgba(0,0,0,0.04)] pb-2 font-semibold">
+              📓 {format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d, yyyy")}
             </h3>
+            
             {selectedExpenses.length === 0 ? (
-              <p className="text-ink-light text-sm text-center py-4">No expenses this day</p>
+              <p className="text-ink-light text-sm text-center py-6 italic font-handwritten text-lg">
+                No ledger entries for this date.
+              </p>
             ) : (
-              <div className="space-y-2">
-                {selectedExpenses.map((e) => (
-                  <div key={e.id} className="flex items-center py-2 border-b border-[rgba(0,0,0,0.04)] last:border-0">
-                    <div className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: getCategoryByName(e.category)?.color || "#6B7280" }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-ink-dark">{e.name}</p>
-                      <p className="text-xs text-ink-light">{e.category}</p>
+              <div className="space-y-3">
+                {selectedExpenses.map((e) => {
+                  const catColor = getCategoryByName(e.category)?.color || "#6B7280";
+                  return (
+                    <div key={e.id} className="flex items-center py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                      <div className="w-2.5 h-2.5 rounded-full mr-3 shrink-0" style={{ backgroundColor: catColor }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-ink-dark truncate">{e.name}</p>
+                        <p className="text-[10px] text-ink-light">{e.category} · {e.payment_method}</p>
+                      </div>
+                      <span className="text-sm font-bold amount ml-2" style={{ color: catColor }}>
+                        {formatCurrency(e.amount)}
+                      </span>
                     </div>
-                    <span className="text-sm text-ink-medium amount">{formatCurrency(e.amount)}</span>
-                  </div>
-                ))}
-                <div className="pt-2 flex items-center">
-                  <span className="text-sm text-ink-medium">Total</span>
+                  );
+                })}
+                
+                <div className="pt-2 border-t border-[rgba(0,0,0,0.06)] flex items-center">
+                  <span className="text-sm font-semibold text-ink-medium">Daily total</span>
                   <span className="dots" />
-                  <span className="font-handwritten text-lg text-accent-warm amount">
+                  <span className="font-handwritten text-2xl text-accent-warm amount font-bold">
                     {formatCurrency(selectedExpenses.reduce((s, e) => s + e.amount, 0))}
                   </span>
                 </div>
@@ -165,14 +210,4 @@ export default function CalendarPage() {
       </div>
     </div>
   );
-}
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    Groceries: "#16A34A", Food: "#EA580C", Transport: "#2563EB",
-    Shopping: "#D946EF", Personal: "#8B5CF6", Medicine: "#DC2626",
-    Education: "#0891B2", Entertainment: "#F59E0B", Household: "#64748B",
-    Bills: "#E11D48", Subscription: "#7C3AED", Other: "#6B7280",
-  };
-  return colors[category] || "#6B7280";
 }

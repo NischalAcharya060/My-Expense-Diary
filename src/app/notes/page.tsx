@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Pin, PinOff, Edit2, X, Check } from "lucide-react";
+import { Plus, Trash2, Pin, PinOff, X, Check } from "lucide-react";
 import { useNotes } from "@/lib/store";
 import { format } from "date-fns";
 import type { Note } from "@/types";
@@ -16,6 +16,15 @@ const NOTE_COLORS = [
   { name: "Pink", value: "#FCE7F3" },
   { name: "Purple", value: "#F3E8FF" },
   { name: "Orange", value: "#FFEDD5" },
+];
+
+const TILTS = [
+  "rotate-[-1deg]",
+  "rotate-[1.5deg]",
+  "rotate-[-1.5deg]",
+  "rotate-[0.5deg]",
+  "rotate-[-0.5deg]",
+  "rotate-[1deg]"
 ];
 
 export default function NotesPage() {
@@ -85,46 +94,65 @@ function NotesContent() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Notes</h1>
+        
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4">
+          <div>
+            <h1 className="font-handwritten text-4xl text-ink-dark font-semibold">Expense Diary Notes</h1>
+            <p className="text-xs text-ink-light mt-0.5">Jot down grocery lists, dynamic budgeting ideas, or reminders.</p>
+          </div>
           <button
             onClick={() => requireAuth(() => { resetForm(); setShowEditor(true); })}
-            className="flex items-center gap-1.5 px-3 py-2 bg-accent-warm text-white rounded text-sm font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
           >
             <Plus size={16} /> New Note
           </button>
         </div>
 
-        {/* Editor */}
+        {/* Note Editor Modal/Card */}
         {showEditor && (
-          <div className="paper-card p-4 mb-6 page-enter" style={{ backgroundColor: color }}>
-            <div className="flex items-center justify-between mb-3">
+          <div 
+            className="paper-card p-6 mb-8 page-enter relative rotate-[-0.5deg] shadow-lg border-l-4 border-l-accent-warm" 
+            style={{ backgroundColor: color }}
+          >
+            {/* Clear Tape strip at top */}
+            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-4 bg-white/50 border border-white/20 shadow-sm rotate-1 rounded-sm" />
+            
+            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.06)] pb-2">
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Note title..."
-                className="flex-1 bg-transparent border-none text-ink-dark font-handwritten text-xl placeholder:text-ink-light/50 focus:outline-none"
+                className="flex-1 bg-transparent border-none text-ink-dark font-handwritten text-xl font-bold placeholder:text-ink-light/50 focus:outline-none"
                 autoFocus
               />
-              <button onClick={() => { resetForm(); setShowEditor(false); }} className="p-1 text-ink-light hover:text-ink-dark">
+              <button 
+                onClick={() => { resetForm(); setShowEditor(false); }} 
+                className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-ink-dark cursor-pointer"
+              >
                 <X size={16} />
               </button>
             </div>
+            
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your note here..."
-              rows={4}
-              className="w-full bg-transparent border-none text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none resize-none"
+              placeholder="Write your thoughts here..."
+              rows={5}
+              className="w-full bg-transparent border-none text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none resize-none font-medium leading-relaxed"
             />
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(0,0,0,0.08)]">
+            
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)]">
               <div className="flex gap-2">
                 {NOTE_COLORS.map((c) => (
                   <button
                     key={c.value}
+                    type="button"
                     onClick={() => setColor(c.value)}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform ${color === c.value ? "border-ink-dark scale-110" : "border-transparent"}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer hover:scale-110 ${
+                      color === c.value ? "border-ink-dark scale-110 shadow-sm" : "border-transparent"
+                    }`}
                     style={{ backgroundColor: c.value }}
                     title={c.name}
                   />
@@ -133,53 +161,86 @@ function NotesContent() {
               <button
                 onClick={handleSave}
                 disabled={!title.trim() && !content.trim()}
-                className="px-3 py-1.5 bg-accent-warm text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                className="px-4 py-1.5 bg-accent-warm text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
               >
-                <Check size={14} /> {editing ? "Update" : "Save"}
+                <Check size={14} /> {editing ? "Update" : "Save Note"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Notes grid */}
+        {/* Sticky Notes Grid */}
         {sorted.length === 0 ? (
-          <div className="paper-card p-8 text-center">
-            <p className="font-handwritten text-xl text-ink-light">No notes yet</p>
-            <p className="text-xs text-ink-light mt-2">Start writing your thoughts!</p>
+          <div className="paper-card p-12 text-center">
+            <span className="text-4xl block mb-2 font-handwritten">📌</span>
+            <p className="font-handwritten text-2xl text-ink-light">Your corkboard is empty</p>
+            <p className="text-xs text-ink-light mt-1">Add sticky notes above to organize your thoughts.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {sorted.map((note) => (
-              <div
-                key={note.id}
-                className="p-4 rounded-lg shadow-sm relative group transition-all hover:shadow-md cursor-pointer"
-                style={{ backgroundColor: note.color }}
-                onClick={() => startEdit(note)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-handwritten text-lg text-ink-dark flex-1 truncate">{note.title || "Untitled"}</h3>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); updateNote(note.id, { pinned: !note.pinned }); toast(note.pinned ? "Note unpinned" : "Note pinned"); }}
-                      className="p-1 text-ink-light hover:text-ink-dark"
-                    >
-                      {note.pinned ? <PinOff size={12} /> : <Pin size={12} />}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteNote(note.id); toast("Note deleted"); }}
-                      className="p-1 text-ink-light hover:text-accent-red"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+            {sorted.map((note, index) => {
+              const rotateClass = TILTS[index % TILTS.length];
+              return (
+                <div
+                  key={note.id}
+                  className={`p-5 rounded-lg shadow-sm hover:shadow-md relative group transition-all duration-300 cursor-pointer ${rotateClass}`}
+                  style={{ backgroundColor: note.color, minHeight: "150px" }}
+                  onClick={() => startEdit(note)}
+                >
+                  {/* Clear Tape strip at top of note */}
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-1deg] rounded-sm pointer-events-none" />
+
+                  {/* Header / Pin Button */}
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-handwritten text-lg font-bold text-ink-dark flex-1 truncate pr-2">
+                      {note.title || "Untitled Note"}
+                    </h3>
+                    
+                    {/* Control Buttons (always semi-opaque on touch, hover opaque on desktop) */}
+                    <div className="flex gap-1 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateNote(note.id, { pinned: !note.pinned });
+                          toast(note.pinned ? "Note unpinned" : "Note pinned");
+                        }}
+                        className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-ink-dark cursor-pointer"
+                        title={note.pinned ? "Unpin note" : "Pin note"}
+                      >
+                        {note.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Delete this note?")) {
+                            deleteNote(note.id);
+                            toast("Note deleted");
+                          }
+                        }}
+                        className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-accent-red cursor-pointer"
+                        title="Delete note"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
+                  
+                  {note.pinned && (
+                    <span className="inline-block text-[9px] bg-black/5 text-ink-medium font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-2">
+                      📌 Pinned
+                    </span>
+                  )}
+                  
+                  <p className="text-xs text-ink-medium line-clamp-5 whitespace-pre-wrap leading-relaxed mt-1">
+                    {note.content}
+                  </p>
+                  
+                  <p className="text-[9px] text-ink-light/80 mt-4 border-t border-black/5 pt-2 text-right font-medium">
+                    Updated: {format(new Date(note.updated_at), "MMM d, yyyy")}
+                  </p>
                 </div>
-                {note.pinned && <span className="text-[10px] text-ink-light uppercase">📌 Pinned</span>}
-                <p className="text-sm text-ink-medium line-clamp-4 whitespace-pre-wrap mt-1">{note.content}</p>
-                <p className="text-[10px] text-ink-light mt-3">
-                  {format(new Date(note.updated_at), "MMM d, yyyy")}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -188,4 +249,3 @@ function NotesContent() {
     </div>
   );
 }
-

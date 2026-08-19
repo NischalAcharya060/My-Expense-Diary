@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { format, subMonths, addMonths } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
 import { useExpenses, useBudgets, useCategories } from "@/lib/store";
-import { formatCurrency, CATEGORIES } from "@/lib/utils";
-import type { Category } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
+  PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
 } from "recharts";
 
 export default function InsightsPage() {
@@ -68,13 +67,14 @@ export default function InsightsPage() {
 
   const budget = getBudget(year, month);
   const budgetAmount = budget?.amount || 0;
+  const budgetPercent = budgetAmount > 0 ? (totalSpending / budgetAmount) * 100 : 0;
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="paper-card px-3 py-2 text-xs">
-          <p className="text-ink-dark">{payload[0].payload.name || payload[0].payload.day || `Month: ${label}`}</p>
-          <p className="text-accent-warm amount">{formatCurrency(payload[0].value)}</p>
+        <div className="paper-card px-3 py-2 text-xs border border-accent-warm/30 shadow-md">
+          <p className="font-semibold text-ink-dark">{payload[0].payload.name ? `${payload[0].payload.icon} ${payload[0].payload.name}` : payload[0].payload.day ? `Day ${payload[0].payload.day}` : label}</p>
+          <p className="text-accent-warm amount font-bold mt-0.5">{formatCurrency(payload[0].value)}</p>
         </div>
       );
     }
@@ -84,55 +84,83 @@ export default function InsightsPage() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Insights</h1>
+        
+        {/* Header */}
+        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+          <h1 className="font-handwritten text-4xl text-ink-dark">Spending Insights</h1>
+          <p className="text-xs text-ink-light mt-0.5">Statistical breakdown of your cash outflows.</p>
+        </div>
 
-        {/* Month nav */}
+        {/* Month Navigation */}
         <div className="paper-card p-4 mb-6">
           <div className="flex items-center justify-between">
-            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors">
+            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer">
               <ChevronLeft size={18} className="text-ink-dark" />
             </button>
-            <h2 className="font-handwritten text-2xl text-ink-dark">{format(currentDate, "MMMM yyyy")}</h2>
-            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors">
+            <div className="text-center">
+              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark font-semibold">{format(currentDate, "MMMM yyyy")}</h2>
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-semibold mt-0.5">
+                Total Outflow: <span className="text-accent-warm amount font-bold">{formatCurrency(totalSpending)}</span>
+              </p>
+            </div>
+            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer">
               <ChevronRight size={18} className="text-ink-dark" />
             </button>
           </div>
         </div>
 
-        {/* Budget progress */}
+        {/* Budget Progress Gauge */}
         {budgetAmount > 0 && (
           <div className="paper-card p-6 mb-6">
-            <h3 className="font-handwritten text-xl text-ink-dark mb-3">Budget Progress</h3>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-sm text-ink-dark amount">{formatCurrency(totalSpending)}</span>
-              <span className="dots" />
-              <span className="text-sm text-ink-medium amount">{formatCurrency(budgetAmount)}</span>
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign size={20} className="text-accent-warm" />
+              <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Budget Tracker</h3>
             </div>
-            <div className="w-full h-3 bg-paper-dark rounded-full overflow-hidden">
+            <div className="flex justify-between items-baseline text-xs text-ink-medium mb-1.5 px-1 font-medium">
+              <span>Spent: <strong className="amount text-sm text-ink-dark">{formatCurrency(totalSpending)}</strong></span>
+              <span>Limit: <strong className="amount text-sm text-ink-dark">{formatCurrency(budgetAmount)}</strong></span>
+            </div>
+            
+            {/* Progress Bar with outline and markers */}
+            <div className="w-full h-4 bg-paper-dark border border-[rgba(0,0,0,0.1)] rounded-full overflow-hidden relative shadow-inner">
               <div
-                className={`h-full rounded-full transition-all ${totalSpending > budgetAmount ? "bg-accent-red" : "bg-accent-green"}`}
-                style={{ width: `${Math.min((totalSpending / budgetAmount) * 100, 100)}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${totalSpending > budgetAmount ? "bg-accent-red" : "bg-accent-green"}`}
+                style={{ width: `${Math.min(budgetPercent, 100)}%` }}
               />
+              {/* Target line */}
+              <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-ink-light/20" />
             </div>
-            <p className={`text-xs mt-2 ${totalSpending > budgetAmount ? "text-accent-red" : "text-accent-green"}`}>
-              {totalSpending > budgetAmount
-                ? `${formatCurrency(totalSpending - budgetAmount)} over budget`
-                : `${formatCurrency(budgetAmount - totalSpending)} remaining`}
-            </p>
+
+            <div className="flex justify-between items-center mt-2.5 px-1">
+              <span className={`text-xs font-semibold ${totalSpending > budgetAmount ? "text-accent-red" : "text-accent-green"}`}>
+                {totalSpending > budgetAmount
+                  ? `⚠️ ${formatCurrency(totalSpending - budgetAmount)} over budget`
+                  : `🎉 ${formatCurrency(budgetAmount - totalSpending)} left in budget`}
+              </span>
+              <span className="text-[10px] text-ink-light font-bold">
+                {budgetPercent.toFixed(0)}% Used
+              </span>
+            </div>
           </div>
         )}
 
-        {/* Category breakdown */}
+        {/* Category Breakdown (Pie + Progress Lists) */}
         <div className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Spending by Category</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <PieIcon size={20} className="text-accent-warm" />
+            <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Category Allocations</h3>
+          </div>
           {catData.length === 0 ? (
-            <p className="text-ink-light text-sm text-center py-4">No data</p>
+            <div className="text-center py-8 text-ink-light italic text-xs">
+              No categories mapped this month.
+            </div>
           ) : (
-            <div className="flex flex-col sm:flex-row gap-6 items-center">
-              <div className="w-48 h-48">
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              {/* Pie Chart */}
+              <div className="w-44 h-44 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={catData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value">
+                    <Pie data={catData} cx="50%" cy="50%" innerRadius={45} outerRadius={68} paddingAngle={3} dataKey="value">
                       {catData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
@@ -141,17 +169,21 @@ export default function InsightsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-1.5 w-full">
+
+              {/* Progress rows */}
+              <div className="flex-1 space-y-2 w-full">
                 {catData.map((d) => (
-                  <div key={d.name} className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2 shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="text-xs text-ink-dark w-20">{d.icon} {d.name}</span>
-                    <div className="flex-1 mx-2">
-                      <div className="w-full h-1.5 bg-paper-dark rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${(d.value / totalSpending) * 100}%`, backgroundColor: d.color }} />
+                  <div key={d.name} className="flex items-center gap-2 text-xs">
+                    <span className="w-18 truncate font-medium text-ink-dark">{d.icon} {d.name}</span>
+                    <div className="flex-1">
+                      <div className="w-full h-2 bg-paper-dark rounded-full overflow-hidden border border-[rgba(0,0,0,0.02)]">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${(d.value / totalSpending) * 100}%`, backgroundColor: d.color }} 
+                        />
                       </div>
                     </div>
-                    <span className="text-xs text-ink-medium amount">{formatCurrency(d.value)}</span>
+                    <span className="w-16 text-right font-bold text-ink-medium amount">{formatCurrency(d.value)}</span>
                   </div>
                 ))}
               </div>
@@ -159,45 +191,57 @@ export default function InsightsPage() {
           )}
         </div>
 
-        {/* Daily trend */}
+        {/* Daily trend area chart (softer, rounded look) */}
         <div className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Daily Spending Trend</h3>
-          <div className="h-48">
+          <div className="flex items-center gap-2 mb-4">
+            <LineIcon size={20} className="text-accent-warm" />
+            <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Daily Spending Curve</h3>
+          </div>
+          <div className="h-48 pr-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 10, fill: "#888" }} />
+              <AreaChart data={dailyTrend}>
+                <defs>
+                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#D4854A" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#D4854A" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#888" }} />
+                <YAxis tick={{ fontSize: 9, fill: "#888" }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amount" fill="#D4854A" radius={[2, 2, 0, 0]} />
-              </BarChart>
+                <Area type="monotone" dataKey="amount" stroke="#D4854A" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Monthly comparison */}
+        {/* Monthly Comparison */}
         <div className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Monthly Comparison</h3>
-          <div className="h-48">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={20} className="text-accent-warm" />
+            <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Monthly Spending Comparison</h3>
+          </div>
+          <div className="h-48 pr-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyComparison}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 10, fill: "#888" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#888" }} />
+                <YAxis tick={{ fontSize: 9, fill: "#888" }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amount" fill="#4A8C6F" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="amount" fill="#4A8C6F" radius={[4, 4, 0, 0]} barSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Bills vs Daily */}
+        {/* Bills vs Daily vs Subs */}
         <div className="paper-card p-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Bills vs Daily Expenses</h3>
+          <h3 className="font-handwritten text-2xl text-ink-dark mb-4 font-semibold">Expense Distribution Type</h3>
           <div className="space-y-3">
-            <TypeBar label="Bills" amount={billTotal} total={totalSpending} color="#E11D48" />
-            <TypeBar label="Daily" amount={dailyTotal} total={totalSpending} color="#2563EB" />
-            <TypeBar label="Subscriptions" amount={subTotal} total={totalSpending} color="#7C3AED" />
+            <TypeBar label="Daily Purchases" amount={dailyTotal} total={totalSpending} color="#2563EB" />
+            <TypeBar label="Recurring Bills" amount={billTotal} total={totalSpending} color="#E11D48" />
+            <TypeBar label="Digital Subscriptions" amount={subTotal} total={totalSpending} color="#7C3AED" />
           </div>
         </div>
       </div>
@@ -206,14 +250,18 @@ export default function InsightsPage() {
 }
 
 function TypeBar({ label, amount, total, color }: { label: string; amount: number; total: number; color: string }) {
+  const percent = total > 0 ? (amount / total) * 100 : 0;
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm text-ink-dark">{label}</span>
-        <span className="text-sm text-ink-medium amount">{formatCurrency(amount)}</span>
+      <div className="flex items-center justify-between mb-1.5 text-xs">
+        <span className="font-medium text-ink-dark">{label} ({percent.toFixed(0)}%)</span>
+        <span className="font-bold text-ink-medium amount">{formatCurrency(amount)}</span>
       </div>
-      <div className="w-full h-2 bg-paper-dark rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: total > 0 ? `${(amount / total) * 100}%` : "0%", backgroundColor: color }} />
+      <div className="w-full h-2.5 bg-paper-dark rounded-full overflow-hidden border border-[rgba(0,0,0,0.02)]">
+        <div 
+          className="h-full rounded-full transition-all duration-500" 
+          style={{ width: `${percent}%`, backgroundColor: color }} 
+        />
       </div>
     </div>
   );

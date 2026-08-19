@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Plus, ChevronRight, TrendingDown, Wallet, CalendarClock } from "lucide-react";
+import { Plus, ChevronRight, CalendarClock, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useExpenses, useRecurringPayments, useBudgets, useCategories } from "@/lib/store";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
@@ -47,6 +47,8 @@ export default function DashboardPage() {
   const budget = getBudget(year, month);
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - monthTotal;
+  
+  // Get active upcoming payments
   const upcomingPayments = payments
     .filter((p) => p.is_active)
     .sort((a, b) => a.due_day - b.due_day)
@@ -56,88 +58,110 @@ export default function DashboardPage() {
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Date header */}
-        <div className="mb-8">
-          <h1 className="font-handwritten text-4xl sm:text-5xl text-ink-dark mb-1">
+        <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4">
+          <h1 className="font-handwritten text-4xl sm:text-5xl text-ink-dark mb-1 leading-tight">
             {format(today, "MMMM d, yyyy")}
           </h1>
-          <p className="text-ink-light text-sm font-sans">
+          <p className="text-ink-light text-sm font-semibold tracking-wider uppercase font-sans">
             {format(today, "EEEE")}
           </p>
         </div>
 
-        {/* Quick stats ribbon */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <div className="paper-card px-4 py-3 flex-1 min-w-[140px]">
-            <p className="text-xs text-ink-light uppercase tracking-wide mb-1">Today</p>
-            <p className="font-handwritten text-2xl text-accent-warm amount">{formatCurrency(todayTotal)}</p>
+        {/* Quick stats cards (slightly rotated for realistic paper look) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pt-2">
+          {/* Card 1 */}
+          <div className="paper-card px-4 py-3 relative rotate-[-1.5deg] hover:rotate-0 transition-transform shadow duration-200">
+            {/* Simulated clear tape */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm" />
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Today</p>
+            <p className="font-handwritten text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
           </div>
-          <div className="paper-card px-4 py-3 flex-1 min-w-[140px]">
-            <p className="text-xs text-ink-light uppercase tracking-wide mb-1">This Month</p>
-            <p className="font-handwritten text-2xl text-ink-dark amount">{formatCurrency(monthTotal)}</p>
+          
+          {/* Card 2 */}
+          <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-2 shadow-sm rounded-sm" />
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">This Month</p>
+            <p className="font-handwritten text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
           </div>
-          {budgetAmount > 0 && (
-            <div className={`paper-card px-4 py-3 flex-1 min-w-[140px] ${remaining < 0 ? "border-l-2 border-accent-red" : ""}`}>
-              <p className="text-xs text-ink-light uppercase tracking-wide mb-1">Remaining</p>
-              <p className={`font-handwritten text-2xl amount ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
+
+          {/* Card 3 */}
+          {budgetAmount > 0 ? (
+            <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${remaining < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm" />
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Remaining</p>
+              <p className={`font-handwritten text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
                 {formatCurrency(Math.abs(remaining))}
-                {remaining < 0 && " over"}
+                {remaining < 0 && <span className="text-xs block sm:inline font-sans font-normal text-accent-red ml-1">over</span>}
               </p>
             </div>
+          ) : (
+            <Link href="/settings" className="paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 border-dashed border-ink-light/40 flex flex-col justify-center items-center group">
+              <span className="text-xs text-ink-light group-hover:text-accent-warm transition-colors font-medium">No Budget Set</span>
+              <span className="text-[10px] text-accent-warm mt-1 font-bold group-hover:underline">Set Budget →</span>
+            </Link>
           )}
         </div>
 
         {/* Today's entries — notebook style */}
-        <div className="paper-card p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-handwritten text-2xl text-ink-dark">Today&apos;s Entries</h2>
+        <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
+          <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+            <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Today&apos;s Entries</h2>
             <Link
               href="/expenses?add=true"
               onClick={(e) => { e.preventDefault(); requireAuth(() => window.location.href = "/expenses?add=true"); }}
-              className="flex items-center gap-1.5 text-sm text-accent-warm hover:opacity-80 transition-opacity font-medium"
+              className="flex items-center gap-1 px-3 py-1 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
             >
-              <Plus size={16} />
-              Add
+              <Plus size={14} /> Add Entry
             </Link>
           </div>
 
           {todayExpenses.length === 0 ? (
             <div className="text-center py-8">
-              <p className="font-handwritten text-xl text-ink-light">No entries yet today</p>
-              <p className="text-xs text-ink-light mt-2">Tap &ldquo;Add&rdquo; to write your first expense</p>
+              <p className="font-handwritten text-xl text-ink-light/60">No entries yet today</p>
+              <p className="text-xs text-ink-light mt-1">Record your first expense by clicking Add</p>
             </div>
           ) : (
-            <>
+            <div className="space-y-1">
               {todayExpenses.map((expense) => (
                 <ExpenseEntry key={expense.id} expense={expense} />
               ))}
-              <div className="mt-4 pt-3 border-t border-ink-light/30 flex items-center">
-                <span className="font-handwritten text-lg text-ink-medium">Today&apos;s Total</span>
+              <div className="mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)] flex items-center">
+                <span className="font-handwritten text-xl text-ink-medium font-medium">Today&apos;s Total</span>
                 <span className="dots" />
-                <span className="font-handwritten text-xl text-accent-warm amount font-semibold">
+                <span className="font-handwritten text-2xl text-accent-warm amount font-bold">
                   {formatCurrency(todayTotal)}
                 </span>
               </div>
-            </>
+            </div>
           )}
         </div>
 
         {/* Upcoming recurring payments */}
         {upcomingPayments.length > 0 && (
-          <div className="paper-card p-6 mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <CalendarClock size={18} className="text-ink-light" />
-              <h2 className="font-handwritten text-2xl text-ink-dark">Upcoming Payments</h2>
+          <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg]">
+            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <div className="flex items-center gap-2">
+                <CalendarClock size={20} className="text-accent-warm" />
+                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Upcoming Bills & Subs</h2>
+              </div>
+              <Link href="/bills" className="text-xs text-accent-warm hover:underline font-bold">
+                View All →
+              </Link>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {upcomingPayments.map((p) => (
-                <div key={p.id} className="flex items-center py-2 border-b border-[rgba(0,0,0,0.04)] last:border-0">
-                  <span className="text-sm text-ink-dark font-medium">{p.name}</span>
-                  <span className="dots" />
-                  <span className="text-sm text-ink-medium amount">
+                <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl shrink-0">{p.category === "Subscription" ? "📺" : "💡"}</span>
+                    <div>
+                      <p className="text-sm text-ink-dark font-semibold leading-tight">{p.name}</p>
+                      <p className="text-[10px] text-ink-light mt-0.5">
+                        Due on day {p.due_day} {p.auto_pay && "· ⏰ Auto-Pay"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-ink-medium amount shrink-0">
                     {p.is_variable ? "Variable" : formatCurrency(p.amount)}
-                  </span>
-                  <span className="ml-3 text-xs text-ink-light">
-                    Due {p.due_day}{getOrdinalSuffix(p.due_day)}
                   </span>
                 </div>
               ))}
@@ -146,14 +170,14 @@ export default function DashboardPage() {
         )}
 
         {/* Recent expenses */}
-        <div className="paper-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-handwritten text-2xl text-ink-dark">Recent Expenses</h2>
+        <div className="paper-card p-6 relative rotate-[0.5deg]">
+          <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+            <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Recent Activity</h2>
             <Link
               href="/expenses"
-              className="flex items-center gap-1 text-sm text-accent-warm hover:opacity-80 transition-opacity"
+              className="flex items-center gap-0.5 text-xs text-accent-warm hover:underline font-bold"
             >
-              View all <ChevronRight size={14} />
+              View Journal <ChevronRight size={14} />
             </Link>
           </div>
           {expenses.length === 0 ? (
@@ -162,16 +186,23 @@ export default function DashboardPage() {
             </p>
           ) : (
             <div className="space-y-1">
-              {expenses.slice(0, 7).map((expense) => (
-                <div key={expense.id} className="flex items-center py-2 border-b border-[rgba(0,0,0,0.04)] last:border-0">
-                  <span className="text-base mr-3 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-ink-dark truncate">{expense.name}</p>
-                    <p className="text-xs text-ink-light">{expense.category} · {format(new Date(expense.date), "MMM d")}</p>
+              {expenses.slice(0, 5).map((expense) => {
+                const catColor = getCategoryByName(expense.category)?.color || "#6B7280";
+                return (
+                  <div key={expense.id} className="flex items-center py-2.5 border-b border-[rgba(0,0,0,0.03)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                    <span className="text-lg mr-3 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-ink-dark font-medium truncate">{expense.name}</p>
+                      <p className="text-[10px] text-ink-light mt-0.5">
+                        {expense.category} · {format(new Date(expense.date), "MMM d")}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold amount ml-2 shrink-0" style={{ color: catColor }}>
+                      {formatCurrency(expense.amount)}
+                    </span>
                   </div>
-                  <span className="text-sm text-ink-medium amount ml-2">{formatCurrency(expense.amount)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -184,32 +215,15 @@ export default function DashboardPage() {
 
 function ExpenseEntry({ expense }: { expense: Expense }) {
   const { getCategoryByName } = useCategories();
+  const color = getCategoryByName(expense.category)?.color || "#6B7280";
   return (
-    <div className="handwritten-entry flex items-baseline group">
+    <div className="handwritten-entry flex items-baseline group hover:bg-paper-dark/30 px-2 py-0.5 rounded transition-all">
       <span className="text-base mr-1.5 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
-      <span className="text-ink-dark">{expense.name}</span>
+      <span className="text-ink-dark font-medium leading-relaxed">{expense.name}</span>
       <span className="dots" />
-      <span className="text-ink-medium amount whitespace-nowrap">{formatCurrency(expense.amount)}</span>
+      <span className="text-ink-medium amount whitespace-nowrap font-bold" style={{ color }}>
+        {formatCurrency(expense.amount)}
+      </span>
     </div>
   );
-}
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    Groceries: "#16A34A", Food: "#EA580C", Transport: "#2563EB",
-    Shopping: "#D946EF", Personal: "#8B5CF6", Medicine: "#DC2626",
-    Education: "#0891B2", Entertainment: "#F59E0B", Household: "#64748B",
-    Bills: "#E11D48", Subscription: "#7C3AED", Other: "#6B7280",
-  };
-  return colors[category] || "#6B7280";
-}
-
-function getOrdinalSuffix(n: number): string {
-  if (n >= 11 && n <= 13) return "th";
-  switch (n % 10) {
-    case 1: return "st";
-    case 2: return "nd";
-    case 3: return "rd";
-    default: return "th";
-  }
 }

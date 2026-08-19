@@ -30,6 +30,7 @@ function ExpensesPageInner() {
   }, [searchParams]);
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this expense?")) return;
     await deleteExpense(id);
     toast("Expense deleted");
   };
@@ -64,32 +65,37 @@ function ExpensesPageInner() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Daily Expenses</h1>
+        
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+          <div>
+            <h1 className="font-handwritten text-4xl text-ink-dark">Daily Expenses</h1>
+            <p className="text-xs text-ink-light mt-0.5">Your financial journal logs sorted chronologically.</p>
+          </div>
           <button
             onClick={() => requireAuth(() => setShowAdd(true))}
-            className="flex items-center gap-1.5 px-3 py-2 bg-accent-warm text-white rounded text-sm font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
           >
-            <Plus size={16} /> Add
+            <Plus size={16} /> Log Expense
           </button>
         </div>
 
-        {/* Search & Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        {/* Search & Filter bar */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-paper-dark/30 p-3 rounded-lg border border-[rgba(0,0,0,0.04)]">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />
             <input
               type="text"
-              placeholder="Search expenses..."
+              placeholder="Search by keyword..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm"
+              className="w-full pl-9 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
             />
           </div>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm"
+            className="px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
           >
             <option value="All">All Categories</option>
             {categories.map((c) => (
@@ -98,51 +104,66 @@ function ExpensesPageInner() {
           </select>
         </div>
 
+        {/* Expenses List */}
         {Object.keys(grouped).length === 0 ? (
-          <div className="paper-card p-8 text-center">
-            <p className="font-handwritten text-xl text-ink-light">No expenses found</p>
-            <p className="text-xs text-ink-light mt-2">Start tracking your spending!</p>
+          <div className="paper-card p-12 text-center">
+            <span className="text-4xl block mb-2 font-handwritten">📓</span>
+            <p className="font-handwritten text-2xl text-ink-light">No entries found</p>
+            <p className="text-xs text-ink-light mt-1">Change your search terms or log a new entry!</p>
           </div>
         ) : (
           Object.entries(grouped).map(([date, dayExpenses]) => {
             const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
             return (
               <div key={date} className="mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="font-handwritten text-xl text-ink-dark">
+                <div className="flex items-center gap-3 mb-2 px-1">
+                  <h3 className="font-handwritten text-xl text-ink-dark font-semibold">
                     {format(new Date(date + "T00:00:00"), "EEEE, MMMM d")}
                   </h3>
                   <span className="dots" />
-                  <span className="font-handwritten text-lg text-accent-warm amount">{formatCurrency(dayTotal)}</span>
+                  <span className="font-handwritten text-xl text-accent-warm amount font-bold">{formatCurrency(dayTotal)}</span>
                 </div>
-                <div className="space-y-1">
-                  {dayExpenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-shadow"
-                    >
-                      <span className="text-base shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-ink-dark truncate">{expense.name}</p>
-                        <p className="text-xs text-ink-light">{expense.category} · {expense.payment_method}</p>
+                
+                <div className="space-y-2">
+                  {dayExpenses.map((expense) => {
+                    const catColor = getCategoryByName(expense.category)?.color || "#6B7280";
+                    return (
+                      <div
+                        key={expense.id}
+                        className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4"
+                        style={{ borderLeftColor: catColor }}
+                      >
+                        <span className="text-xl shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
+                          <p className="text-[10px] text-ink-light mt-0.5">
+                            {expense.category} · {expense.payment_method}
+                          </p>
+                        </div>
+                        <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color: catColor }}>
+                          {formatCurrency(expense.amount)}
+                        </span>
+                        
+                        {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
+                        <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                          <button
+                            onClick={() => requireAuth(() => setEditingExpense(expense))}
+                            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                            aria-label="Edit"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                            aria-label="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-sm text-ink-medium amount shrink-0">{formatCurrency(expense.amount)}</span>
-                      <button
-                        onClick={() => requireAuth(() => setEditingExpense(expense))}
-                        className="p-1 opacity-0 group-hover:opacity-100 hover:text-accent-warm transition-all"
-                        aria-label="Edit"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(expense.id)}
-                        className="p-1 opacity-0 group-hover:opacity-100 hover:text-accent-red transition-all"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -169,14 +190,4 @@ export default function ExpensesPage() {
       <ExpensesPageInner />
     </Suspense>
   );
-}
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    Groceries: "#16A34A", Food: "#EA580C", Transport: "#2563EB",
-    Shopping: "#D946EF", Personal: "#8B5CF6", Medicine: "#DC2626",
-    Education: "#0891B2", Entertainment: "#F59E0B", Household: "#64748B",
-    Bills: "#E11D48", Subscription: "#7C3AED", Other: "#6B7280",
-  };
-  return colors[category] || "#6B7280";
 }
