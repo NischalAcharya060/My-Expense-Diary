@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useCountry } from "@/components/CountryProvider";
+import FlagIcon from "@/components/FlagIcon";
+import { COUNTRIES } from "@/lib/countries";
 import { useExpenses, useRecurringPayments, useBudgets, useNotes } from "@/lib/store";
-import { formatCurrency, getCurrentMonth } from "@/lib/utils";
+import { formatCurrency, getCurrentMonth, getCurrencySymbol } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
@@ -22,6 +25,9 @@ export default function SettingsPage() {
 
 function SettingsContent() {
   const { theme, toggleTheme } = useTheme();
+  const { country, setCountry } = useCountry();
+  const [countrySearch, setCountrySearch] = useState("");
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
   const { payments, addPayment, deletePayment } = useRecurringPayments();
   const { budgets, setBudget, getBudget, deleteBudget, fetchBudgets } = useBudgets(true);
@@ -36,6 +42,7 @@ function SettingsContent() {
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
   const budgetRef = useRef<HTMLDivElement>(null);
+  const countryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -54,6 +61,18 @@ function SettingsContent() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [fetchBudgets]);
+
+  useEffect(() => {
+    if (!showCountryDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (countryRef.current && !countryRef.current.contains(e.target as Node)) {
+        setShowCountryDropdown(false);
+        setCountrySearch("");
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showCountryDropdown]);
 
   const { year, month } = getCurrentMonth();
 
@@ -197,6 +216,60 @@ function SettingsContent() {
           </div>
         </div>
 
+        {/* Country & Currency */}
+        <div className="paper-card p-6 mb-6">
+          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Country & Currency</h3>
+          <p className="text-xs text-ink-light mb-3">Select your country to set the currency symbol</p>
+          <div ref={countryRef} className="relative">
+            <button
+              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark hover:border-accent-warm transition-colors text-left"
+            >
+              <span className="flex items-center gap-2">
+                <FlagIcon code={country.code} size={22} />
+                <span>{country.name} ({country.currency})</span>
+              </span>
+              <span className="text-ink-light text-xs">{showCountryDropdown ? "▲" : "▼"}</span>
+            </button>
+            {showCountryDropdown && (
+              <div className="absolute z-20 mt-1 w-full bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded-lg shadow-lg max-h-64 overflow-hidden">
+                <div className="p-2 border-b border-[rgba(0,0,0,0.06)]">
+                  <input
+                    type="text"
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    placeholder="Search country..."
+                    className="w-full px-3 py-2 bg-paper-dark/50 border border-[rgba(0,0,0,0.06)] rounded text-sm text-ink-dark placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm"
+                    autoFocus
+                  />
+                </div>
+                <div className="overflow-y-auto max-h-52">
+                  {COUNTRIES.filter((c) =>
+                    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                    c.currency.toLowerCase().includes(countrySearch.toLowerCase())
+                  ).map((c) => (
+                    <button
+                      key={c.code}
+                      onClick={() => { setCountry(c.code); setShowCountryDropdown(false); setCountrySearch(""); toast(`${c.name} — ${c.symbol} ${c.currency}`); }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-paper-dark/50 transition-colors ${c.code === country.code ? "text-accent-warm font-medium" : "text-ink-dark"}`}
+                    >
+                      <FlagIcon code={c.code} size={22} />
+                      <span className="flex-1">{c.name}</span>
+                      <span className="text-xs text-ink-light">{c.currency}</span>
+                    </button>
+                  ))}
+                  {COUNTRIES.filter((c) =>
+                    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                    c.currency.toLowerCase().includes(countrySearch.toLowerCase())
+                  ).length === 0 && (
+                    <p className="px-4 py-3 text-sm text-ink-light text-center">No countries found</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Monthly Budget */}
         <div ref={budgetRef} className="paper-card p-6 mb-6">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
@@ -224,7 +297,7 @@ function SettingsContent() {
                 className="w-24 px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm amount"
               />
               <div className="flex-1 relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light text-sm">Rs.</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light text-sm">{getCurrencySymbol()}</span>
                 <input
                   type="number"
                   value={budgetAmount}
@@ -259,7 +332,7 @@ function SettingsContent() {
                         <span className="text-sm text-ink-medium shrink-0">
                           {MONTH_NAMES[b.month - 1]} {b.year}:
                         </span>
-                        <span className="text-ink-light text-sm shrink-0">Rs.</span>
+                        <span className="text-ink-light text-sm shrink-0">{getCurrencySymbol()}</span>
                         <input
                           type="number"
                           value={editAmount}

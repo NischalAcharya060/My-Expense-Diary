@@ -2,9 +2,29 @@
 
 import { format } from "date-fns";
 import type { Expense, Category } from "@/types";
+import { COUNTRIES, DEFAULT_COUNTRY, getFlagUrl } from "@/lib/countries";
+
+function getCountry() {
+  if (typeof window === "undefined") return DEFAULT_COUNTRY;
+  const saved = localStorage.getItem("country");
+  if (saved) {
+    const found = COUNTRIES.find((c) => c.code === saved);
+    if (found) return found;
+  }
+  return DEFAULT_COUNTRY;
+}
 
 export function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const { symbol, locale } = getCountry();
+  return `${symbol} ${amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+export function getCurrencySymbol(): string {
+  return getCountry().symbol;
+}
+
+export function getFlag(): string {
+  return getFlagUrl(getCountry().code);
 }
 
 export function formatDate(dateStr: string): string {

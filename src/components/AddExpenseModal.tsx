@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Check, Plus } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
-import { PAYMENT_METHODS, EXPENSE_TYPES, getToday } from "@/lib/utils";
+import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
 
 interface Props {
@@ -123,7 +123,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
 
           {/* Amount */}
           <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Amount (Rs.)</label>
+            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Amount ({getCurrencySymbol()})</label>
             <input
               type="number"
               value={amount}

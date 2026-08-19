@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, ToggleLeft, ToggleRight, Edit2 } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
-import { formatCurrency, FREQUENCIES } from "@/lib/utils";
+import { formatCurrency, FREQUENCIES, getCurrencySymbol } from "@/lib/utils";
 import type { RecurringPayment } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
@@ -124,7 +124,7 @@ export default function RecurringPage() {
                     className="w-full px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm" required />
                 </div>
                 <div>
-                  <label className="block text-xs text-ink-light mb-1">Amount (Rs.)</label>
+                  <label className="block text-xs text-ink-light mb-1">Amount ({getCurrencySymbol()})</label>
                   <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isVariable}
                     className="w-full px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm disabled:opacity-50 amount" />
                 </div>
