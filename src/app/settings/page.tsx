@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check } from "lucide-react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, Eye, EyeOff, ShieldCheck, Link2 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useCountry } from "@/components/CountryProvider";
 import FlagIcon from "@/components/FlagIcon";
@@ -13,6 +13,8 @@ import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import { useToast } from "@/components/Toast";
 import { format } from "date-fns";
+import { useAuth } from "@/components/AuthProvider";
+import { createClient } from "@/lib/supabase/client";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -24,10 +26,78 @@ export default function SettingsPage() {
 }
 
 function SettingsContent() {
+  const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { country, setCountry } = useCountry();
   const [countrySearch, setCountrySearch] = useState("");
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const identities = user?.identities || [];
+  const hasGoogle = identities.some((id) => id.provider === "google");
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || password !== confirmPassword) {
+      toast("Passwords do not match", "error");
+      return;
+    }
+    if (password.length < 6) {
+      toast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    setPasswordLoading(true);
+    const supabase = createClient();
+    if (!supabase) {
+      toast("Supabase client failed to load", "error");
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      toast("Password saved successfully!");
+      setPassword("");
+      setConfirmPassword("");
+      setShowPassword(false);
+    } catch (err: any) {
+      console.error(err);
+      toast(err.message || "Failed to update password", "error");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    setGoogleLoading(true);
+    const supabase = createClient();
+    if (!supabase) {
+      toast("Supabase client failed to load", "error");
+      setGoogleLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error(err);
+      toast(err.message || "Failed to link Google account", "error");
+      setGoogleLoading(false);
+    }
+  };
   const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
   const { payments, addPayment, deletePayment } = useRecurringPayments();
   const { budgets, setBudget, getBudget, deleteBudget, fetchBudgets } = useBudgets(true);
@@ -268,6 +338,84 @@ function SettingsContent() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Account & Security */}
+        <div className="paper-card p-6 mb-6">
+          <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
+            <ShieldCheck size={18} /> Account &amp; Security
+          </h3>
+          
+          <div className="mb-6 p-4 bg-paper-dark/50 rounded-lg space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-ink-light">Email Address</span>
+              <span className="text-ink-dark font-semibold">{user?.email}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-medium border-t border-[rgba(0,0,0,0.06)] pt-2.5">
+              <span className="text-ink-light">Google Sync</span>
+              {hasGoogle ? (
+                <span className="px-2.5 py-0.5 bg-accent-green/10 text-accent-green text-[10px] font-bold rounded-full border border-accent-green/20 flex items-center gap-1">
+                  ✓ Connected
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={googleLoading}
+                  onClick={handleLinkGoogle}
+                  className="flex items-center gap-1 px-3 py-1 bg-white border border-[rgba(0,0,0,0.12)] hover:bg-gray-50 rounded text-neutral-800 text-[10px] font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Link2 size={11} /> Link Google Account
+                </button>
+              )}
+            </div>
+          </div>
+
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <p className="text-xs text-ink-light font-bold uppercase tracking-wide">Set / Update Password</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] text-ink-light uppercase tracking-wide mb-1 font-semibold">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-3 pr-10 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-xs text-ink-dark focus:outline-none focus:border-accent-warm transition-colors"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-light hover:text-ink-medium focus:outline-none cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] text-ink-light uppercase tracking-wide mb-1 font-semibold">Confirm Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-3 pr-10 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-xs text-ink-dark focus:outline-none focus:border-accent-warm transition-colors"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="px-5 py-2.5 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer font-sans"
+            >
+              {passwordLoading ? "Saving..." : "Save Password"}
+            </button>
+          </form>
         </div>
 
         {/* Monthly Budget */}
