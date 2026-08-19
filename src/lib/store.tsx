@@ -113,27 +113,119 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   useEffect(() => {
-    fetchExpenses().then(setExpenses).catch(() => setExpenses([])).finally(() => setExpensesLoaded(true));
-    fetchRecurringPayments().then(setPayments).catch(() => setPayments([])).finally(() => setPaymentsLoaded(true));
-    fetchCategories().then((data) => { if (data.length > 0) setCategories(data); }).catch(() => {}).finally(() => setCategoriesLoaded(true));
-    fetchNotes().then(setNotes).catch(() => setNotes([])).finally(() => setNotesLoaded(true));
+    if (typeof window !== "undefined") {
+      const cachedExpenses = localStorage.getItem("cache_expenses");
+      if (cachedExpenses) {
+        setExpenses(JSON.parse(cachedExpenses));
+        setExpensesLoaded(true);
+      }
+      const cachedPayments = localStorage.getItem("cache_payments");
+      if (cachedPayments) {
+        setPayments(JSON.parse(cachedPayments));
+        setPaymentsLoaded(true);
+      }
+      const cachedCategories = localStorage.getItem("cache_categories");
+      if (cachedCategories) {
+        setCategories(JSON.parse(cachedCategories));
+        setCategoriesLoaded(true);
+      }
+      const cachedNotes = localStorage.getItem("cache_notes");
+      if (cachedNotes) {
+        setNotes(JSON.parse(cachedNotes));
+        setNotesLoaded(true);
+      }
+    }
+
+    fetchExpenses().then((data) => {
+      setExpenses(data);
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
+    }).catch(() => {}).finally(() => setExpensesLoaded(true));
+
+    fetchRecurringPayments().then((data) => {
+      setPayments(data);
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
+    }).catch(() => {}).finally(() => setPaymentsLoaded(true));
+
+    fetchCategories().then((data) => {
+      if (data.length > 0) {
+        setCategories(data);
+        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
+      }
+    }).catch(() => {}).finally(() => setCategoriesLoaded(true));
+
+    fetchNotes().then((data) => {
+      setNotes(data);
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
+    }).catch(() => {}).finally(() => setNotesLoaded(true));
   }, []);
 
-  // Expenses
   const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
-    const expense = await addExpenseAction(data);
-    setExpenses((prev) => [expense, ...prev]);
-    return expense;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticExpense: Expense = {
+      ...data,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setExpenses((prev) => {
+      const next = [optimisticExpense, ...prev];
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const realExpense = await addExpenseAction(data);
+      setExpenses((prev) => {
+        const next = prev.map((e) => (e.id === tempId ? realExpense : e));
+        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        return next;
+      });
+      return realExpense;
+    } catch (err) {
+      setExpenses((prev) => {
+        const next = prev.filter((e) => e.id !== tempId);
+        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        return next;
+      });
+      throw err;
+    }
   }, []);
 
   const updateExpense = useCallback(async (id: string, data: Partial<Expense>) => {
-    await updateExpenseAction(id, data);
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...data, updated_at: new Date().toISOString() } : e)));
+    let originalExpenses: Expense[] = [];
+    setExpenses((prev) => {
+      originalExpenses = prev;
+      const next = prev.map((e) => (e.id === id ? { ...e, ...data, updated_at: new Date().toISOString() } : e));
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await updateExpenseAction(id, data);
+    } catch (err) {
+      setExpenses(originalExpenses);
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      throw err;
+    }
   }, []);
 
   const deleteExpense = useCallback(async (id: string) => {
-    await deleteExpenseAction(id);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    let originalExpenses: Expense[] = [];
+    setExpenses((prev) => {
+      originalExpenses = prev;
+      const next = prev.filter((e) => e.id !== id);
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await deleteExpenseAction(id);
+    } catch (err) {
+      setExpenses(originalExpenses);
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      throw err;
+    }
   }, []);
 
   const getExpensesByDate = useCallback((date: string) =>
@@ -158,19 +250,72 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Payments
   const addPayment = useCallback(async (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => {
-    const payment = await addRecurringPayment(data);
-    setPayments((prev) => [payment, ...prev]);
-    return payment;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticPayment: RecurringPayment = {
+      ...data,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setPayments((prev) => {
+      const next = [optimisticPayment, ...prev];
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const realPayment = await addRecurringPayment(data);
+      setPayments((prev) => {
+        const next = prev.map((p) => (p.id === tempId ? realPayment : p));
+        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        return next;
+      });
+      return realPayment;
+    } catch (err) {
+      setPayments((prev) => {
+        const next = prev.filter((p) => p.id !== tempId);
+        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        return next;
+      });
+      throw err;
+    }
   }, []);
 
   const updatePayment = useCallback(async (id: string, data: Partial<RecurringPayment>) => {
-    await updateRecurringPayment(id, data);
-    setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p)));
+    let originalPayments: RecurringPayment[] = [];
+    setPayments((prev) => {
+      originalPayments = prev;
+      const next = prev.map((p) => (p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p));
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await updateRecurringPayment(id, data);
+    } catch (err) {
+      setPayments(originalPayments);
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      throw err;
+    }
   }, []);
 
   const deletePayment = useCallback(async (id: string) => {
-    await deleteRecurringPayment(id);
-    setPayments((prev) => prev.filter((p) => p.id !== id));
+    let originalPayments: RecurringPayment[] = [];
+    setPayments((prev) => {
+      originalPayments = prev;
+      const next = prev.filter((p) => p.id !== id);
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await deleteRecurringPayment(id);
+    } catch (err) {
+      setPayments(originalPayments);
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      throw err;
+    }
   }, []);
 
   // Auto-Pay Engine
@@ -243,32 +388,125 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Notes
   const addNote = useCallback(async (data: Omit<Note, "id" | "created_at" | "updated_at">) => {
-    const note = await addNoteAction(data);
-    setNotes((prev) => [note, ...prev]);
-    return note;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticNote: Note = {
+      ...data,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setNotes((prev) => {
+      const next = [optimisticNote, ...prev];
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const realNote = await addNoteAction(data);
+      setNotes((prev) => {
+        const next = prev.map((n) => (n.id === tempId ? realNote : n));
+        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        return next;
+      });
+      return realNote;
+    } catch (err) {
+      setNotes((prev) => {
+        const next = prev.filter((n) => n.id !== tempId);
+        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        return next;
+      });
+      throw err;
+    }
   }, []);
 
   const updateNote = useCallback(async (id: string, data: Partial<Note>) => {
-    await updateNoteAction(id, data);
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...data, updated_at: new Date().toISOString() } : n)));
+    let originalNotes: Note[] = [];
+    setNotes((prev) => {
+      originalNotes = prev;
+      const next = prev.map((n) => (n.id === id ? { ...n, ...data, updated_at: new Date().toISOString() } : n));
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await updateNoteAction(id, data);
+    } catch (err) {
+      setNotes(originalNotes);
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      throw err;
+    }
   }, []);
 
   const deleteNote = useCallback(async (id: string) => {
-    await deleteNoteAction(id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    let originalNotes: Note[] = [];
+    setNotes((prev) => {
+      originalNotes = prev;
+      const next = prev.filter((n) => n.id !== id);
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await deleteNoteAction(id);
+    } catch (err) {
+      setNotes(originalNotes);
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      throw err;
+    }
   }, []);
 
   // Categories
   const addCategory = useCallback(async (name: string, icon: string, color: string) => {
-    const category = await addCategoryAction(name, icon, color);
-    setCategories((prev) => [...prev, category]);
-    return category;
+    const tempId = `temp-${Date.now()}`;
+    const optimisticCategory: CategoryItem = {
+      id: tempId,
+      name,
+      icon,
+      color,
+    };
+
+    setCategories((prev) => {
+      const next = [...prev, optimisticCategory];
+      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const realCategory = await addCategoryAction(name, icon, color);
+      setCategories((prev) => {
+        const next = prev.map((c) => (c.id === tempId ? realCategory : c));
+        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        return next;
+      });
+      return realCategory;
+    } catch (err) {
+      setCategories((prev) => {
+        const next = prev.filter((c) => c.id !== tempId);
+        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        return next;
+      });
+      throw err;
+    }
   }, []);
 
   const deleteCategory = useCallback(async (id: string) => {
     if (id.startsWith("default-")) return;
-    await deleteCategoryAction(id);
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+    let originalCategories: CategoryItem[] = [];
+    setCategories((prev) => {
+      originalCategories = prev;
+      const next = prev.filter((c) => c.id !== id);
+      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await deleteCategoryAction(id);
+    } catch (err) {
+      setCategories(originalCategories);
+      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(originalCategories));
+      throw err;
+    }
   }, []);
 
   const getCategoryByName = useCallback((name: string) =>
