@@ -5,12 +5,14 @@ import { format } from "date-fns";
 import { Plus, ChevronRight, CalendarClock, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useExpenses, useRecurringPayments, useBudgets, useCategories } from "@/lib/store";
+import { useAuth } from "@/components/AuthProvider";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
   const { expenses, loaded, getTodayTotal, getMonthTotal } = useExpenses();
   const { payments } = useRecurringPayments();
   const { getBudget } = useBudgets();
@@ -22,7 +24,7 @@ export default function DashboardPage() {
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted || !loaded) {
+  if (!mounted || authLoading) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
         <div className="animate-pulse space-y-4">
@@ -38,6 +40,23 @@ export default function DashboardPage() {
     );
   }
 
+  // Render guest marketing landing page if not authenticated
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  // Wait for database values to resolve once authenticated
+  if (!loaded) {
+    return (
+      <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 bg-paper-dark rounded" />
+          <div className="h-4 w-32 bg-paper-dark rounded" />
+        </div>
+      </div>
+    );
+  }
+
   const todayStr = today.toISOString().split("T")[0];
   const todayExpenses = expenses
     .filter((e) => e.date === todayStr)
@@ -48,7 +67,6 @@ export default function DashboardPage() {
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - monthTotal;
   
-  // Get active upcoming payments
   const upcomingPayments = payments
     .filter((p) => p.is_active)
     .sort((a, b) => a.due_day - b.due_day)
@@ -67,19 +85,18 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Quick stats cards (slightly rotated for realistic paper look) */}
+        {/* Quick stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pt-2">
           {/* Card 1 */}
           <div className="paper-card px-4 py-3 relative rotate-[-1.5deg] hover:rotate-0 transition-transform shadow duration-200">
-            {/* Simulated clear tape */}
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm" />
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
             <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Today</p>
             <p className="font-handwritten text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
           </div>
           
           {/* Card 2 */}
           <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-2 shadow-sm rounded-sm" />
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-2 shadow-sm rounded-sm pointer-events-none" />
             <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">This Month</p>
             <p className="font-handwritten text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
           </div>
@@ -87,7 +104,7 @@ export default function DashboardPage() {
           {/* Card 3 */}
           {budgetAmount > 0 ? (
             <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${remaining < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm" />
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
               <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Remaining</p>
               <p className={`font-handwritten text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
                 {formatCurrency(Math.abs(remaining))}
@@ -102,14 +119,14 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Today's entries — notebook style */}
+        {/* Today's entries */}
         <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
           <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
             <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Today&apos;s Entries</h2>
             <Link
               href="/expenses?add=true"
               onClick={(e) => { e.preventDefault(); requireAuth(() => window.location.href = "/expenses?add=true"); }}
-              className="flex items-center gap-1 px-3 py-1 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
+              className="flex items-center gap-1 px-3 py-1 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
             >
               <Plus size={14} /> Add Entry
             </Link>
@@ -136,7 +153,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Upcoming recurring payments */}
+        {/* Upcoming bills */}
         {upcomingPayments.length > 0 && (
           <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg]">
             <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
@@ -189,15 +206,15 @@ export default function DashboardPage() {
               {expenses.slice(0, 5).map((expense) => {
                 const catColor = getCategoryByName(expense.category)?.color || "#6B7280";
                 return (
-                  <div key={expense.id} className="flex items-center py-2.5 border-b border-[rgba(0,0,0,0.03)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                  <div key={expense.id} className="flex items-center py-2.5 border-b border-[rgba(0,0,0,0.03)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors font-medium">
                     <span className="text-lg mr-3 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-ink-dark font-medium truncate">{expense.name}</p>
+                      <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
                       <p className="text-[10px] text-ink-light mt-0.5">
                         {expense.category} · {format(new Date(expense.date), "MMM d")}
                       </p>
                     </div>
-                    <span className="text-sm font-semibold amount ml-2 shrink-0" style={{ color: catColor }}>
+                    <span className="text-sm font-bold amount ml-2 shrink-0" style={{ color: catColor }}>
                       {formatCurrency(expense.amount)}
                     </span>
                   </div>
@@ -219,11 +236,114 @@ function ExpenseEntry({ expense }: { expense: Expense }) {
   return (
     <div className="handwritten-entry flex items-baseline group hover:bg-paper-dark/30 px-2 py-0.5 rounded transition-all">
       <span className="text-base mr-1.5 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
-      <span className="text-ink-dark font-medium leading-relaxed">{expense.name}</span>
+      <span className="text-ink-dark font-semibold leading-relaxed">{expense.name}</span>
       <span className="dots" />
       <span className="text-ink-medium amount whitespace-nowrap font-bold" style={{ color }}>
         {formatCurrency(expense.amount)}
       </span>
+    </div>
+  );
+}
+
+// Guest Marketing Landing Page Component
+function LandingPage() {
+  return (
+    <div className="notebook-paper min-h-screen page-enter">
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 py-16 pt-24 lg:pl-20 text-center">
+        
+        {/* Hero Section */}
+        <div className="max-w-2xl mx-auto mb-12">
+          <span className="text-xs font-bold text-accent-warm uppercase tracking-widest bg-accent-warm/10 px-3 py-1.5 rounded-full border border-accent-warm/15">
+            ✍️ Your Cozy Personal Finance Diary
+          </span>
+          <h1 className="font-handwritten text-5xl sm:text-6xl text-ink-dark mt-6 mb-4 leading-tight">
+            Keep a cozy journal of your daily expenses
+          </h1>
+          <p className="text-sm sm:text-base text-ink-medium leading-relaxed font-semibold">
+            Say goodbye to rigid grids and complex tables. Log your spending like writing in a cozy paper notebook, with scheduled bills, auto-pay tracking, and clean sticky notes.
+          </p>
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="flex flex-wrap gap-4 justify-center mb-16">
+          <Link
+            href="/login"
+            className="px-8 py-3.5 bg-accent-warm hover:opacity-90 text-white font-bold rounded-xl text-base shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Open Your Diary — It&apos;s Free
+          </Link>
+        </div>
+
+        {/* Mock Diary Preview */}
+        <div className="paper-card p-6 max-w-md mx-auto mb-16 rotate-[-1.5deg] hover:rotate-0 transition-transform duration-300 relative shadow-lg">
+          {/* Simulated clear tape */}
+          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+          <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] pb-3 mb-4">
+            <h3 className="font-handwritten text-2xl text-ink-dark font-bold">Wednesday, August 19</h3>
+            <span className="text-xs text-ink-light font-bold uppercase tracking-wider font-sans">Total: $82</span>
+          </div>
+          <div className="space-y-3 text-left">
+            <div className="handwritten-entry flex items-baseline">
+              <span className="text-base mr-1.5">🍔</span>
+              <span className="text-ink-dark font-medium">Cozy Coffee & Lunch</span>
+              <span className="dots" />
+              <span className="text-ink-medium amount font-bold text-accent-warm">$18.50</span>
+            </div>
+            <div className="handwritten-entry flex items-baseline">
+              <span className="text-base mr-1.5">🛒</span>
+              <span className="text-ink-dark font-medium">Weekly Groceries</span>
+              <span className="dots" />
+              <span className="text-ink-medium amount font-bold text-accent-warm">$63.50</span>
+            </div>
+            <div className="handwritten-entry flex items-baseline opacity-40">
+              <span className="text-base mr-1.5">🎬</span>
+              <span className="text-ink-dark font-medium">Cinema Ticket (Pre-planned)</span>
+              <span className="dots" />
+              <span className="text-ink-medium amount font-bold text-accent-warm">$12.00</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Features list in sticky notes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left max-w-4xl mx-auto mb-16">
+          <div className="p-6 bg-[#FEF9C3] rounded-lg shadow rotate-[-1.5deg] relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-1deg] rounded-sm pointer-events-none" />
+            <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">✍️ Cozy Cursive Journal</h3>
+            <p className="text-xs text-ink-medium leading-relaxed font-medium">
+              Designed to look and feel like a handwritten paper journal. Fully responsive, cozy warm tones, and dynamic dark mode settings.
+            </p>
+          </div>
+
+          <div className="p-6 bg-[#DCFCE7] rounded-lg shadow rotate-[1deg] relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[2deg] rounded-sm pointer-events-none" />
+            <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">⏰ Scheduled Auto-Pay</h3>
+            <p className="text-xs text-ink-medium leading-relaxed font-medium">
+              Track utility bills or Netflix subscriptions. Opt-in to Schedule Pay to log them automatically as expenses on due dates.
+            </p>
+          </div>
+
+          <div className="p-6 bg-[#DBEAFE] rounded-lg shadow rotate-[-0.5deg] relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-2deg] rounded-sm pointer-events-none" />
+            <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">📌 Checklist & Sticky Notes</h3>
+            <p className="text-xs text-ink-medium leading-relaxed font-medium">
+              Jot down shopping lists, note dynamic budgeting guidelines, or pin quick lists right on your corkboard.
+            </p>
+          </div>
+        </div>
+
+        {/* CTA closing card */}
+        <div className="max-w-xl mx-auto border-t border-[rgba(0,0,0,0.06)] pt-12">
+          <h3 className="font-handwritten text-3xl text-ink-dark mb-2 font-bold">Start your finance journal today</h3>
+          <p className="text-xs text-ink-light mb-6 font-medium">Join now. Securely syncs your budgets and notes across all devices.</p>
+          <Link
+            href="/login"
+            className="px-6 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+          >
+            Create Your Account
+          </Link>
+        </div>
+
+      </div>
     </div>
   );
 }
