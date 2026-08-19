@@ -164,7 +164,7 @@ export default function DashboardPage() {
             <div className="space-y-1">
               {expenses.slice(0, 7).map((expense) => (
                 <div key={expense.id} className="flex items-center py-2 border-b border-[rgba(0,0,0,0.04)] last:border-0">
-                  <div className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: getCategoryByName(expense.category)?.color || "#6B7280" }} />
+                  <span className="text-base mr-3 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-ink-dark truncate">{expense.name}</p>
                     <p className="text-xs text-ink-light">{expense.category} · {format(new Date(expense.date), "MMM d")}</p>
@@ -183,8 +183,10 @@ export default function DashboardPage() {
 }
 
 function ExpenseEntry({ expense }: { expense: Expense }) {
+  const { getCategoryByName } = useCategories();
   return (
     <div className="handwritten-entry flex items-baseline group">
+      <span className="text-base mr-1.5 shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
       <span className="text-ink-dark">{expense.name}</span>
       <span className="dots" />
       <span className="text-ink-medium amount whitespace-nowrap">{formatCurrency(expense.amount)}</span>

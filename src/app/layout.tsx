@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
 import { CountryProvider } from "@/components/CountryProvider";
+import { StoreProvider } from "@/lib/store";
 import Sidebar from "@/components/Sidebar";
 
 const geistSans = Geist({
@@ -43,10 +44,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <CountryProvider>
             <AuthProvider>
               <ToastProvider>
-                <Sidebar />
-                <main className="flex-1 min-h-screen overflow-x-hidden">
-                  {children}
-                </main>
+                <StoreProvider>
+                  <Sidebar />
+                  <main className="flex-1 min-h-screen overflow-x-hidden">
+                    {children}
+                  </main>
+                </StoreProvider>
               </ToastProvider>
             </AuthProvider>
           </CountryProvider>
