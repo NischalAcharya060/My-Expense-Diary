@@ -162,16 +162,25 @@ export function useRecurringPayments() {
   return { payments, loaded, addPayment, updatePayment, deletePayment };
 }
 
-export function useBudgets() {
+export function useBudgets(lazy = false) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(!lazy);
+  const [fetched, setFetched] = useState(false);
 
-  useEffect(() => {
+  const fetchIfNeeded = useCallback(async () => {
+    if (fetched) return;
+    setFetched(true);
     fetchBudgets()
       .then(setBudgets)
       .catch(() => setBudgets([]))
       .finally(() => setLoaded(true));
-  }, []);
+  }, [fetched]);
+
+  useEffect(() => {
+    if (!lazy) {
+      fetchIfNeeded();
+    }
+  }, [lazy, fetchIfNeeded]);
 
   const setBudget = useCallback(
     async (year: number, month: number, amount: number, category?: string) => {
@@ -205,7 +214,7 @@ export function useBudgets() {
     []
   );
 
-  return { budgets, loaded, setBudget, getBudget, deleteBudget };
+  return { budgets, loaded, setBudget, getBudget, deleteBudget, fetchBudgets: fetchIfNeeded };
 }
 
 export function useNotes() {

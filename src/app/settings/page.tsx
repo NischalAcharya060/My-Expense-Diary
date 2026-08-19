@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useExpenses, useRecurringPayments, useBudgets, useNotes } from "@/lib/store";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import { useRequireAuth } from "@/lib/useRequireAuth";
+import AuthPrompt from "@/components/AuthPrompt";
+import { format } from "date-fns";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 export default function SettingsPage() {
   return <AuthGuard feature="Budget & Settings"><SettingsContent /></AuthGuard>;
@@ -15,20 +23,42 @@ function SettingsContent() {
   const { theme, toggleTheme } = useTheme();
   const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
   const { payments, addPayment, deletePayment } = useRecurringPayments();
-  const { budgets, setBudget, getBudget, deleteBudget } = useBudgets();
+  const { budgets, setBudget, getBudget, deleteBudget, fetchBudgets } = useBudgets(true);
   const { notes, addNote, deleteNote } = useNotes();
   const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetYear, setBudgetYear] = useState("");
+  const [budgetMonth, setBudgetMonth] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
   const [mounted, setMounted] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const budgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    const el = budgetRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchBudgets();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchBudgets]);
+
   const { year, month } = getCurrentMonth();
-  const currentBudget = getBudget(year, month);
 
   useEffect(() => {
-    if (currentBudget) setBudgetAmount(currentBudget.amount.toString());
-  }, [currentBudget]);
+    setBudgetYear(year.toString());
+    setBudgetMonth(month.toString());
+  }, [year, month]);
 
   if (!mounted) {
     return (
@@ -43,10 +73,33 @@ function SettingsContent() {
 
   const handleSaveBudget = async () => {
     const amt = parseFloat(budgetAmount);
-    if (!isNaN(amt) && amt > 0) {
-      await setBudget(year, month, amt);
+    const yr = parseInt(budgetYear);
+    const mo = parseInt(budgetMonth);
+    if (!isNaN(amt) && amt > 0 && !isNaN(yr) && !isNaN(mo) && mo >= 1 && mo <= 12) {
+      await setBudget(yr, mo, amt);
+      setBudgetAmount("");
     }
   };
+
+  const handleUpdateBudget = async (id: string) => {
+    const amt = parseFloat(editAmount);
+    if (!isNaN(amt) && amt > 0) {
+      const b = budgets.find((b) => b.id === id);
+      if (b) {
+        await setBudget(b.year, b.month, amt, b.category);
+        setEditingId(null);
+        setEditAmount("");
+      }
+    }
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    await deleteBudget(id);
+  };
+
+  const sortedBudgets = [...budgets].sort((a, b) =>
+    b.year !== a.year ? b.year - a.year : b.month - a.month
+  );
 
   const handleExportData = async () => {
     const data = {
@@ -136,34 +189,127 @@ function SettingsContent() {
         </div>
 
         {/* Monthly Budget */}
-        <div className="paper-card p-6 mb-6">
+        <div ref={budgetRef} className="paper-card p-6 mb-6">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
             <DollarSign size={18} /> Monthly Budget
           </h3>
-          <p className="text-xs text-ink-light mb-3">Set your spending limit for the current month</p>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light text-sm">Rs.</span>
+
+          {/* Add new budget form */}
+          <div className="p-4 bg-paper-dark/50 rounded-lg mb-4">
+            <p className="text-xs text-ink-light mb-3 uppercase tracking-wide">Add New Budget</p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <select
+                value={budgetMonth}
+                onChange={(e) => setBudgetMonth(e.target.value)}
+                className="px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm"
+              >
+                {MONTH_NAMES.map((name, i) => (
+                  <option key={i + 1} value={i + 1}>{name}</option>
+                ))}
+              </select>
               <input
                 type="number"
-                value={budgetAmount}
-                onChange={(e) => setBudgetAmount(e.target.value)}
-                placeholder="e.g. 30000"
-                min="0"
-                className="w-full pl-10 pr-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm amount"
+                value={budgetYear}
+                onChange={(e) => setBudgetYear(e.target.value)}
+                placeholder="Year"
+                className="w-24 px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm amount"
               />
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light text-sm">Rs.</span>
+                <input
+                  type="number"
+                  value={budgetAmount}
+                  onChange={(e) => setBudgetAmount(e.target.value)}
+                  placeholder="Amount"
+                  min="0"
+                  className="w-full pl-10 pr-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm amount"
+                />
+              </div>
+              <button
+                onClick={() => requireAuth(handleSaveBudget)}
+                className="px-5 py-2.5 bg-accent-warm text-white rounded text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+              >
+                Save
+              </button>
             </div>
-            <button
-              onClick={handleSaveBudget}
-              className="px-4 py-2.5 bg-accent-warm text-white rounded text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Save
-            </button>
           </div>
-          {currentBudget && (
-            <p className="text-xs text-accent-green mt-2">
-              Current budget: {formatCurrency(currentBudget.amount)}
-            </p>
+
+          {/* Existing budgets list */}
+          {sortedBudgets.length === 0 ? (
+            <p className="text-sm text-ink-light text-center py-4">No budgets set yet</p>
+          ) : (
+            <div className="space-y-2">
+              {sortedBudgets.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex items-center gap-3 py-3 px-4 bg-paper-bg rounded border border-[rgba(0,0,0,0.04)]"
+                >
+                  <div className="flex-1 min-w-0">
+                    {editingId === b.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-ink-medium shrink-0">
+                          {MONTH_NAMES[b.month - 1]} {b.year}:
+                        </span>
+                        <span className="text-ink-light text-sm shrink-0">Rs.</span>
+                        <input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="flex-1 px-2 py-1 bg-paper-bg border border-accent-warm rounded text-sm text-ink-dark focus:outline-none amount"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-ink-dark font-medium">
+                          {MONTH_NAMES[b.month - 1]} {b.year}
+                        </p>
+                        <p className="font-handwritten text-lg text-accent-warm amount">
+                          {formatCurrency(b.amount)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {editingId === b.id ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateBudget(b.id)}
+                          className="p-1.5 text-accent-green hover:bg-accent-green/10 rounded transition-colors"
+                          title="Save"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={() => { setEditingId(null); setEditAmount(""); }}
+                          className="p-1.5 text-ink-light hover:bg-paper-dark rounded transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setEditingId(b.id); setEditAmount(b.amount.toString()); }}
+                          className="p-1.5 text-ink-light hover:text-ink-dark hover:bg-paper-dark rounded transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBudget(b.id)}
+                          className="p-1.5 text-ink-light hover:text-accent-red hover:bg-accent-red/10 rounded transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -237,6 +383,8 @@ function SettingsContent() {
           )}
         </div>
       </div>
+
+      <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="budget management" />
     </div>
   );
 }
