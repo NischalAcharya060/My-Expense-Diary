@@ -36,6 +36,8 @@ import {
   addCategory as addCategoryAction,
   deleteCategory as deleteCategoryAction,
 } from "@/app/actions/categories";
+import { useToast } from "@/components/Toast";
+
 
 const DEFAULT_CATEGORY_DATA: CategoryItem[] = [
   { id: "default-groceries", name: "Groceries", icon: "🛒", color: "#16A34A" },
@@ -92,11 +94,13 @@ interface StoreContextValue {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesLoaded, setExpensesLoaded] = useState(false);
 
   const [payments, setPayments] = useState<RecurringPayment[]>([]);
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
+  const [autoPayProcessed, setAutoPayProcessed] = useState(false);
 
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoaded, setBudgetsLoaded] = useState(false);
@@ -168,6 +172,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await deleteRecurringPayment(id);
     setPayments((prev) => prev.filter((p) => p.id !== id));
   }, []);
+
+  // Auto-Pay Engine
+  useEffect(() => {
+    if (!expensesLoaded || !paymentsLoaded || autoPayProcessed) return;
+
+    const runAutoPay = async () => {
+      setAutoPayProcessed(true);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const activeAutoPay = payments.filter((p) => p.is_active && p.auto_pay);
+
+      for (const p of activeAutoPay) {
+        const dueDates = getDueDates(p, todayStr);
+        if (dueDates.length === 0) continue;
+
+        for (const dueDate of dueDates) {
+          try {
+            await addExpense({
+              user_id: "",
+              name: p.name,
+              amount: p.amount,
+              category: p.category,
+              date: dueDate,
+              payment_method: p.payment_method || "Card",
+              expense_type: p.category === "Subscription" ? "Subscription" : "Bill",
+              recurring_payment_id: p.id,
+              note: `Scheduled auto-pay on due date ${dueDate}`,
+            });
+            await updatePayment(p.id, { last_paid: dueDate });
+            toast(`Auto-paid: ${p.name}`);
+          } catch (err) {
+            console.error("Auto-pay failed for", p.name, err);
+          }
+        }
+      }
+    };
+
+    runAutoPay();
+  }, [expensesLoaded, paymentsLoaded, autoPayProcessed, payments, addExpense, updatePayment, toast]);
 
   // Budgets
   const fetchBudgetsIfNeeded = useCallback(async () => {
@@ -284,3 +326,62 @@ export function useCategories() {
   const { categories, categoriesLoaded, addCategory, deleteCategory, getCategoryByName } = useStore();
   return { categories, loaded: categoriesLoaded, addCategory, deleteCategory, getCategoryByName };
 }
+
+export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {
+  const dates: string[] = [];
+  const start = new Date(payment.start_date);
+  const today = new Date(todayStr);
+  const lastPaid = payment.last_paid ? new Date(payment.last_paid) : null;
+
+  const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+
+  let year = start.getFullYear();
+  let month = start.getMonth();
+
+  if (payment.frequency === "Monthly") {
+    let checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    while (checkDate <= today) {
+      if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
+        dates.push(checkDate.toISOString().split("T")[0]);
+      }
+      month++;
+      checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    }
+  } else if (payment.frequency === "Yearly") {
+    let checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    while (checkDate <= today) {
+      if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
+        dates.push(checkDate.toISOString().split("T")[0]);
+      }
+      year++;
+      checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    }
+  } else if (payment.frequency === "Weekly") {
+    let checkDate = new Date(start);
+    while (checkDate <= today) {
+      if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
+        dates.push(checkDate.toISOString().split("T")[0]);
+      }
+      checkDate.setDate(checkDate.getDate() + 7);
+    }
+  } else if (payment.frequency === "Daily") {
+    let checkDate = new Date(start);
+    while (checkDate <= today) {
+      if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
+        dates.push(checkDate.toISOString().split("T")[0]);
+      }
+      checkDate.setDate(checkDate.getDate() + 1);
+    }
+  } else if (payment.frequency === "Quarterly") {
+    let checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    while (checkDate <= today) {
+      if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
+        dates.push(checkDate.toISOString().split("T")[0]);
+      }
+      month += 3;
+      checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
+    }
+  }
+  return dates;
+}
+

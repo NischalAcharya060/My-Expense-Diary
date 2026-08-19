@@ -48,7 +48,7 @@ export default function MonthlySummaryPage() {
   });
   const highestDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0];
 
-  const catTotals: Partial<Record<Category, number>> = {};
+  const catTotals: Record<string, number> = {};
   monthExpenses.forEach((e) => {
     catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
   });

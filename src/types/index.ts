@@ -83,6 +83,8 @@ export interface RecurringPayment {
   is_active: boolean;
   reminder_days: number;
   last_paid?: string;
+  auto_pay?: boolean;
+  payment_method?: PaymentMethod;
   created_at: string;
   updated_at: string;
 }
