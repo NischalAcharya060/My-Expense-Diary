@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
 import { CountryProvider } from "@/components/CountryProvider";
 import { StoreProvider } from "@/lib/store";
+import ThemeToggle from "@/components/ThemeToggle";
 import Sidebar from "@/components/Sidebar";
 
 const geistSans = Geist({
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <main className="flex-1 min-h-screen overflow-x-hidden">
                     {children}
                   </main>
+                  <ThemeToggle />
                 </StoreProvider>
               </ToastProvider>
             </AuthProvider>
