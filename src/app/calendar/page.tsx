@@ -87,6 +87,7 @@ export default function CalendarPage() {
                 setSelectedDate(null);
               }}
               className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer"
+              aria-label="Previous month"
             >
               <ChevronLeft size={18} className="text-ink-dark" />
             </button>
@@ -104,6 +105,7 @@ export default function CalendarPage() {
                 setSelectedDate(null);
               }}
               className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer"
+              aria-label="Next month"
             >
               <ChevronRight size={18} className="text-ink-dark" />
             </button>

@@ -104,7 +104,7 @@ export default function InsightsPage() {
         {/* Month Navigation */}
         <div className="paper-card p-4 mb-6">
           <div className="flex items-center justify-between">
-            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer">
+            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer" aria-label="Previous month">
               <ChevronLeft size={18} className="text-ink-dark" />
             </button>
             <div className="text-center">
@@ -113,7 +113,7 @@ export default function InsightsPage() {
                 Total Outflow: <span className="text-accent-warm amount font-bold">{formatCurrency(totalSpending)}</span>
               </p>
             </div>
-            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer">
+            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded-md transition-colors cursor-pointer" aria-label="Next month">
               <ChevronRight size={18} className="text-ink-dark" />
             </button>
           </div>

@@ -137,7 +137,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
   const currentPresets = type === "Bill" ? BILL_PRESETS : SUB_PRESETS;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
         {/* Header */}
@@ -359,6 +359,9 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
               className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none ${
                 autoPay ? "bg-accent-green" : "bg-ink-light/40"
               }`}
+              aria-label={autoPay ? "Disable auto-pay" : "Enable auto-pay"}
+              role="switch"
+              aria-checked={autoPay}
             >
               <span
                 className={`absolute w-5 h-5 rounded-full bg-white shadow top-0.5 left-0.5 transition-transform duration-200 ${

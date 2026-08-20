@@ -49,8 +49,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AuthProvider>
               <ToastProvider>
                 <StoreProvider>
+                  <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-accent-warm focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold">
+                    Skip to content
+                  </a>
                   <Sidebar />
-                  <main className="flex-1 min-h-screen overflow-x-hidden">
+                  <main id="main-content" className="flex-1 min-h-screen overflow-x-hidden">
                     {children}
                   </main>
                   <ThemeToggle />

@@ -69,11 +69,11 @@ export default function MonthlySummaryPage() {
         {/* Month nav */}
         <div className="paper-card p-4 mb-6">
           <div className="flex items-center justify-between">
-            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors">
+            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors" aria-label="Previous month">
               <ChevronLeft size={18} className="text-ink-dark" />
             </button>
             <h2 className="font-handwritten text-2xl text-ink-dark">{format(currentDate, "MMMM yyyy")}</h2>
-            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors">
+            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-paper-dark rounded transition-colors" aria-label="Next month">
               <ChevronRight size={18} className="text-ink-dark" />
             </button>
           </div>

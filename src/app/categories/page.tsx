@@ -135,6 +135,7 @@ export default function CategoriesPage() {
               <button
                 onClick={() => { resetForm(); setShowForm(false); }}
                 className="p-1 hover:bg-paper-dark rounded transition-colors"
+                aria-label="Close form"
               >
                 <X size={16} className="text-ink-light" />
               </button>
@@ -222,6 +223,7 @@ export default function CategoriesPage() {
                         color === c ? "border-ink-dark scale-125 shadow-md" : "border-transparent hover:scale-110"
                       }`}
                       style={{ backgroundColor: c }}
+                      aria-label={`Select color ${c}`}
                     />
                   ))}
                   <label className="w-7 h-7 rounded-full border-2 border-dashed border-ink-light/40 flex items-center justify-center cursor-pointer hover:border-accent-warm transition-colors">

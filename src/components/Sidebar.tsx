@@ -299,7 +299,7 @@ export default function Sidebar() {
                       <button
                         onClick={(e) => { e.stopPropagation(); signOut(); setMobileOpen(false); }}
                         className="p-2 text-ink-light hover:text-accent-red hover:bg-accent-red/5 rounded-lg transition-colors shrink-0"
-                        title="Sign out"
+                        aria-label="Sign out"
                       >
                         <LogOut size={14} />
                       </button>

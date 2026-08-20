@@ -297,14 +297,14 @@ export default function BillsPage() {
                           <button
                             onClick={() => { setEditingPayment(p); setShowAddModal(true); }}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            title="Edit"
+                            aria-label="Edit bill"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            title="Deactivate"
+                            aria-label="Deactivate bill"
                           >
                             <Clock size={14} />
                           </button>
@@ -366,13 +366,14 @@ export default function BillsPage() {
                           <button
                             onClick={() => { setEditingPayment(p); setShowAddModal(true); }}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
+                            aria-label="Edit bill"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            title="Deactivate"
+                            aria-label="Deactivate bill"
                           >
                             <Clock size={14} />
                           </button>
@@ -430,13 +431,14 @@ export default function BillsPage() {
                           <button
                             onClick={() => { setEditingPayment(p); setShowAddModal(true); }}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
+                            aria-label="Edit bill"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            title="Deactivate"
+                            aria-label="Deactivate bill"
                           >
                             <Clock size={14} />
                           </button>
@@ -475,7 +477,7 @@ export default function BillsPage() {
                         <button
                           onClick={() => handleDelete(p.id)}
                           className="p-1.5 text-ink-light hover:text-accent-red rounded transition-colors cursor-pointer"
-                          title="Delete permanently"
+                          aria-label="Delete bill permanently"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -538,7 +540,7 @@ export default function BillsPage() {
                                     setDeleteExpenseId(e.id);
                                   }}
                                   className="p-1 hover:bg-paper-dark text-ink-light hover:text-accent-red rounded transition-colors cursor-pointer"
-                                  title="Delete log"
+                                  aria-label="Delete expense log"
                                 >
                                   <Trash2 size={13} />
                                 </button>

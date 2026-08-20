@@ -93,7 +93,7 @@ export default function EditExpenseModal({ open, onClose, expense }: Props) {
   const QUICK_COLORS = ["#16A34A", "#EA580C", "#2563EB", "#D946EF", "#8B5CF6", "#DC2626", "#0891B2", "#F59E0B", "#64748B", "#E11D48", "#7C3AED", "#6B7280"];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
         <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
@@ -186,6 +186,7 @@ export default function EditExpenseModal({ open, onClose, expense }: Props) {
                       onClick={() => setNewCatColor(c)}
                       className={`w-5 h-5 rounded-full border-2 transition-transform ${newCatColor === c ? "border-ink-dark scale-125" : "border-transparent"}`}
                       style={{ backgroundColor: c }}
+                      aria-label={`Select color ${c}`}
                     />
                   ))}
                 </div>

@@ -134,6 +134,7 @@ function NotesContent() {
               <button 
                 onClick={() => { resetForm(); setShowEditor(false); }} 
                 className="p-1 hover:bg-black/10 rounded text-black/40 hover:text-[#2C2C2C] cursor-pointer"
+                aria-label="Close editor"
               >
                 <X size={16} />
               </button>
@@ -150,16 +151,16 @@ function NotesContent() {
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)]">
               <div className="flex gap-2">
                 {NOTE_COLORS.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setColor(c.value)}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer hover:scale-110 ${
-                      color === c.value ? "border-[#2C2C2C] scale-110 shadow-sm" : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: c.value }}
-                    title={c.name}
-                  />
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setColor(c.value)}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer hover:scale-110 ${
+                        color === c.value ? "border-[#2C2C2C] scale-110 shadow-sm" : "border-transparent"
+                      }`}
+                      style={{ backgroundColor: c.value }}
+                      aria-label={`Select color ${c.name}`}
+                    />
                 ))}
               </div>
               <button
@@ -209,7 +210,7 @@ function NotesContent() {
                           toast(note.pinned ? "Note unpinned" : "Note pinned");
                         }}
                         className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-[#2C2C2C] cursor-pointer"
-                        title={note.pinned ? "Unpin note" : "Pin note"}
+                        aria-label={note.pinned ? "Unpin note" : "Pin note"}
                       >
                         {note.pinned ? <PinOff size={13} /> : <Pin size={13} />}
                       </button>
@@ -219,7 +220,7 @@ function NotesContent() {
                           setDeleteConfirm(note.id);
                         }}
                         className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-red-600 cursor-pointer"
-                        title="Delete note"
+                        aria-label="Delete note"
                       >
                         <Trash2 size={13} />
                       </button>

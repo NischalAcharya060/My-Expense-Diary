@@ -95,11 +95,11 @@
 ## Phase 5: Accessibility
 
 ### 5.1 WCAG Compliance
-- [ ] Add `alt` text to flag images in `FlagIcon.tsx` (currently `alt=""`)
-- [ ] Add `aria-label` to all icon-only buttons (edit, delete, toggle) across `recurring/page.tsx`, `expenses/page.tsx`, `bills/page.tsx`
-- [ ] Add skip-to-content link in `layout.tsx`
-- [ ] Ensure all interactive elements have visible focus indicators
-- [ ] Add `role` attributes to custom modals (`ConfirmDialog`, `AddExpenseModal`, etc.)
+- [x] Add `alt` text to flag images in `FlagIcon.tsx` (currently `alt=""`)
+- [x] Add `aria-label` to all icon-only buttons (edit, delete, toggle) across `expenses/page.tsx`, `bills/page.tsx`, `categories/page.tsx`, `notes/page.tsx`, `insights/page.tsx`, `calendar/page.tsx`, `monthly/page.tsx`, `settings/page.tsx`, `Sidebar.tsx`, `AddBillModal.tsx`, `EditExpenseModal.tsx`, `ConfirmDialog.tsx`, `VariableAmountModal.tsx`
+- [x] Ensure all interactive elements have visible focus indicators
+- [x] Add `role="dialog"` and `aria-modal="true"` to custom modals (`ConfirmDialog`, `AddExpenseModal`, `EditExpenseModal`, `AddBillModal`, `VariableAmountModal`)
+- [x] Add skip-to-content link in `layout.tsx`
 
 ---
 

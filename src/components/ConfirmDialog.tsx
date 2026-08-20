@@ -24,12 +24,13 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
       <div className="relative paper-card p-6 max-w-sm w-full page-enter">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark cursor-pointer"
+          aria-label="Close dialog"
         >
           <X size={16} />
         </button>

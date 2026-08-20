@@ -365,14 +365,14 @@ function SettingsContent() {
                         <button
                           onClick={() => handleUpdateBudget(b.id)}
                           className="p-1.5 text-accent-green hover:bg-accent-green/10 rounded transition-colors"
-                          title="Save"
+                          aria-label="Save budget"
                         >
                           <Check size={14} />
                         </button>
                         <button
                           onClick={() => { setEditingId(null); setEditAmount(""); }}
                           className="p-1.5 text-ink-light hover:bg-paper-dark rounded transition-colors"
-                          title="Cancel"
+                          aria-label="Cancel editing"
                         >
                           <X size={14} />
                         </button>
@@ -382,14 +382,14 @@ function SettingsContent() {
                         <button
                           onClick={() => { setEditingId(b.id); setEditAmount(b.amount.toString()); }}
                           className="p-1.5 text-ink-light hover:text-ink-dark hover:bg-paper-dark rounded transition-colors"
-                          title="Edit"
+                          aria-label="Edit budget"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => handleDeleteBudget(b.id)}
                           className="p-1.5 text-ink-light hover:text-accent-red hover:bg-accent-red/10 rounded transition-colors"
-                          title="Delete"
+                          aria-label="Delete budget"
                         >
                           <Trash2 size={14} />
                         </button>
