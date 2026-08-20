@@ -7,53 +7,53 @@
 ## Phase 1: Critical Fixes (Security + Data Integrity)
 
 ### 1.1 Security Hardening
-- [ ] Verify `.env` is in `.gitignore` and not tracked by git. Rotate Supabase keys if repo is public.
-- [ ] Add Zod validation schemas for ALL server actions (`expenses.ts`, `recurring.ts`, `budgets.ts`, `notes.ts`, `categories.ts`)
+- [x] Verify `.env` is in `.gitignore` and not tracked by git. Rotate Supabase keys if repo is public.
+- [x] Add Zod validation schemas for ALL server actions (`expenses.ts`, `recurring.ts`, `budgets.ts`, `notes.ts`, `categories.ts`)
   - Validate: name length (max 200), amount (positive, max 999999.99), date format, category names
   - Reject unknown/extra fields
-- [ ] Replace `null as any` casts in `lib/supabase/client.ts:12` and `lib/supabase/server.ts:9` with proper null checks and thrown errors
-- [ ] Add password strength validation in `profile/page.tsx` (min 8 chars, require number or special char)
+- [x] Replace `null as any` casts in `lib/supabase/client.ts:12` and `lib/supabase/server.ts:9` with proper null checks and thrown errors
+- [x] Add password strength validation in `profile/page.tsx` (min 8 chars, require number or special char)
 
 ### 1.2 Database Schema Fixes
-- [ ] Add `payment_method` column to `recurring_payments` table (currently only stored in localStorage, lost on cache clear)
-- [ ] Add `auto_pay` column to `recurring_payments` table (same issue — localStorage only)
-- [ ] Add missing indexes:
+- [x] Add `payment_method` column to `recurring_payments` table (currently only stored in localStorage, lost on cache clear)
+- [x] Add `auto_pay` column to `recurring_payments` table (same issue — localStorage only)
+- [x] Add missing indexes:
   - `categories(user_id)` 
   - `expenses(user_id, expense_type)` — bills page filters by this constantly
   - `recurring_payments(user_id, due_day)` — auto-pay engine queries
-- [ ] Add CHECK constraint on `expense_type` column (prevent typos: should only be 'Expense', 'Bill', 'Subscription', 'Recurring payment')
-- [ ] Add database trigger to sync `last_paid` on `recurring_payments` when an expense is logged with `recurring_payment_id`
+- [x] Add CHECK constraint on `expense_type` column (prevent typos: should only be 'Expense', 'Bill', 'Subscription', 'Recurring payment')
+- [x] Add database trigger to sync `last_paid` on `recurring_payments` when an expense is logged with `recurring_payment_id`
 
 ---
 
 ## Phase 2: Error Handling + Resilience
 
 ### 2.1 Error Boundaries
-- [ ] Create `src/app/error.tsx` — global error boundary with retry button
-- [ ] Create `src/app/expenses/error.tsx`
-- [ ] Create `src/app/bills/error.tsx`
-- [ ] Create `src/app/recurring/error.tsx`
-- [ ] Create `src/app/insights/error.tsx`
-- [ ] Create `src/app/calendar/error.tsx`
-- [ ] Create `src/app/monthly/error.tsx`
-- [ ] Create `src/app/notes/error.tsx`
-- [ ] Create `src/app/settings/error.tsx`
-- [ ] Create `src/app/not-found.tsx` — custom 404 page with "Go Home" CTA
+- [x] Create `src/app/error.tsx` — global error boundary with retry button
+- [x] Create `src/app/expenses/error.tsx`
+- [x] Create `src/app/bills/error.tsx`
+- [x] Create `src/app/recurring/error.tsx`
+- [x] Create `src/app/insights/error.tsx`
+- [x] Create `src/app/calendar/error.tsx`
+- [x] Create `src/app/monthly/error.tsx`
+- [x] Create `src/app/notes/error.tsx`
+- [x] Create `src/app/settings/error.tsx`
+- [x] Create `src/app/not-found.tsx` — custom 404 page with "Go Home" CTA
 
 ### 2.2 Loading States
-- [ ] Create `src/app/expenses/loading.tsx` — skeleton matching expense list layout
-- [ ] Create `src/app/bills/loading.tsx` — skeleton matching bill cards
-- [ ] Create `src/app/insights/loading.tsx` — chart-shaped skeletons
-- [ ] Create `src/app/calendar/loading.tsx` — calendar grid skeleton
-- [ ] Create `src/app/recurring/loading.tsx`
-- [ ] Create `src/app/monthly/loading.tsx`
-- [ ] Create `src/app/notes/loading.tsx`
+- [x] Create `src/app/expenses/loading.tsx` — skeleton matching expense list layout
+- [x] Create `src/app/bills/loading.tsx` — skeleton matching bill cards
+- [x] Create `src/app/insights/loading.tsx` — chart-shaped skeletons
+- [x] Create `src/app/calendar/loading.tsx` — calendar grid skeleton
+- [x] Create `src/app/recurring/loading.tsx`
+- [x] Create `src/app/monthly/loading.tsx`
+- [x] Create `src/app/notes/loading.tsx`
 
 ### 2.3 Store Error Handling
-- [ ] In `lib/store.tsx` — stop silently swallowing errors in `.catch(() => {})` (lines ~139-159)
-- [ ] Show toast on failed data fetches with retry option
-- [ ] Add error state to each hook (`useExpenses().error`, `useRecurringPayments().error`)
-- [ ] Handle Supabase session expiry gracefully in `AuthProvider.tsx`
+- [x] In `lib/store.tsx` — stop silently swallowing errors in `.catch(() => {})` (lines ~139-159)
+- [x] Show toast on failed data fetches with retry option
+- [x] Add error state to each hook (`useExpenses().error`, `useRecurringPayments().error`)
+- [x] Handle Supabase session expiry gracefully in `AuthProvider.tsx`
 
 ---
 
@@ -588,7 +588,7 @@
 ## Updated Implementation Order
 
 ```
-Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE partially
+Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE
 Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility)
 Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add) + Phase 15 (Smart Defaults)
 Week 4:   Phase 6 (Income + Categories + CSV + Date Filter)
@@ -606,59 +606,69 @@ Week 12:  Phase 12 (Code Quality) + Final QA & Testing
 
 ## Files to Create (New)
 
-| File | Purpose |
-|---|---|
-| `src/app/error.tsx` | Global error boundary |
-| `src/app/not-found.tsx` | Custom 404 page |
-| `src/app/expenses/loading.tsx` | Expense page skeleton |
-| `src/app/bills/loading.tsx` | Bills page skeleton |
-| `src/app/insights/loading.tsx` | Insights page skeleton |
-| `src/app/calendar/loading.tsx` | Calendar page skeleton |
-| `src/app/recurring/loading.tsx` | Recurring page skeleton |
-| `src/app/monthly/loading.tsx` | Monthly page skeleton |
-| `src/app/notes/loading.tsx` | Notes page skeleton |
-| `src/app/income/page.tsx` | Income tracking page |
-| `src/app/income/loading.tsx` | Income page skeleton |
-| `src/app/categories/page.tsx` | Category management page |
-| `src/components/ExpenseForm.tsx` | Shared expense form (dedup) |
-| `src/components/VariableAmountModal.tsx` | Replace prompt() in bills |
-| `src/lib/validations.ts` | Zod schemas for all actions |
-| `src/app/actions/income.ts` | Income server actions |
-| `supabase-migrations/` | Schema migration files |
+| File | Purpose | Status |
+|---|---|---|
+| `src/app/error.tsx` | Global error boundary | DONE |
+| `src/app/not-found.tsx` | Custom 404 page | DONE |
+| `src/app/expenses/loading.tsx` | Expense page skeleton | DONE |
+| `src/app/bills/loading.tsx` | Bills page skeleton | DONE |
+| `src/app/insights/loading.tsx` | Insights page skeleton | DONE |
+| `src/app/calendar/loading.tsx` | Calendar page skeleton | DONE |
+| `src/app/recurring/loading.tsx` | Recurring page skeleton | DONE |
+| `src/app/monthly/loading.tsx` | Monthly page skeleton | DONE |
+| `src/app/notes/loading.tsx` | Notes page skeleton | DONE |
+| `src/app/income/page.tsx` | Income tracking page | |
+| `src/app/income/loading.tsx` | Income page skeleton | |
+| `src/app/categories/page.tsx` | Category management page | |
+| `src/components/ExpenseForm.tsx` | Shared expense form (dedup) | |
+| `src/components/VariableAmountModal.tsx` | Replace prompt() in bills | |
+| `src/lib/validations.ts` | Zod schemas for all actions | DONE |
+| `src/app/actions/income.ts` | Income server actions | |
+| `src/app/expenses/error.tsx` | Expenses error boundary | DONE |
+| `src/app/bills/error.tsx` | Bills error boundary | DONE |
+| `src/app/recurring/error.tsx` | Recurring error boundary | DONE |
+| `src/app/insights/error.tsx` | Insights error boundary | DONE |
+| `src/app/calendar/error.tsx` | Calendar error boundary | DONE |
+| `src/app/monthly/error.tsx` | Monthly error boundary | DONE |
+| `src/app/notes/error.tsx` | Notes error boundary | DONE |
+| `src/app/settings/error.tsx` | Settings error boundary | DONE |
+| `supabase-migrations/` | Schema migration files | DONE |
 
 ## Files to Modify (Existing)
 
-| File | Changes |
-|---|---|
-| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA |
-| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels |
-| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard |
-| `src/app/recurring/page.tsx` | Confirm dialogs for toggle, aria labels, dark mode |
-| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton |
-| `src/app/calendar/page.tsx` | Auth guard, loading skeleton |
-| `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard |
-| `src/app/notes/page.tsx` | Dark mode fixes, empty state |
-| `src/app/settings/page.tsx` | CSV export, date range export, replace alert() |
-| `src/app/profile/page.tsx` | Name editing, password strength |
-| `src/app/login/page.tsx` | Dark mode Google button fix |
-| `src/app/layout.tsx` | Skip-to-content link |
-| `src/components/Sidebar.tsx` | Add Income + Categories links |
-| `src/components/ConfirmDialog.tsx` | Add loading spinner animation |
-| `src/components/Toast.tsx` | Fix position conflict with ThemeToggle |
-| `src/components/ThemeToggle.tsx` | Fix position conflict with Toast |
-| `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure |
-| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm |
-| `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm |
-| `src/components/AddBillModal.tsx` | Add payment method from DB |
-| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization |
-| `src/lib/utils.ts` | Consolidate categories, add CSV utils |
-| `src/lib/supabase/client.ts` | Remove null as any |
-| `src/lib/supabase/server.ts` | Remove null as any |
-| `src/types/index.ts` | Add Income type, Template type, consolidate categories |
-| `src/app/actions/expenses.ts` | Add Zod validation |
-| `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay |
-| `src/app/actions/budgets.ts` | Add Zod validation |
-| `src/app/actions/notes.ts` | Add Zod validation |
-| `src/app/actions/categories.ts` | Add Zod validation, updateCategory action |
-| `src/app/globals.css` | Fix sticky-note dark mode, add animations |
-| `supabase-schema.sql` | Add income table, indexes, constraints, triggers |
+| File | Changes | Status |
+|---|---|---|
+| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | |
+| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | |
+| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | |
+| `src/app/recurring/page.tsx` | Confirm dialogs for toggle, aria labels, dark mode | |
+| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | |
+| `src/app/calendar/page.tsx` | Auth guard, loading skeleton | |
+| `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard | |
+| `src/app/notes/page.tsx` | Dark mode fixes, empty state | |
+| `src/app/settings/page.tsx` | CSV export, date range export, replace alert() | |
+| `src/app/profile/page.tsx` | Name editing, password strength | DONE |
+| `src/app/login/page.tsx` | Dark mode Google button fix | |
+| `src/app/layout.tsx` | Skip-to-content link | |
+| `src/components/Sidebar.tsx` | Add Income + Categories links | |
+| `src/components/ConfirmDialog.tsx` | Add loading spinner animation | |
+| `src/components/Toast.tsx` | Fix position conflict with ThemeToggle | |
+| `src/components/ThemeToggle.tsx` | Fix position conflict with Toast | |
+| `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure | |
+| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm | |
+| `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm | |
+| `src/components/AddBillModal.tsx` | Add payment method from DB | |
+| `src/components/AuthProvider.tsx` | Handle session expiry gracefully | DONE |
+| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization | DONE (Phase 2) |
+| `src/lib/utils.ts` | Consolidate categories, add CSV utils | |
+| `src/lib/supabase/client.ts` | Replace null returns with thrown errors | DONE |
+| `src/lib/supabase/server.ts` | Replace null returns with thrown errors | DONE |
+| `src/types/index.ts` | Add Income type, Template type, consolidate categories | |
+| `src/app/actions/expenses.ts` | Add Zod validation | DONE |
+| `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay | DONE |
+| `src/app/actions/budgets.ts` | Add Zod validation | DONE |
+| `src/app/actions/notes.ts` | Add Zod validation | DONE |
+| `src/app/actions/categories.ts` | Add Zod validation, updateCategory action | DONE |
+| `src/app/globals.css` | Fix sticky-note dark mode, add animations | |
+| `supabase-schema.sql` | Add payment_method, auto_pay, indexes, CHECK, trigger | DONE |
+| `src/app/auth/callback/route.ts` | Handle thrown errors from createClient | DONE |

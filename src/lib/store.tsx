@@ -57,6 +57,8 @@ const DEFAULT_CATEGORY_DATA: CategoryItem[] = [
 interface StoreContextValue {
   expenses: Expense[];
   expensesLoaded: boolean;
+  expensesError: string | null;
+  refetchExpenses: () => Promise<void>;
   addExpense: (data: Omit<Expense, "id" | "created_at" | "updated_at">) => Promise<Expense>;
   updateExpense: (id: string, data: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
@@ -67,12 +69,16 @@ interface StoreContextValue {
 
   payments: RecurringPayment[];
   paymentsLoaded: boolean;
+  paymentsError: string | null;
+  refetchPayments: () => Promise<void>;
   addPayment: (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => Promise<RecurringPayment>;
   updatePayment: (id: string, data: Partial<RecurringPayment>) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 
   budgets: Budget[];
   budgetsLoaded: boolean;
+  budgetsError: string | null;
+  refetchBudgets: () => Promise<void>;
   setBudget: (year: number, month: number, amount: number, category?: string) => Promise<void>;
   getBudget: (year: number, month: number, category?: string) => Budget | undefined;
   deleteBudget: (id: string) => Promise<void>;
@@ -80,12 +86,16 @@ interface StoreContextValue {
 
   notes: Note[];
   notesLoaded: boolean;
+  notesError: string | null;
+  refetchNotes: () => Promise<void>;
   addNote: (data: Omit<Note, "id" | "created_at" | "updated_at">) => Promise<Note>;
   updateNote: (id: string, data: Partial<Note>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
   categories: CategoryItem[];
   categoriesLoaded: boolean;
+  categoriesError: string | null;
+  refetchCategories: () => Promise<void>;
   addCategory: (name: string, icon: string, color: string) => Promise<CategoryItem>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryByName: (name: string) => CategoryItem | undefined;
@@ -97,20 +107,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesLoaded, setExpensesLoaded] = useState(false);
+  const [expensesError, setExpensesError] = useState<string | null>(null);
 
   const [payments, setPayments] = useState<RecurringPayment[]>([]);
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [autoPayProcessed, setAutoPayProcessed] = useState(false);
 
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoaded, setBudgetsLoaded] = useState(false);
+  const [budgetsError, setBudgetsError] = useState<string | null>(null);
   const [budgetsFetched, setBudgetsFetched] = useState(false);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoaded, setNotesLoaded] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_DATA);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -139,27 +154,113 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     fetchExpenses().then((data) => {
       setExpenses(data);
+      setExpensesError(null);
       if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setExpensesLoaded(true));
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load expenses";
+      setExpensesError(msg);
+      toast("Failed to load expenses", "error");
+    }).finally(() => setExpensesLoaded(true));
 
     fetchRecurringPayments().then((data) => {
       setPayments(data);
+      setPaymentsError(null);
       if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setPaymentsLoaded(true));
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
+      setPaymentsError(msg);
+      toast("Failed to load recurring payments", "error");
+    }).finally(() => setPaymentsLoaded(true));
 
     fetchCategories().then((data) => {
       if (data.length > 0) {
         setCategories(data);
         if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
       }
-    }).catch(() => {}).finally(() => setCategoriesLoaded(true));
+      setCategoriesError(null);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load categories";
+      setCategoriesError(msg);
+      toast("Failed to load categories", "error");
+    }).finally(() => setCategoriesLoaded(true));
 
     fetchNotes().then((data) => {
       setNotes(data);
+      setNotesError(null);
       if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setNotesLoaded(true));
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load notes";
+      setNotesError(msg);
+      toast("Failed to load notes", "error");
+    }).finally(() => setNotesLoaded(true));
   }, []); // hydrating store from cache + server on mount
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const refetchExpenses = useCallback(async () => {
+    try {
+      const data = await fetchExpenses();
+      setExpenses(data);
+      setExpensesError(null);
+      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load expenses";
+      setExpensesError(msg);
+      toast("Failed to load expenses", "error");
+    }
+  }, [toast]);
+
+  const refetchPayments = useCallback(async () => {
+    try {
+      const data = await fetchRecurringPayments();
+      setPayments(data);
+      setPaymentsError(null);
+      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
+      setPaymentsError(msg);
+      toast("Failed to load recurring payments", "error");
+    }
+  }, [toast]);
+
+  const refetchNotes = useCallback(async () => {
+    try {
+      const data = await fetchNotes();
+      setNotes(data);
+      setNotesError(null);
+      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load notes";
+      setNotesError(msg);
+      toast("Failed to load notes", "error");
+    }
+  }, [toast]);
+
+  const refetchCategories = useCallback(async () => {
+    try {
+      const data = await fetchCategories();
+      if (data.length > 0) {
+        setCategories(data);
+        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
+      }
+      setCategoriesError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load categories";
+      setCategoriesError(msg);
+      toast("Failed to load categories", "error");
+    }
+  }, [toast]);
+
+  const refetchBudgets = useCallback(async () => {
+    try {
+      const data = await fetchBudgets();
+      setBudgets(data);
+      setBudgetsError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load budgets";
+      setBudgetsError(msg);
+      toast("Failed to load budgets", "error");
+    }
+  }, [toast]);
 
   const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
@@ -362,8 +463,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const fetchBudgetsIfNeeded = useCallback(async () => {
     if (budgetsFetched) return;
     setBudgetsFetched(true);
-    fetchBudgets().then(setBudgets).catch(() => setBudgets([])).finally(() => setBudgetsLoaded(true));
-  }, [budgetsFetched]);
+    fetchBudgets().then((data) => {
+      setBudgets(data);
+      setBudgetsError(null);
+    }).catch((err) => {
+      setBudgets([]);
+      const msg = err instanceof Error ? err.message : "Failed to load budgets";
+      setBudgetsError(msg);
+      toast("Failed to load budgets", "error");
+    }).finally(() => setBudgetsLoaded(true));
+  }, [budgetsFetched, toast]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => { fetchBudgetsIfNeeded(); }, [fetchBudgetsIfNeeded]);
@@ -520,12 +629,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      expenses, expensesLoaded, addExpense, updateExpense, deleteExpense,
+      expenses, expensesLoaded, expensesError, refetchExpenses,
+      addExpense, updateExpense, deleteExpense,
       getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
-      payments, paymentsLoaded, addPayment, updatePayment, deletePayment,
-      budgets, budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded,
-      notes, notesLoaded, addNote, updateNote, deleteNote,
-      categories, categoriesLoaded, addCategory, deleteCategory, getCategoryByName,
+      payments, paymentsLoaded, paymentsError, refetchPayments,
+      addPayment, updatePayment, deletePayment,
+      budgets, budgetsLoaded, budgetsError, refetchBudgets,
+      setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded,
+      notes, notesLoaded, notesError, refetchNotes,
+      addNote, updateNote, deleteNote,
+      categories, categoriesLoaded, categoriesError, refetchCategories,
+      addCategory, deleteCategory, getCategoryByName,
     }}>
       {children}
     </StoreContext.Provider>
@@ -540,33 +654,35 @@ function useStore() {
 
 export function useExpenses() {
   const {
-    expenses, expensesLoaded, addExpense, updateExpense, deleteExpense,
+    expenses, expensesLoaded, expensesError, refetchExpenses,
+    addExpense, updateExpense, deleteExpense,
     getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
   } = useStore();
   return {
-    expenses, loaded: expensesLoaded, addExpense, updateExpense, deleteExpense,
+    expenses, loaded: expensesLoaded, error: expensesError, refetch: refetchExpenses,
+    addExpense, updateExpense, deleteExpense,
     getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
   };
 }
 
 export function useRecurringPayments() {
-  const { payments, paymentsLoaded, addPayment, updatePayment, deletePayment } = useStore();
-  return { payments, loaded: paymentsLoaded, addPayment, updatePayment, deletePayment };
+  const { payments, paymentsLoaded, paymentsError, refetchPayments, addPayment, updatePayment, deletePayment } = useStore();
+  return { payments, loaded: paymentsLoaded, error: paymentsError, refetch: refetchPayments, addPayment, updatePayment, deletePayment };
 }
 
 export function useBudgets() {
-  const { budgets, budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded } = useStore();
-  return { budgets, loaded: budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgets: fetchBudgetsIfNeeded };
+  const { budgets, budgetsLoaded, budgetsError, refetchBudgets, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded } = useStore();
+  return { budgets, loaded: budgetsLoaded, error: budgetsError, refetch: refetchBudgets, setBudget, getBudget, deleteBudget, fetchBudgets: fetchBudgetsIfNeeded };
 }
 
 export function useNotes() {
-  const { notes, notesLoaded, addNote, updateNote, deleteNote } = useStore();
-  return { notes, loaded: notesLoaded, addNote, updateNote, deleteNote };
+  const { notes, notesLoaded, notesError, refetchNotes, addNote, updateNote, deleteNote } = useStore();
+  return { notes, loaded: notesLoaded, error: notesError, refetch: refetchNotes, addNote, updateNote, deleteNote };
 }
 
 export function useCategories() {
-  const { categories, categoriesLoaded, addCategory, deleteCategory, getCategoryByName } = useStore();
-  return { categories, loaded: categoriesLoaded, addCategory, deleteCategory, getCategoryByName };
+  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, deleteCategory, getCategoryByName } = useStore();
+  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, deleteCategory, getCategoryByName };
 }
 
 export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {
@@ -626,4 +742,3 @@ export function getDueDates(payment: RecurringPayment, todayStr: string): string
   }
   return dates;
 }
-

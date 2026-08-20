@@ -39,8 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsConfigured(true);
 
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error && error.message.includes("session")) {
+        setUser(null);
+      } else {
+        setUser(user);
+      }
       setLoading(false);
     };
 
