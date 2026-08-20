@@ -7,6 +7,7 @@ import type {
   Budget,
   Note,
   CategoryItem,
+  Income,
 } from "@/types";
 import {
   fetchExpenses,
@@ -37,6 +38,12 @@ import {
   updateCategory as updateCategoryAction,
   deleteCategory as deleteCategoryAction,
 } from "@/app/actions/categories";
+import {
+  fetchIncome,
+  addIncome as addIncomeAction,
+  updateIncome as updateIncomeAction,
+  deleteIncome as deleteIncomeAction,
+} from "@/app/actions/income";
 import { useToast } from "@/components/Toast";
 
 
@@ -101,6 +108,15 @@ interface StoreContextValue {
   updateCategory: (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryByName: (name: string) => CategoryItem | undefined;
+
+  income: Income[];
+  incomeLoaded: boolean;
+  incomeError: string | null;
+  refetchIncome: () => Promise<void>;
+  addIncome: (data: Omit<Income, "id" | "created_at" | "updated_at">) => Promise<Income>;
+  updateIncome: (id: string, data: Partial<Income>) => Promise<void>;
+  deleteIncome: (id: string) => Promise<void>;
+  getMonthIncome: (year: number, month: number) => number;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -129,6 +145,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
+  const [income, setIncome] = useState<Income[]>([]);
+  const [incomeLoaded, setIncomeLoaded] = useState(false);
+  const [incomeError, setIncomeError] = useState<string | null>(null);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -151,6 +171,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (cachedNotes) {
         setNotes(JSON.parse(cachedNotes));
         setNotesLoaded(true);
+      }
+      const cachedIncome = localStorage.getItem("cache_income");
+      if (cachedIncome) {
+        setIncome(JSON.parse(cachedIncome));
+        setIncomeLoaded(true);
       }
     }
 
@@ -195,6 +220,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotesError(msg);
       toast("Failed to load notes", "error");
     }).finally(() => setNotesLoaded(true));
+
+    fetchIncome().then((data) => {
+      setIncome(data);
+      setIncomeError(null);
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(data));
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load income";
+      setIncomeError(msg);
+      toast("Failed to load income", "error");
+    }).finally(() => setIncomeLoaded(true));
   }, [toast]); // hydrating store from cache + server on mount
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -249,6 +284,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const msg = err instanceof Error ? err.message : "Failed to load categories";
       setCategoriesError(msg);
       toast("Failed to load categories", "error");
+    }
+  }, [toast]);
+
+  const refetchIncome = useCallback(async () => {
+    try {
+      const data = await fetchIncome();
+      setIncome(data);
+      setIncomeError(null);
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(data));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load income";
+      setIncomeError(msg);
+      toast("Failed to load income", "error");
     }
   }, [toast]);
 
@@ -646,6 +694,83 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [categories]
   );
 
+  // Income
+  const addIncome = useCallback(async (data: Omit<Income, "id" | "created_at" | "updated_at">) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticIncome: Income = {
+      ...data,
+      id: tempId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setIncome((prev) => {
+      const next = [optimisticIncome, ...prev];
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const realIncome = await addIncomeAction(data);
+      setIncome((prev) => {
+        const next = prev.map((i) => (i.id === tempId ? realIncome : i));
+        if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+        return next;
+      });
+      return realIncome;
+    } catch (err) {
+      setIncome((prev) => {
+        const next = prev.filter((i) => i.id !== tempId);
+        if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+        return next;
+      });
+      throw err;
+    }
+  }, []);
+
+  const updateIncome = useCallback(async (id: string, updates: Partial<Income>) => {
+    let originalIncome: Income[] = [];
+    setIncome((prev) => {
+      originalIncome = prev;
+      const next = prev.map((i) => (i.id === id ? { ...i, ...updates } : i));
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await updateIncomeAction(id, updates);
+    } catch (err) {
+      setIncome(originalIncome);
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(originalIncome));
+      throw err;
+    }
+  }, []);
+
+  const deleteIncome = useCallback(async (id: string) => {
+    let originalIncome: Income[] = [];
+    setIncome((prev) => {
+      originalIncome = prev;
+      const next = prev.filter((i) => i.id !== id);
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await deleteIncomeAction(id);
+    } catch (err) {
+      setIncome(originalIncome);
+      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(originalIncome));
+      throw err;
+    }
+  }, []);
+
+  const getMonthIncome = useCallback((year: number, month: number) => {
+    const prefix = `${year}-${String(month).padStart(2, "0")}`;
+    return income
+      .filter((i) => i.date.startsWith(prefix))
+      .reduce((sum, i) => sum + i.amount, 0);
+  }, [income]);
+
   return (
     <StoreContext.Provider value={{
       expenses, expensesLoaded, expensesError, refetchExpenses,
@@ -659,6 +784,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addNote, updateNote, deleteNote,
       categories, categoriesLoaded, categoriesError, refetchCategories,
       addCategory, updateCategory, deleteCategory, getCategoryByName,
+      income, incomeLoaded, incomeError, refetchIncome,
+      addIncome, updateIncome, deleteIncome, getMonthIncome,
     }}>
       {children}
     </StoreContext.Provider>
@@ -702,6 +829,11 @@ export function useNotes() {
 export function useCategories() {
   const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName } = useStore();
   return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName };
+}
+
+export function useIncome() {
+  const { income, incomeLoaded, incomeError, refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome } = useStore();
+  return { income, loaded: incomeLoaded, error: incomeError, refetch: refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome };
 }
 
 export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {

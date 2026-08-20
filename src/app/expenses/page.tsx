@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import { Plus, Trash2, Search, Edit2 } from "lucide-react";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { Plus, Trash2, Search, Edit2, CalendarDays, X } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AddExpenseModal from "@/components/AddExpenseModal";
@@ -22,6 +22,8 @@ function ExpensesPageInner() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
+  const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
+  const [quickFilter, setQuickFilter] = useState<string>("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const searchParams = useSearchParams();
@@ -53,7 +55,11 @@ function ExpensesPageInner() {
     .filter((e) => {
       const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase());
       const matchCategory = filterCategory === "All" || e.category === filterCategory;
-      return matchSearch && matchCategory;
+      let matchDate = true;
+      if (dateRange) {
+        matchDate = e.date >= dateRange.start && e.date <= dateRange.end;
+      }
+      return matchSearch && matchCategory && matchDate;
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
 
@@ -62,6 +68,29 @@ function ExpensesPageInner() {
     if (!grouped[e.date]) grouped[e.date] = [];
     grouped[e.date].push(e);
   });
+
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+
+  function applyQuickFilter(type: string) {
+    setQuickFilter(type);
+    if (type === "All") {
+      setDateRange(null);
+    } else if (type === "Today") {
+      setDateRange({ start: todayStr, end: todayStr });
+    } else if (type === "This Week") {
+      const start = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const end = format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      setDateRange({ start, end });
+    } else if (type === "This Month") {
+      const start = format(startOfMonth(today), "yyyy-MM-dd");
+      const end = format(endOfMonth(today), "yyyy-MM-dd");
+      setDateRange({ start, end });
+    } else if (type === "Last 30 Days") {
+      const start = format(subDays(today, 30), "yyyy-MM-dd");
+      setDateRange({ start, end: todayStr });
+    }
+  }
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
@@ -82,27 +111,85 @@ function ExpensesPageInner() {
         </div>
 
         {/* Search & Filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-paper-dark/30 p-3 rounded-lg border border-[rgba(0,0,0,0.04)]">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />
-            <input
-              type="text"
-              placeholder="Search by keyword..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
-            />
+        <div className="mb-6 bg-paper-dark/30 p-3 rounded-lg border border-[rgba(0,0,0,0.04)]">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />
+              <input
+                type="text"
+                placeholder="Search by keyword..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
+              />
+            </div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
+            >
+              <option value="All">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
+              ))}
+            </select>
           </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
-          >
-            <option value="All">All Categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
+          {/* Date range quick filters */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <CalendarDays size={14} className="text-ink-light shrink-0" />
+            {["All", "Today", "This Week", "This Month", "Last 30 Days"].map((f) => (
+              <button
+                key={f}
+                onClick={() => applyQuickFilter(f)}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                  quickFilter === f
+                    ? "bg-accent-warm text-white"
+                    : "bg-paper-bg text-ink-medium hover:text-ink-dark border border-[rgba(0,0,0,0.06)]"
+                }`}
+              >
+                {f}
+              </button>
             ))}
-          </select>
+            {quickFilter === "Custom" && (
+              <>
+                <input
+                  type="date"
+                  value={dateRange?.start || ""}
+                  onChange={(e) => setDateRange((prev) => ({ start: e.target.value, end: prev?.end || todayStr }))}
+                  className="px-2 py-1 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-[11px] text-ink-dark focus:outline-none focus:border-accent-warm"
+                />
+                <span className="text-[10px] text-ink-light">to</span>
+                <input
+                  type="date"
+                  value={dateRange?.end || ""}
+                  onChange={(e) => setDateRange((prev) => ({ start: prev?.start || todayStr, end: e.target.value }))}
+                  className="px-2 py-1 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-[11px] text-ink-dark focus:outline-none focus:border-accent-warm"
+                />
+              </>
+            )}
+            <button
+              onClick={() => {
+                setQuickFilter("Custom");
+                if (!dateRange) setDateRange({ start: format(subDays(today, 30), "yyyy-MM-dd"), end: todayStr });
+              }}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                quickFilter === "Custom"
+                  ? "bg-accent-warm text-white"
+                  : "bg-paper-bg text-ink-medium hover:text-ink-dark border border-[rgba(0,0,0,0.06)]"
+              }`}
+            >
+              Custom
+            </button>
+            {dateRange && (
+              <button
+                onClick={() => { setDateRange(null); setQuickFilter("All"); }}
+                className="p-1 rounded hover:bg-paper-dark text-ink-light hover:text-accent-red cursor-pointer"
+                aria-label="Clear date filter"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Expenses List */}

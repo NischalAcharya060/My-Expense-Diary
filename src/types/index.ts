@@ -111,6 +111,19 @@ export interface Note {
   updated_at: string;
 }
 
+export interface Income {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  date: string;
+  source: string;
+  category: string;
+  note?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DayExpenses {
   date: string;
   expenses: Expense[];

@@ -3,7 +3,7 @@
 import { useSyncExternalStore, useState } from "react";
 import { format, subMonths, addMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
-import { useExpenses, useBudgets, useCategories } from "@/lib/store";
+import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
 import {
@@ -33,6 +33,7 @@ export default function InsightsPage() {
   const { expenses, loaded } = useExpenses();
   const { getBudget } = useBudgets();
   const { categories } = useCategories();
+  const { getMonthIncome, income } = useIncome();
   const [currentDate, setCurrentDate] = useState(new Date());
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -78,8 +79,13 @@ export default function InsightsPage() {
     const d = subMonths(new Date(year, month - 1), 5 - i);
     const p = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const total = expenses.filter((e) => e.date.startsWith(p)).reduce((s, e) => s + e.amount, 0);
-    return { month: format(d, "MMM"), amount: total };
+    const inc = income.filter((i) => i.date.startsWith(p)).reduce((s, i) => s + i.amount, 0);
+    return { month: format(d, "MMM"), expenses: total, income: inc };
   });
+
+  // Current month income
+  const monthIncome = getMonthIncome(year, month);
+  const netBalance = monthIncome - totalSpending;
 
   // Bills vs daily
   const billTotal = monthExpenses.filter((e) => e.expense_type === "Bill").reduce((s, e) => s + e.amount, 0);
@@ -230,7 +236,7 @@ export default function InsightsPage() {
         <div className="paper-card p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={20} className="text-accent-warm" />
-            <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Monthly Spending Comparison</h3>
+            <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Income vs Expenses (6 Months)</h3>
           </div>
           <div className="h-48 pr-4">
             <ResponsiveContainer width="100%" height="100%">
@@ -239,9 +245,36 @@ export default function InsightsPage() {
                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#888" }} />
                 <YAxis tick={{ fontSize: 9, fill: "#888" }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amount" fill="#4A8C6F" radius={[4, 4, 0, 0]} barSize={28} />
+                <Bar dataKey="income" name="Income" fill="#4A8C6F" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="expenses" name="Expenses" fill="#E87070" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-center gap-4 mt-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-accent-green" />
+              <span className="text-[10px] text-ink-light font-medium">Income</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-accent-red" />
+              <span className="text-[10px] text-ink-light font-medium">Expenses</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Current Month Summary */}
+        <div className="paper-card p-4 mb-6 bg-accent-green/5 border-l-4 border-l-accent-green">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold">This Month&apos;s Net</p>
+              <p className={`font-handwritten text-2xl amount font-semibold ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                {netBalance >= 0 ? "+" : ""}{formatCurrency(netBalance)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-accent-green font-medium">Income: {formatCurrency(monthIncome)}</p>
+              <p className="text-[10px] text-accent-red font-medium">Spent: {formatCurrency(totalSpending)}</p>
+            </div>
           </div>
         </div>
 

@@ -13,6 +13,7 @@ import {
   StickyNote,
   Settings,
   Tag,
+  DollarSign,
   Plus,
   Menu,
   X,
@@ -47,6 +48,7 @@ const navSections = [
     label: "Finance",
     items: [
       { href: "/monthly", label: "Monthly Summary", icon: BarChart3 },
+      { href: "/income", label: "Income", icon: DollarSign },
       { href: "/bills", label: "Bills & Subs", icon: FileText },
     ],
   },

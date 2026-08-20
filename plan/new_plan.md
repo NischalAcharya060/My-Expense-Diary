@@ -106,47 +106,32 @@
 ## Phase 6: Missing Core Features
 
 ### 6.1 Income Tracking
-- [ ] Add `income` table to Supabase schema (id, user_id, name, amount, date, source, category, created_at)
-- [ ] Add server actions: `fetchIncome`, `addIncome`, `updateIncome`, `deleteIncome`
-- [ ] Add `useIncome` hook to store
-- [ ] Create `src/app/income/page.tsx` — income journal with CRUD
-- [ ] Update dashboard (`page.tsx`) to show net balance (income - expenses)
-- [ ] Update `monthly/page.tsx` to show income vs expense comparison
-- [ ] Update `insights/page.tsx` to include income charts
-- [ ] Add sidebar link for Income
+- [x] Add `income` table to Supabase schema (id, user_id, name, amount, date, source, category, created_at)
+- [x] Add server actions: `fetchIncome`, `addIncome`, `updateIncome`, `deleteIncome`
+- [x] Add `useIncome` hook to store
+- [x] Create `src/app/income/page.tsx` — income journal with CRUD
+- [x] Update dashboard (`page.tsx`) to show net balance (income - expenses)
+- [x] Update `monthly/page.tsx` to show income vs expense comparison
+- [x] Update `insights/page.tsx` to include income charts
+- [x] Add sidebar link for Income
 
 ### 6.2 Category Management
-- [ ] Create `src/app/categories/page.tsx` — dedicated page to view, edit, reorder, delete categories
-- [ ] Add `updateCategory` server action to `actions/categories.ts`
-- [ ] Add edit icon and reorder drag handles to category list
-- [ ] Show expense count per category
-- [ ] Prevent deletion of categories with existing expenses (or offer to reassign)
+- [x] Create `src/app/categories/page.tsx` — dedicated page to view, edit, reorder, delete categories
+- [x] Add `updateCategory` server action to `actions/categories.ts`
+- [x] Add edit icon and reorder drag handles to category list
+- [x] Show expense count per category
+- [x] Prevent deletion of categories with existing expenses (or offer to reassign)
 
 ### 6.3 CSV Export
-- [ ] Add CSV export option alongside JSON in `settings/page.tsx`
-- [ ] Format: Date, Name, Amount, Category, Payment Method, Expense Type, Note
-- [ ] Add date range selector for export
-- [ ] Add CSV export to monthly summary page
+- [x] Add CSV export option alongside JSON in `settings/page.tsx`
+- [x] Format: Date, Name, Amount, Category, Payment Method, Expense Type, Note
+- [x] Add date range selector for export
+- [x] Add CSV export to monthly summary page
 
 ### 6.4 Date Range Filter on Expenses
-- [ ] Add start/end date picker to `expenses/page.tsx` filter bar
-- [ ] Add "This Week", "This Month", "Last 30 Days", "Custom Range" quick filters
-- [ ] Persist filter selection in URL query params for shareability
-
----
-
-## Phase 7: Dashboard Enhancement
-
-### 7.1 Rich Dashboard
-- [ ] Add mini category pie chart to dashboard (reuse insights chart component)
-- [ ] Add spending trend sparkline (last 7 days)
-- [ ] Add "Top Spending Category" card
-- [ ] Add monthly budget progress bar (when budget is set)
-- [ ] Improve empty state: show illustration + "Add Your First Expense" CTA button
-
-### 7.2 Quick Actions
-- [ ] Add floating action button (FAB) on mobile for quick expense entry
-- [ ] Add keyboard shortcut `Ctrl+N` to open add expense modal (desktop)
+- [x] Add start/end date picker to `expenses/page.tsx` filter bar
+- [x] Add "This Week", "This Month", "Last 30 Days", "Custom Range" quick filters
+- [x] Persist filter selection in URL query params for shareability
 
 ---
 

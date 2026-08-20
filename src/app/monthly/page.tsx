@@ -2,15 +2,18 @@
 
 import { useSyncExternalStore, useState } from "react";
 import { format, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useExpenses, useBudgets, useCategories } from "@/lib/store";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import { useToast } from "@/components/Toast";
 
 export default function MonthlySummaryPage() {
   const { expenses, loaded } = useExpenses();
   const { getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
+  const { getMonthIncome } = useIncome();
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -34,11 +37,7 @@ export default function MonthlySummaryPage() {
   const monthExpenses = expenses.filter((e) => e.date.startsWith(format(currentDate, "yyyy-MM")));
   const totalSpending = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const bills = monthExpenses.filter((e) => e.expense_type === "Bill");
-  const subscriptions = monthExpenses.filter((e) => e.expense_type === "Subscription");
-  const dailyExpenses = monthExpenses.filter((e) => e.expense_type === "Daily purchase");
   const totalBills = bills.reduce((s, e) => s + e.amount, 0);
-  const totalSubs = subscriptions.reduce((s, e) => s + e.amount, 0);
-  const totalDaily = dailyExpenses.reduce((s, e) => s + e.amount, 0);
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const daysWithData = new Set(monthExpenses.map((e) => e.date)).size;
@@ -60,11 +59,46 @@ export default function MonthlySummaryPage() {
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - totalSpending;
 
+  const monthIncome = getMonthIncome(year, month);
+  const netBalance = monthIncome - totalSpending;
+
+  function handleExportCSV() {
+    const headers = ["Date", "Name", "Amount", "Category", "Payment Method", "Expense Type", "Note"];
+    const rows = monthExpenses.map((e) => [
+      e.date,
+      `"${e.name.replace(/"/g, '""')}"`,
+      e.amount.toFixed(2),
+      e.category,
+      e.payment_method,
+      e.expense_type,
+      `"${(e.note || "").replace(/"/g, '""')}"`,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expenses-${prefix}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("CSV exported");
+  }
+
   return (
     <AuthGuard feature="monthly summaries">
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Monthly Summary</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>
+          {monthExpenses.length > 0 && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dark rounded text-xs text-ink-medium hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer"
+            >
+              <Download size={14} /> Export CSV
+            </button>
+          )}
+        </div>
 
         {/* Month nav */}
         <div className="paper-card p-4 mb-6">
@@ -81,11 +115,44 @@ export default function MonthlySummaryPage() {
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <SummaryCard label="Income" value={formatCurrency(monthIncome)} />
           <SummaryCard label="Total Spending" value={formatCurrency(totalSpending)} />
+          <SummaryCard label="Net Balance" value={formatCurrency(netBalance)} highlight={netBalance >= 0} />
           <SummaryCard label="Bills" value={formatCurrency(totalBills)} />
-          <SummaryCard label="Subscriptions" value={formatCurrency(totalSubs)} />
-          <SummaryCard label="Daily" value={formatCurrency(totalDaily)} />
         </div>
+
+        {/* Income vs Expense bar */}
+        {(monthIncome > 0 || totalSpending > 0) && (
+          <div className="paper-card p-4 mb-6">
+            <p className="text-xs text-ink-light uppercase tracking-wide mb-3">Income vs Expenses</p>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-accent-green font-semibold uppercase">Income</span>
+                  <span className="text-xs text-accent-green font-semibold amount">{formatCurrency(monthIncome)}</span>
+                </div>
+                <div className="w-full h-3 bg-paper-dark rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-accent-green transition-all" style={{ width: `${monthIncome > 0 ? Math.min((monthIncome / Math.max(monthIncome, totalSpending)) * 100, 100) : 0}%` }} />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-accent-red font-semibold uppercase">Expenses</span>
+                  <span className="text-xs text-accent-red font-semibold amount">{formatCurrency(totalSpending)}</span>
+                </div>
+                <div className="w-full h-3 bg-paper-dark rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-accent-red transition-all" style={{ width: `${totalSpending > 0 ? Math.min((totalSpending / Math.max(monthIncome, totalSpending)) * 100, 100) : 0}%` }} />
+                </div>
+              </div>
+            </div>
+            <div className={`text-center mt-3 pt-3 border-t border-[rgba(0,0,0,0.06)]`}>
+              <span className="text-[10px] text-ink-light uppercase tracking-wide">Net: </span>
+              <span className={`text-sm font-semibold amount ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                {netBalance >= 0 ? "+" : ""}{formatCurrency(netBalance)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {budgetAmount > 0 && (
           <div className="paper-card p-4 mb-6">
@@ -158,11 +225,11 @@ export default function MonthlySummaryPage() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function SummaryCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="paper-card px-3 py-3 text-center">
       <p className="text-xs text-ink-light uppercase tracking-wide mb-1">{label}</p>
-      <p className="font-handwritten text-xl text-ink-dark amount">{value}</p>
+      <p className={`font-handwritten text-xl amount ${highlight === true ? "text-accent-green" : highlight === false ? "text-accent-red" : "text-ink-dark"}`}>{value}</p>
     </div>
   );
 }

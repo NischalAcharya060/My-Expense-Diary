@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useExpenses, useRecurringPayments, useBudgets, useCategories } from "@/lib/store";
+import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import type { Expense } from "@/types";
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const { payments } = useRecurringPayments();
   const { getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
+  const { getMonthIncome } = useIncome();
   const today = new Date();
   const { year, month } = getCurrentMonth();
   const router = useRouter();
@@ -67,6 +68,8 @@ export default function DashboardPage() {
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const todayTotal = getTodayTotal();
   const monthTotal = getMonthTotal(year, month);
+  const monthIncome = getMonthIncome(year, month);
+  const netBalance = monthIncome - monthTotal;
   const budget = getBudget(year, month);
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - monthTotal;
@@ -90,36 +93,47 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick stats cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pt-2">
-          {/* Card 1 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 pt-2">
+          {/* Today */}
           <div className="paper-card px-4 py-3 relative rotate-[-1.5deg] hover:rotate-0 transition-transform shadow duration-200">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
             <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Today</p>
-            <p className="font-handwritten text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
           </div>
           
-          {/* Card 2 */}
-          <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
+          {/* Income */}
+          <div className="paper-card px-4 py-3 relative rotate-[0.5deg] hover:rotate-0 transition-transform shadow duration-200">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-2 shadow-sm rounded-sm pointer-events-none" />
-            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">This Month</p>
-            <p className="font-handwritten text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Income</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-accent-green amount font-semibold">{formatCurrency(monthIncome)}</p>
           </div>
 
-          {/* Card 3 */}
+          {/* Expenses */}
+          <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Expenses</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
+          </div>
+
+          {/* Net Balance / Remaining */}
           {budgetAmount > 0 ? (
             <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${remaining < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-1 shadow-sm rounded-sm pointer-events-none" />
               <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Remaining</p>
-              <p className={`font-handwritten text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
+              <p className={`font-handwritten text-2xl sm:text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
                 {formatCurrency(Math.abs(remaining))}
-                {remaining < 0 && <span className="text-xs block sm:inline font-sans font-normal text-accent-red ml-1">over</span>}
+                {remaining < 0 && <span className="text-[10px] block sm:inline font-sans font-normal text-accent-red ml-1">over</span>}
               </p>
             </div>
           ) : (
-            <Link href="/settings" className="paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 border-dashed border-ink-light/40 flex flex-col justify-center items-center group">
-              <span className="text-xs text-ink-light group-hover:text-accent-warm transition-colors font-medium">No Budget Set</span>
-              <span className="text-[10px] text-accent-warm mt-1 font-bold group-hover:underline">Set Budget →</span>
-            </Link>
+            <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${netBalance < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-1 shadow-sm rounded-sm pointer-events-none" />
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Net Balance</p>
+              <p className={`font-handwritten text-2xl sm:text-3xl amount font-semibold ${netBalance < 0 ? "text-accent-red" : "text-accent-green"}`}>
+                {formatCurrency(Math.abs(netBalance))}
+                {netBalance < 0 && <span className="text-[10px] block sm:inline font-sans font-normal text-accent-red ml-1">deficit</span>}
+              </p>
+            </div>
           )}
         </div>
 

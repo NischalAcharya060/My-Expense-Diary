@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useState, useEffect, useRef } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check } from "lucide-react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useCountry } from "@/components/CountryProvider";
 import FlagIcon from "@/components/FlagIcon";
@@ -144,6 +144,28 @@ function SettingsContent() {
     a.click();
     URL.revokeObjectURL(url);
     toast("Data exported");
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["Date", "Name", "Amount", "Category", "Payment Method", "Expense Type", "Note"];
+    const rows = expenses.map((e) => [
+      e.date,
+      `"${e.name.replace(/"/g, '""')}"`,
+      e.amount.toFixed(2),
+      e.category,
+      e.payment_method,
+      e.expense_type,
+      `"${(e.note || "").replace(/"/g, '""')}"`,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expense-diary-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("CSV exported");
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -433,7 +455,13 @@ function SettingsContent() {
               onClick={handleExportData}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-warm hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
             >
-              <Download size={16} /> Export Data
+              <Download size={16} /> Export JSON
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
+            >
+              <FileSpreadsheet size={16} /> Export CSV
             </button>
             <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-blue hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer">
               <Upload size={16} /> Import Data

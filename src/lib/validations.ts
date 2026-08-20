@@ -108,6 +108,26 @@ export const categorySchema = z
   })
   .strict();
 
+export const incomeSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, "Name is required")
+      .max(200, "Name must be 200 characters or less")
+      .trim(),
+    amount: z
+      .number()
+      .positive("Amount must be positive")
+      .max(999999.99, "Amount must be 999,999.99 or less"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+    source: z.string().min(1, "Source is required").max(100),
+    category: z.string().min(1, "Category is required").max(100),
+    note: z.string().max(1000).optional().nullable(),
+  })
+  .strict();
+
+export const incomeUpdateSchema = incomeSchema.partial().strict();
+
 export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
