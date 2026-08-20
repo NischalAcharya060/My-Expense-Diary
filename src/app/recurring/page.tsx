@@ -8,12 +8,14 @@ import type { RecurringPayment } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import { useToast } from "@/components/Toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function RecurringPage() {
   const { payments, loaded, addPayment, updatePayment, deletePayment } = useRecurringPayments();
   const { categories } = useCategories();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<RecurringPayment | null>(null);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [isVariable, setIsVariable] = useState(false);
@@ -79,8 +81,7 @@ export default function RecurringPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deletePayment(id);
-    toast("Payment deleted");
+    setDeletePaymentId(id);
   };
 
   const handleToggle = async (id: string, isActive: boolean) => {
@@ -235,6 +236,24 @@ export default function RecurringPage() {
       </div>
 
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="recurring payments" />
+      <ConfirmDialog
+        open={!!deletePaymentId}
+        onClose={() => setDeletePaymentId(null)}
+        onConfirm={async () => {
+          if (deletePaymentId) {
+            try {
+              await deletePayment(deletePaymentId);
+              toast("Payment deleted");
+            } catch (err) {
+              console.error(err);
+              toast("Failed to delete payment", "error");
+            }
+            setDeletePaymentId(null);
+          }
+        }}
+        title="Delete recurring payment?"
+        message="This will permanently remove this payment and cannot be undone."
+      />
     </div>
   );
 }
