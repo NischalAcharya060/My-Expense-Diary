@@ -2,7 +2,10 @@
 
 import { useSyncExternalStore, useState } from "react";
 import { format, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
@@ -84,6 +87,57 @@ export default function MonthlySummaryPage() {
     toast("CSV exported");
   }
 
+  function handleExportExcel() {
+    const data = monthExpenses.map((e) => ({
+      Date: e.date,
+      Name: e.name,
+      Amount: e.amount,
+      Category: e.category,
+      "Payment Method": e.payment_method,
+      "Expense Type": e.expense_type,
+      Note: e.note || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 18 }, { wch: 30 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+    XLSX.writeFile(wb, `expenses-${prefix}.xlsx`);
+    toast("Excel exported");
+  }
+
+  function handleExportPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text(`Expense Report — ${format(currentDate, "MMMM yyyy")}`, 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`Generated on ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, 14, 30);
+    doc.text(`Total entries: ${monthExpenses.length}  |  Total: ${formatCurrency(totalSpending)}`, 14, 36);
+
+    autoTable(doc, {
+      startY: 44,
+      head: [["Date", "Name", "Amount", "Category", "Payment", "Type", "Note"]],
+      body: monthExpenses.map((e) => [
+        e.date,
+        e.name,
+        formatCurrency(e.amount),
+        e.category,
+        e.payment_method,
+        e.expense_type,
+        e.note || "",
+      ]),
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [212, 133, 74] },
+      alternateRowStyles: { fillColor: [245, 240, 235] },
+    });
+
+    doc.save(`expenses-${prefix}.pdf`);
+    toast("PDF exported");
+  }
+
   return (
     <AuthGuard feature="monthly summaries">
     <div className="notebook-paper min-h-screen page-enter">
@@ -91,12 +145,29 @@ export default function MonthlySummaryPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>
           {monthExpenses.length > 0 && (
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dark rounded text-xs text-ink-medium hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer"
-            >
-              <Download size={14} /> Export CSV
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-paper-dark rounded text-[11px] text-ink-medium hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer"
+                title="Export CSV"
+              >
+                <FileSpreadsheet size={13} /> CSV
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-paper-dark rounded text-[11px] text-ink-medium hover:bg-[#1A73E8] hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer"
+                title="Export Excel"
+              >
+                <FileSpreadsheet size={13} /> Excel
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-paper-dark rounded text-[11px] text-ink-medium hover:bg-[#E84040] hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer"
+                title="Export PDF"
+              >
+                <FileText size={13} /> PDF
+              </button>
+            </div>
           )}
         </div>
 

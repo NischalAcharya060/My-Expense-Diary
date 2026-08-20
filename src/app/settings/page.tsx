@@ -1,7 +1,10 @@
 "use client";
 
 import { useSyncExternalStore, useState, useEffect, useRef } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet } from "lucide-react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet, FileText, Info } from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useTheme } from "@/components/ThemeProvider";
 import { useCountry } from "@/components/CountryProvider";
 import FlagIcon from "@/components/FlagIcon";
@@ -166,6 +169,58 @@ function SettingsContent() {
     a.click();
     URL.revokeObjectURL(url);
     toast("CSV exported");
+  };
+
+  const handleExportExcel = () => {
+    const data = expenses.map((e) => ({
+      Date: e.date,
+      Name: e.name,
+      Amount: e.amount,
+      Category: e.category,
+      "Payment Method": e.payment_method,
+      "Expense Type": e.expense_type,
+      Note: e.note || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 18 }, { wch: 30 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+    XLSX.writeFile(wb, `expense-diary-${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast("Excel exported");
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("My Expense Diary — Expense Report", 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`Generated on ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, 14, 30);
+    doc.text(`Total entries: ${expenses.length}`, 14, 36);
+    doc.text(`Total amount: ${formatCurrency(expenses.reduce((s, e) => s + e.amount, 0))}`, 14, 42);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [["Date", "Name", "Amount", "Category", "Payment", "Type", "Note"]],
+      body: expenses.map((e) => [
+        e.date,
+        e.name,
+        formatCurrency(e.amount),
+        e.category,
+        e.payment_method,
+        e.expense_type,
+        e.note || "",
+      ]),
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [212, 133, 74] },
+      alternateRowStyles: { fillColor: [245, 240, 235] },
+    });
+
+    doc.save(`expense-diary-${new Date().toISOString().split("T")[0]}.pdf`);
+    toast("PDF exported");
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -449,22 +504,92 @@ function SettingsContent() {
 
         {/* Import/Export */}
         <div className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Backup & Restore</h3>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Export Data</h3>
+          <p className="text-xs text-ink-light mb-4">Download your expense data in different formats. All exports include all your expenses.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               onClick={handleExportData}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-warm hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 bg-paper-dark rounded-lg text-ink-dark hover:bg-accent-warm hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
             >
-              <Download size={16} /> Export JSON
+              <Download size={18} />
+              <span className="text-xs font-medium">JSON</span>
+              <span className="text-[9px] opacity-60">Full backup</span>
             </button>
             <button
               onClick={handleExportCSV}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 bg-paper-dark rounded-lg text-ink-dark hover:bg-accent-green hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
             >
-              <FileSpreadsheet size={16} /> Export CSV
+              <FileSpreadsheet size={18} />
+              <span className="text-xs font-medium">CSV</span>
+              <span className="text-[9px] opacity-60">Spreadsheet</span>
             </button>
-            <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-blue hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer">
-              <Upload size={16} /> Import Data
+            <button
+              onClick={handleExportExcel}
+              className="flex flex-col items-center gap-1.5 px-3 py-3 bg-paper-dark rounded-lg text-ink-dark hover:bg-[#1A73E8] hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
+            >
+              <FileSpreadsheet size={18} />
+              <span className="text-xs font-medium">Excel</span>
+              <span className="text-[9px] opacity-60">.xlsx format</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="flex flex-col items-center gap-1.5 px-3 py-3 bg-paper-dark rounded-lg text-ink-dark hover:bg-[#E84040] hover:text-white transition-colors border border-[rgba(0,0,0,0.06)]"
+            >
+              <FileText size={18} />
+              <span className="text-xs font-medium">PDF</span>
+              <span className="text-[9px] opacity-60">Printable report</span>
+            </button>
+          </div>
+
+          {/* Format details */}
+          <div className="mt-5 p-4 bg-paper-dark/50 rounded-lg border border-[rgba(0,0,0,0.04)]">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Info size={14} className="text-ink-light" />
+              <h4 className="text-xs font-semibold text-ink-dark">Export & Import Details</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] font-semibold text-ink-dark uppercase tracking-wider mb-2">Export Formats</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-accent-warm mt-0.5 shrink-0">JSON</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Full backup with expenses, recurring payments, budgets, and notes. Can be re-imported to restore data.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-accent-green mt-0.5 shrink-0">CSV</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Plain text spreadsheet. Columns: Date, Name, Amount, Category, Payment Method, Expense Type, Note. Opens in any spreadsheet app.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-[#1A73E8] mt-0.5 shrink-0">Excel</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Native .xlsx format with auto-sized columns. Same columns as CSV. Opens in Microsoft Excel, Google Sheets, or LibreOffice.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-[#E84040] mt-0.5 shrink-0">PDF</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Printable report with header, summary stats, and formatted table. Ideal for sharing or archiving.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-ink-dark uppercase tracking-wider mb-2">Import Format</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-accent-blue mt-0.5 shrink-0">JSON</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Only JSON exports from this app can be imported. The file should contain objects with keys: <code className="bg-paper-dark px-1 rounded">expenses</code>, <code className="bg-paper-dark px-1 rounded">recurring</code>, <code className="bg-paper-dark px-1 rounded">budgets</code>, <code className="bg-paper-dark px-1 rounded">notes</code>.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold text-accent-red mt-0.5 shrink-0">Note</span>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">CSV and Excel files are export-only and cannot be imported. Use JSON for data restore.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Import button */}
+          <div className="mt-4 pt-4 border-t border-[rgba(0,0,0,0.06)]">
+            <p className="text-[10px] text-ink-light mb-2">Import from JSON backup:</p>
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-blue hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer w-fit">
+              <Upload size={16} /> Import JSON
               <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
             </label>
           </div>
