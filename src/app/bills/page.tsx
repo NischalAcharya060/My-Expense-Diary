@@ -13,6 +13,7 @@ import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
 
 export default function BillsPage() {
@@ -28,6 +29,10 @@ export default function BillsPage() {
   );
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState(false);
+  const [deletingExpense, setDeletingExpense] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<RecurringPayment | null>(null);
+  const [variablePayTarget, setVariablePayTarget] = useState<{ payment: RecurringPayment; dueDateStr: string } | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -93,23 +98,11 @@ export default function BillsPage() {
     ? [...dueBills].sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())[0]
     : null;
 
-  const handlePayNow = async (p: RecurringPayment, dueDateStr: string) => {
-    let amountToPay = p.amount;
-
-    if (p.is_variable) {
-      const input = prompt(`Enter variable bill amount for ${p.name}:`, "");
-      if (input === null) return;
-      const parsed = parseFloat(input);
-      if (isNaN(parsed) || parsed <= 0) {
-        toast("Please enter a valid amount", "error");
-        return;
-      }
-      amountToPay = parsed;
-    }
+  const executePayNow = async (p: RecurringPayment, dueDateStr: string, amountOverride?: number) => {
+    const amountToPay = amountOverride ?? p.amount;
 
     try {
       await addExpense({
-        user_id: "",
         name: p.name,
         amount: amountToPay,
         category: p.category,
@@ -131,13 +124,24 @@ export default function BillsPage() {
     }
   };
 
-  const handleDeactivate = async (p: RecurringPayment) => {
+  const handlePayNow = (p: RecurringPayment, dueDateStr: string) => {
+    if (p.is_variable) {
+      setVariablePayTarget({ payment: p, dueDateStr });
+    } else {
+      executePayNow(p, dueDateStr);
+    }
+  };
+
+  const confirmDeactivateBill = async () => {
+    if (!deactivateTarget) return;
     try {
-      await updatePayment(p.id, { is_active: false });
-      toast(`Deactivated ${p.name}`);
+      await updatePayment(deactivateTarget.id, { is_active: false });
+      toast(`Deactivated ${deactivateTarget.name}`);
     } catch (err) {
       console.error(err);
+      toast("Failed to deactivate bill", "error");
     }
+    setDeactivateTarget(null);
   };
 
   const handleActivate = async (p: RecurringPayment) => {
@@ -146,6 +150,7 @@ export default function BillsPage() {
       toast(`Activated ${p.name}`);
     } catch (err) {
       console.error(err);
+      toast("Failed to activate bill", "error");
     }
   };
 
@@ -297,7 +302,7 @@ export default function BillsPage() {
                             <Edit2 size={14} />
                           </button>
                           <button
-                            onClick={() => handleDeactivate(p)}
+                            onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
                             title="Deactivate"
                           >
@@ -365,7 +370,7 @@ export default function BillsPage() {
                             <Edit2 size={14} />
                           </button>
                           <button
-                            onClick={() => handleDeactivate(p)}
+                            onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
                             title="Deactivate"
                           >
@@ -429,7 +434,7 @@ export default function BillsPage() {
                             <Edit2 size={14} />
                           </button>
                           <button
-                            onClick={() => handleDeactivate(p)}
+                            onClick={() => setDeactivateTarget(p)}
                             className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
                             title="Deactivate"
                           >
@@ -563,33 +568,65 @@ export default function BillsPage() {
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="managing bills" />
       <ConfirmDialog
         open={!!deletePaymentId}
-        onClose={() => setDeletePaymentId(null)}
+        onClose={() => { setDeletePaymentId(null); setDeletingPayment(false); }}
         onConfirm={async () => {
           if (deletePaymentId) {
+            setDeletingPayment(true);
             try {
               await deletePayment(deletePaymentId);
               toast("Recurring payment deleted");
             } catch (err) {
               console.error(err);
+              toast("Failed to delete payment", "error");
             }
             setDeletePaymentId(null);
+            setDeletingPayment(false);
           }
         }}
+        loading={deletingPayment}
         title="Delete recurring payment?"
         message="This will permanently remove this payment and cannot be undone."
       />
       <ConfirmDialog
         open={!!deleteExpenseId}
-        onClose={() => setDeleteExpenseId(null)}
+        onClose={() => { setDeleteExpenseId(null); setDeletingExpense(false); }}
         onConfirm={async () => {
           if (deleteExpenseId) {
-            await deleteExpense(deleteExpenseId);
-            toast("Expense log deleted");
+            setDeletingExpense(true);
+            try {
+              await deleteExpense(deleteExpenseId);
+              toast("Expense log deleted");
+            } catch (err) {
+              console.error(err);
+              toast("Failed to delete expense log", "error");
+            }
             setDeleteExpenseId(null);
+            setDeletingExpense(false);
           }
         }}
+        loading={deletingExpense}
         title="Delete expense log?"
         message="This will permanently remove this expense record."
+      />
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={confirmDeactivateBill}
+        title="Deactivate bill?"
+        message={`This will pause automatic tracking for ${deactivateTarget?.name ?? ""}. You can reactivate it later.`}
+        confirmLabel="Deactivate"
+      />
+      <VariableAmountModal
+        open={!!variablePayTarget}
+        onClose={() => setVariablePayTarget(null)}
+        title={`Amount for ${variablePayTarget?.payment.name ?? ""}`}
+        label="Enter paid amount"
+        onConfirm={(amount) => {
+          if (variablePayTarget) {
+            executePayNow(variablePayTarget.payment, variablePayTarget.dueDateStr, amount);
+            setVariablePayTarget(null);
+          }
+        }}
       />
     </div>
   );

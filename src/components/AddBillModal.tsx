@@ -104,7 +104,6 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
     setSaving(true);
     const numericAmount = isVariable ? 0 : parseFloat(amount) || 0;
     const data = {
-      user_id: "",
       name: name.trim(),
       amount: numericAmount,
       is_variable: isVariable,

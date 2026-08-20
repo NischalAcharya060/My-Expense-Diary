@@ -5,6 +5,7 @@ import { format, subMonths, addMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
 import { useExpenses, useBudgets, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import AuthGuard from "@/components/AuthGuard";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
@@ -90,6 +91,7 @@ export default function InsightsPage() {
   const budgetPercent = budgetAmount > 0 ? (totalSpending / budgetAmount) * 100 : 0;
 
   return (
+    <AuthGuard feature="spending insights">
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
@@ -254,6 +256,7 @@ export default function InsightsPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }
 

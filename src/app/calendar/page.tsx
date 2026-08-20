@@ -16,6 +16,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function CalendarPage() {
   const { expenses, loaded } = useExpenses();
@@ -67,6 +68,7 @@ export default function CalendarPage() {
     .reduce((s, e) => s + e.amount, 0);
 
   return (
+    <AuthGuard feature="expense calendar">
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
@@ -214,5 +216,6 @@ export default function CalendarPage() {
         )}
       </div>
     </div>
+    </AuthGuard>
   );
 }

@@ -193,7 +193,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotesError(msg);
       toast("Failed to load notes", "error");
     }).finally(() => setNotesLoaded(true));
-  }, []); // hydrating store from cache + server on mount
+  }, [toast]); // hydrating store from cache + server on mount
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const refetchExpenses = useCallback(async () => {
@@ -437,7 +437,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         for (const dueDate of dueDates) {
           try {
             await addExpense({
-              user_id: "",
               name: p.name,
               amount: p.amount,
               category: p.category,

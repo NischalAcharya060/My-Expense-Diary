@@ -16,6 +16,8 @@ export default function RecurringPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<RecurringPayment | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState<{ id: string; activate: boolean; name: string } | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [isVariable, setIsVariable] = useState(false);
@@ -54,7 +56,7 @@ export default function RecurringPage() {
     e.preventDefault();
     if (!name.trim()) return;
     const data = {
-      user_id: "", name: name.trim(), amount: isVariable ? 0 : parseFloat(amount) || 0,
+      name: name.trim(), amount: isVariable ? 0 : parseFloat(amount) || 0,
       is_variable: isVariable,       category: category as Category, frequency: frequency as RecurringFrequency,
       due_day: parseInt(dueDay), start_date: startDate, end_date: endDate || undefined,
       is_active: true, reminder_days: parseInt(reminderDays),
@@ -71,6 +73,7 @@ export default function RecurringPage() {
       setShowForm(false);
     } catch (err) {
       console.error("Failed to save payment:", err);
+      toast("Failed to save payment", "error");
     }
   };
 
@@ -86,9 +89,22 @@ export default function RecurringPage() {
     setDeletePaymentId(id);
   };
 
-  const handleToggle = async (id: string, isActive: boolean) => {
-    await updatePayment(id, { is_active: isActive });
-    toast(isActive ? "Payment activated" : "Payment deactivated");
+  const handleToggle = (id: string, activate: boolean, name: string) => {
+    if (activate) {
+      executeToggle(id, true);
+    } else {
+      setToggleTarget({ id, activate: false, name });
+    }
+  };
+
+  const executeToggle = async (id: string, isActive: boolean) => {
+    try {
+      await updatePayment(id, { is_active: isActive });
+      toast(isActive ? "Payment activated" : "Payment deactivated");
+    } catch (err) {
+      console.error(err);
+      toast("Failed to update payment", "error");
+    }
   };
 
   const active = payments.filter((p) => p.is_active);
@@ -189,7 +205,7 @@ export default function RecurringPage() {
             <div className="space-y-2">
               {active.map((p) => (
                 <div key={p.id} className="paper-card px-4 py-3 flex items-center gap-3">
-                  <button onClick={() => handleToggle(p.id, false)} className="text-accent-green hover:opacity-70" title="Deactivate">
+                  <button onClick={() => handleToggle(p.id, false, p.name)} className="text-accent-green hover:opacity-70" title="Deactivate">
                     <ToggleRight size={22} />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -214,7 +230,7 @@ export default function RecurringPage() {
             <div className="space-y-2">
               {inactive.map((p) => (
                 <div key={p.id} className="paper-card px-4 py-3 flex items-center gap-3 opacity-60">
-                  <button onClick={() => handleToggle(p.id, true)} className="text-ink-light hover:text-accent-green transition-colors" title="Activate">
+                  <button onClick={() => handleToggle(p.id, true, p.name)} className="text-ink-light hover:text-accent-green transition-colors" title="Activate">
                     <ToggleLeft size={22} />
                   </button>
                   <div className="flex-1 min-w-0">
@@ -240,9 +256,10 @@ export default function RecurringPage() {
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="recurring payments" />
       <ConfirmDialog
         open={!!deletePaymentId}
-        onClose={() => setDeletePaymentId(null)}
+        onClose={() => { setDeletePaymentId(null); setDeletingPayment(false); }}
         onConfirm={async () => {
           if (deletePaymentId) {
+            setDeletingPayment(true);
             try {
               await deletePayment(deletePaymentId);
               toast("Payment deleted");
@@ -251,10 +268,25 @@ export default function RecurringPage() {
               toast("Failed to delete payment", "error");
             }
             setDeletePaymentId(null);
+            setDeletingPayment(false);
           }
         }}
+        loading={deletingPayment}
         title="Delete recurring payment?"
         message="This will permanently remove this payment and cannot be undone."
+      />
+      <ConfirmDialog
+        open={!!toggleTarget}
+        onClose={() => setToggleTarget(null)}
+        onConfirm={() => {
+          if (toggleTarget) {
+            executeToggle(toggleTarget.id, false);
+            setToggleTarget(null);
+          }
+        }}
+        title="Deactivate payment?"
+        message={`This will pause tracking for ${toggleTarget?.name ?? ""}. You can reactivate it later.`}
+        confirmLabel="Deactivate"
       />
     </div>
   );

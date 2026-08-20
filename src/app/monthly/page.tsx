@@ -5,6 +5,7 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useBudgets, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function MonthlySummaryPage() {
   const { expenses, loaded } = useExpenses();
@@ -60,6 +61,7 @@ export default function MonthlySummaryPage() {
   const remaining = budgetAmount - totalSpending;
 
   return (
+    <AuthGuard feature="monthly summaries">
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Monthly Summary</h1>
@@ -152,6 +154,7 @@ export default function MonthlySummaryPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X, Check, Plus, Camera, Upload, Loader2 } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
@@ -150,7 +151,6 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
     setSaving(true);
     try {
       await addExpense({
-        user_id: "",
         name: name.trim(),
         amount: parseFloat(amount),
         category,
@@ -189,7 +189,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
               <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Scan a Receipt</label>
               {receiptPreview ? (
                   <div className="flex items-center gap-3 p-2 bg-paper-dark rounded border border-[rgba(0,0,0,0.06)]">
-                    <img src={receiptPreview} alt="Receipt preview" className="w-12 h-12 object-cover rounded flex-shrink-0" />
+                    <Image src={receiptPreview} alt="Receipt preview" width={48} height={48} unoptimized className="w-12 h-12 object-cover rounded flex-shrink-0" />
                     <div className="flex-1 text-xs text-ink-medium">
                       {scanning ? (
                           <span className="flex items-center gap-1.5">

@@ -60,21 +60,21 @@
 ## Phase 3: UX Consistency Fixes
 
 ### 3.1 Replace Native Browser Dialogs
-- [ ] `bills/page.tsx:98` — Replace `prompt()` for variable bill amount with a custom modal input
-- [ ] `settings/page.tsx:178` — Replace `alert("Invalid backup file")` with `toast("Invalid backup file", "error")`
+- [x] `bills/page.tsx:98` — Replace `prompt()` for variable bill amount with a custom modal input
+- [x] `settings/page.tsx:178` — Replace `alert("Invalid backup file")` with `toast("Invalid backup file", "error")`
 
 ### 3.2 Auth Guard Consistency
-- [ ] Add `AuthGuard` wrapper to `insights/page.tsx`
-- [ ] Add `AuthGuard` wrapper to `calendar/page.tsx`
-- [ ] Add `AuthGuard` wrapper to `monthly/page.tsx`
+- [x] Add `AuthGuard` wrapper to `insights/page.tsx`
+- [x] Add `AuthGuard` wrapper to `calendar/page.tsx`
+- [x] Add `AuthGuard` wrapper to `monthly/page.tsx`
 
 ### 3.3 Confirmation Dialogs
-- [ ] `recurring/page.tsx` — Add ConfirmDialog for toggle active/inactive (currently instant, no undo)
-- [ ] `bills/page.tsx` — Add ConfirmDialog for deactivate bill action (currently instant)
+- [x] `recurring/page.tsx` — Add ConfirmDialog for toggle active/inactive (currently instant, no undo)
+- [x] `bills/page.tsx` — Add ConfirmDialog for deactivate bill action (currently instant)
 
 ### 3.4 Toast Error Messages
-- [ ] Add error toast to all failed server actions across all pages (currently some silently fail)
-- [ ] Add loading state to delete buttons (show spinner while deleting)
+- [x] Add error toast to all failed server actions across all pages (currently some silently fail)
+- [x] Add loading state to delete buttons (show spinner while deleting)
 
 ---
 

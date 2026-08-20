@@ -23,6 +23,7 @@ function ExpensesPageInner() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
@@ -176,14 +177,22 @@ function ExpensesPageInner() {
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
       <ConfirmDialog
         open={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        onClose={() => { setDeleteId(null); setDeleting(false); }}
         onConfirm={async () => {
           if (deleteId) {
-            await deleteExpense(deleteId);
-            toast("Expense deleted");
+            setDeleting(true);
+            try {
+              await deleteExpense(deleteId);
+              toast("Expense deleted");
+            } catch (err) {
+              console.error(err);
+              toast("Failed to delete expense", "error");
+            }
             setDeleteId(null);
+            setDeleting(false);
           }
         }}
+        loading={deleting}
         title="Delete expense?"
         message="This will permanently remove this expense record."
       />

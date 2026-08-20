@@ -78,7 +78,7 @@ function NotesContent() {
         await updateNote(editing.id, { title: title.trim(), content: content.trim(), color });
         toast("Note updated");
       } else {
-        await addNote({ user_id: "", title: title.trim(), content: content.trim(), color, pinned: false });
+        await addNote({ title: title.trim(), content: content.trim(), color, pinned: false });
         toast("Note added");
       }
       resetForm();
