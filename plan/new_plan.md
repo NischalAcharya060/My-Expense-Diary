@@ -237,15 +237,369 @@
 
 ---
 
-## Implementation Order
+## Phase 13: First-Time User Experience (Onboarding)
+
+### 13.1 Welcome Flow
+- [ ] Create `src/app/onboarding/page.tsx` — 3-step guided welcome after first login
+  - Step 1: "Welcome to My Expense Diary" — short animated intro with app preview
+  - Step 2: "Pick your currency" — country/currency selector (reuses CountryProvider)
+  - Step 3: "Log your first expense" — inline mini form to add one expense right there
+- [ ] Store `onboarded` flag in `user_metadata` to skip flow on return visits
+- [ ] Show onboarding only once per user (check `user.user_metadata.onboarded`)
+
+### 13.2 Empty State CTAs with Guidance
+- [ ] Dashboard empty state: "Your diary is empty!" with animated illustration + "Add First Expense" button that opens the modal
+- [ ] Expenses page empty: Show a mock journal page with faded example entries and "Tap to start tracking" overlay
+- [ ] Bills page empty: Show a card with "No bills yet — add Netflix, rent, electricity..." and quick-add presets
+- [ ] Notes page empty: Show a blank sticky note with blinking cursor prompt "Jot something down..."
+- [ ] Insights page empty: "Add 3+ expenses to unlock insights" with progress indicator
+- [ ] Calendar page empty: Show current month calendar with "Tap any day to add expenses"
+
+---
+
+## Phase 14: Frictionless Expense Entry (Core UX)
+
+### 14.1 Quick Add (1-Tap Expense)
+- [ ] Add "Quick Add" floating action button (FAB) visible on ALL pages (bottom-right, above theme toggle)
+- [ ] Quick Add opens a minimal modal: Amount + Category grid + Done button (3 taps total)
+- [ ] Remember last used category and pre-select it
+- [ ] Remember last used payment method and pre-select it
+- [ ] Show recent expense names as chips above the name field for quick re-entry
+
+### 14.2 Smart Expense Form
+- [ ] Auto-categorize based on expense name (e.g., "Netflix" → Subscription, "Uber" → Transport)
+- [ ] Show category suggestions as user types the name
+- [ ] Add " Repeat this?" toggle on expense form → creates recurring payment automatically
+- [ ] Show running daily total at the bottom of the form as user adds expenses
+- [ ] Haptic feedback on mobile when expense is saved (navigator.vibrate)
+
+### 14.3 Voice Entry (Future)
+- [ ] Add microphone button on AddExpenseModal
+- [ ] Use Web Speech API: "Spent 50 dollars on groceries" → auto-fills amount + category
+- [ ] Show transcribed text for confirmation before saving
+
+---
+
+## Phase 15: Smart Defaults & Personalization
+
+### 15.1 Recent & Frequent
+- [ ] On AddExpenseModal: Show "Recent" section with last 5 used categories + payment methods
+- [ ] On AddExpenseModal: Show "Frequently Used" section with top 3 categories by frequency
+- [ ] Pre-fill date with today, payment method with last used, category with most used
+
+### 15.2 Expense Name Autocomplete
+- [ ] As user types expense name, show dropdown of previous expense names matching the input
+- [ ] Selecting a suggestion auto-fills amount, category, and payment method from history
+- [ ] Dedupe suggestions by name, show most recent amount
+
+### 15.3 Smart Category Suggestions
+- [ ] When user types a new category name, check if it's similar to existing ones ("food" vs "Food")
+- [ ] Suggest merging similar categories
+- [ ] Auto-assign colors based on category name hash (consistent per user)
+
+---
+
+## Phase 16: Visual Feedback & Micro-interactions
+
+### 16.1 Success Celebrations
+- [ ] After adding expense: Show a subtle checkmark animation (scale up + fade) on the button
+- [ ] After paying all bills for the month: Show confetti animation on bills page
+- [ ] After reaching budget limit: Show a gentle "Budget reached" pulse animation on the category
+- [ ] After deleting: Slide-out animation on the deleted row before removing from DOM
+
+### 16.2 Progress Indicators
+- [ ] Budget progress bars with color gradient: green (0-50%) → yellow (50-80%) → red (80-100%)
+- [ ] Monthly savings goal progress ring (circular progress)
+- [ ] Bill payment progress: "3 of 5 bills paid this month" with visual progress bar
+- [ ] Expense count milestone badges: "100 expenses logged! 🎉"
+
+### 16.3 Haptic & Visual Feedback
+- [ ] On mobile: Light haptic feedback on button taps (navigator.vibrate(10))
+- [ ] On mobile: Pull-to-refresh on expenses list
+- [ ] Long-press on expense → context menu (Edit, Delete, Duplicate)
+- [ ] Swipe left on expense → reveals red delete button (mobile)
+- [ ] Swipe right on expense → reveals green duplicate button (mobile)
+
+### 16.4 Skeleton Loading Improvements
+- [ ] Expense list skeletons: Show rows with animated gradient shimmer matching handwritten style
+- [ ] Chart skeletons: Show faint chart outlines with pulse animation
+- [ ] Dashboard skeletons: Show stat cards with shimmer effect
+- [ ] Calendar skeletons: Show grid with pulse
+
+---
+
+## Phase 17: Navigation & Wayfinding
+
+### 17.1 Smart Sidebar
+- [ ] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist
+- [ ] Show today's expense count on "Expenses" sidebar link
+- [ ] Highlight current page with animated underline (not just color change)
+- [ ] Show "New" badge on sidebar links for features user hasn't tried yet
+
+### 17.2 Breadcrumbs & Back Navigation
+- [ ] Add breadcrumbs on settings sub-pages
+- [ ] On mobile: Show back arrow in page header for easy navigation
+- [ ] On modals: Swipe down to dismiss (mobile)
+
+### 17.3 Quick Jump
+- [ ] Add `Ctrl+K` / `Cmd+K` keyboard shortcut to open command palette
+- [ ] Command palette: Search expenses, jump to pages, quick actions (add expense, add bill)
+- [ ] Show recent actions in command palette
+- [ ] Show on desktop only, with spotlight-style UI
+
+---
+
+## Phase 18: Dashboard UX Redesign
+
+### 18.1 At-a-Glance Cards
+- [ ] Top row: 4 stat cards with icons — Total Spent (month), Bills Due, Budget Left, Savings
+- [ ] Each card: Icon + label + amount + trend arrow (↑↓ vs last month)
+- [ ] Cards should be tappable to navigate to relevant page
+
+### 18.2 Today's Summary Card
+- [ ] Show today's expenses with running total
+- [ ] Show "Last expense: [name] [amount] [time ago]"
+- [ ] Quick "Add Another" button at the bottom
+
+### 18.3 Upcoming Bills Timeline
+- [ ] Show next 3-5 upcoming bills as a vertical timeline
+- [ ] Color-code: Red (overdue), Orange (due today), Blue (upcoming)
+- [ ] Show countdown: "Netflix due in 3 days"
+- [ ] Each bill item tappable to go to bills page
+
+### 18.4 Spending Heatmap
+- [ ] Show a mini GitHub-style spending heatmap for the current month
+- [ ] Green shades for low spending days, red shades for high spending days
+- [ ] Tappable to navigate to that day's expenses
+
+---
+
+## Phase 19: Expense List UX Improvements
+
+### 19.1 Grouping & Sorting
+- [ ] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18")
+- [ ] Show daily subtotals in the date header
+- [ ] Sort options: Newest first, Oldest first, Highest amount, Lowest amount
+- [ ] Sort toggle button in the filter bar
+
+### 19.2 Inline Actions
+- [ ] Swipe to delete on mobile
+- [ ] Long press for context menu (Edit, Delete, Duplicate, View details)
+- [ ] Tap on expense → expand to show full details (note, receipt, category color)
+- [ ] Double-tap on expense → quick edit amount inline
+
+### 19.3 Search UX
+- [ ] Search bar with magnifying glass icon and clear button
+- [ ] Search as you type (debounced 300ms)
+- [ ] Show result count: "Found 12 expenses"
+- [ ] Highlight matching text in results
+- [ ] Recent searches dropdown when search is focused
+- [ ] Empty search state: "No expenses match your search"
+
+### 19.4 Filter UX
+- [ ] Filter chips with visual feedback (colored borders when active)
+- [ ] Active filter count badge: "3 filters active"
+- [ ] "Clear all filters" button when any filter is active
+- [ ] Filter bar should be sticky on scroll
+
+---
+
+## Phase 20: Bills & Subscriptions UX
+
+### 20.1 Visual Status Cards
+- [ ] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge
+- [ ] Due today: Orange left border + "DUE TODAY" badge
+- [ ] Upcoming: Blue left border + countdown badge
+- [ ] Paid: Green left border + checkmark + strikethrough name
+
+### 20.2 Pay Flow
+- [ ] "Pay Now" button opens a confirmation modal (not instant)
+- [ ] Show payment summary before confirming: Name, Amount, Date, Method
+- [ ] After payment: Green checkmark animation + toast
+- [ ] Show "All bills paid! 🎉" celebration when all monthly bills are settled
+
+### 20.3 Subscription Health
+- [ ] Show monthly subscription total prominently
+- [ ] Show "You spend $X/month on subscriptions" with comparison to income
+- [ ] Flag unused subscriptions: "Haven't used in 30 days" warning
+- [ ] Suggest canceling expensive subscriptions (UX hint, not actual cancel)
+
+---
+
+## Phase 21: Notes & Journal UX
+
+### 21.1 Rich Note Creation
+- [ ] Drag-and-drop color picker for sticky notes (instead of dropdown)
+- [ ] Pin note to top with visual "pin" animation
+- [ ] Notes should auto-resize as content grows
+- [ ] Show character count / word count at bottom of note
+
+### 21.2 Note Organization
+- [ ] Pinned notes always at top with a subtle "📌" indicator
+- [ ] Sort by: Last edited, Created date, Color
+- [ ] Grid layout on desktop, list on mobile
+- [ ] Masonry layout option for notes (Pinterest-style)
+
+### 21.3 Note-to-Expense Link
+- [ ] Allow linking a note to an expense (e.g., "Grocery list" note linked to grocery expense)
+- [ ] Show linked notes on expense detail view
+- [ ] Show linked expenses on note view
+
+---
+
+## Phase 22: Calendar UX Improvements
+
+### 22.1 Day Detail Panel
+- [ ] Tapping a day opens a slide-in panel from right (not a new page)
+- [ ] Panel shows: Date, total, list of expenses, "Add Expense" button for that date
+- [ ] Swipe panel left/right to navigate to previous/next day
+
+### 22.2 Visual Indicators
+- [ ] Days with expenses: Show dot indicator with color matching top category
+- [ ] Days with high spending: Show red dot
+- [ ] Today: Highlight with ring/border
+- [ ] Days with no expenses: Subtle gray dot or no indicator
+
+### 22.3 Monthly Navigation
+- [ ] Smooth month transition animation (slide left/right)
+- [ ] Show monthly total at top of calendar
+- [ ] "Today" button to quickly jump back to current month
+
+---
+
+## Phase 23: Settings & Profile UX
+
+### 23.1 Settings Organization
+- [ ] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account"
+- [ ] Each section collapsible
+- [ ] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active")
+
+### 23.2 Profile Improvements
+- [ ] Avatar picker with preview (current implementation is basic)
+- [ ] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked"
+- [ ] Account deletion option (with strong confirmation)
+
+### 23.3 Data Management
+- [ ] Export as CSV with date range picker
+- [ ] Export as PDF report with charts
+- [ ] Import preview: Show what will be imported before confirming
+- [ ] "Clear all data" requires typing "DELETE ALL" to confirm
+
+---
+
+## Phase 24: Mobile-Specific UX
+
+### 24.1 Touch Interactions
+- [ ] Pull-to-refresh on all list pages
+- [ ] Swipe right to go back (iOS-style)
+- [ ] Long press on expense for context menu
+- [ ] Swipe left to delete, swipe right to duplicate
+- [ ] Tap status bar to scroll to top
+
+### 24.2 Bottom Navigation (Mobile)
+- [ ] Show bottom tab bar on mobile instead of sidebar
+- [ ] Tabs: Home, Expenses, Add (center FAB), Bills, More
+- [ ] Active tab indicator with color
+- [ ] Badge counts on relevant tabs (overdue bills count)
+
+### 24.3 Mobile Modals
+- [ ] All modals should slide up from bottom on mobile (sheet style)
+- [ ] Swipe down on modal to dismiss
+- [ ] Modal backdrop blur effect
+
+### 24.4 Responsive Breakpoints
+- [ ] Ensure all pages work on 320px minimum width
+- [ ] Test on iPhone SE, iPhone 14, Galaxy S21, iPad
+- [ ] Cards should stack vertically on mobile, grid on desktop
+- [ ] Charts should be full-width on mobile with horizontal scroll if needed
+
+---
+
+## Phase 25: Insights & Analytics UX
+
+### 25.1 Interactive Charts
+- [ ] Tap on pie chart segment → filter expense list to that category
+- [ ] Tap on bar chart bar → navigate to that month's expenses
+- [ ] Long press on chart → show tooltip with exact values
+- [ ] Pinch to zoom on area chart
+
+### 25.2 Time Range Selector
+- [ ] Toggle between: This Week, This Month, Last 3 Months, Last 6 Months, This Year, Custom
+- [ ] Show selected range prominently
+- [ ] Charts should animate when range changes
+
+### 25.3 Comparison Views
+- [ ] Month-over-month comparison: "You spent 15% less than last month"
+- [ ] Category comparison: "Food spending increased by 20%"
+- [ ] Show trend arrows and percentages on all comparison cards
+
+### 25.4 Financial Health Score
+- [ ] Calculate a simple score based on: budget adherence, spending trends, bill punctuality
+- [ ] Show as a gauge/meter on dashboard
+- [ ] Tips to improve score: "Try reducing food spending by 10%"
+
+---
+
+## Phase 26: Offline-First UX (PWA)
+
+### 26.1 Service Worker
+- [ ] Configure `next-pwa` for offline support
+- [ ] Cache all static assets (fonts, icons, CSS, JS)
+- [ ] Cache API responses with stale-while-revalidate strategy
+- [ ] Show offline indicator banner when network is unavailable
+
+### 26.2 Offline Expense Entry
+- [ ] Allow adding expenses when offline (save to IndexedDB)
+- [ ] Show "Syncing..." indicator on expenses added offline
+- [ ] Auto-sync when connection is restored
+- [ ] Show conflict resolution if same expense was edited on another device
+
+### 26.3 Install Prompt
+- [ ] Show "Add to Home Screen" banner after 3rd visit
+- [ ] Custom install modal explaining PWA benefits
+- [ ] Track installation status
+
+---
+
+## Phase 27: Onboarding Tips & Contextual Help
+
+### 27.1 Feature Discovery
+- [ ] Show tooltip tour on first visit to each page:
+  - Dashboard: "This is your daily journal. Tap any entry to see details."
+  - Expenses: "Swipe left to delete, tap to edit. Use filters to find anything."
+  - Bills: "Add your recurring bills here. Enable auto-pay to log them automatically."
+  - Insights: "Your spending patterns visualized. Tap any chart segment for details."
+- [ ] Show "What's new" changelog modal after updates
+- [ ] Add "?" help icons next to complex features (budget, auto-pay, recurring)
+
+### 27.2 Contextual Hints
+- [ ] First time adding expense: Show a one-time hint "Tip: You can swipe to delete expenses"
+- [ ] First time visiting bills: Show hint "Enable auto-pay on recurring bills to track them automatically"
+- [ ] First time visiting insights: Show hint "Add at least 5 expenses to see meaningful charts"
+- [ ] Store "hints seen" in localStorage to avoid repeating
+
+### 27.3 Keyboard Shortcuts Help
+- [ ] Show keyboard shortcuts modal on `?` key press (desktop)
+- [ ] List all shortcuts: `N` new expense, `Ctrl+K` command palette, `Esc` close modal
+- [ ] Add keyboard shortcut hints to buttons on hover (desktop only)
+
+---
+
+## Updated Implementation Order
 
 ```
-Week 1:  Phase 1 (Security) + Phase 2 (Error Handling)
-Week 2:  Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility)
-Week 3:  Phase 6 (Core Features: Income + Categories + CSV Export + Date Filter)
-Week 4:  Phase 7 (Dashboard) + Phase 8 (Templates)
-Week 5:  Phase 9 (Notifications) + Phase 10 (Performance)
-Week 6:  Phase 11 (UI Polish) + Phase 12 (Code Quality)
+Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE partially
+Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility)
+Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add) + Phase 15 (Smart Defaults)
+Week 4:   Phase 6 (Income + Categories + CSV + Date Filter)
+Week 5:   Phase 7 (Dashboard) + Phase 16 (Micro-interactions) + Phase 17 (Navigation)
+Week 6:   Phase 18 (Dashboard UX) + Phase 19 (Expense List UX)
+Week 7:   Phase 20 (Bills UX) + Phase 21 (Notes UX) + Phase 22 (Calendar UX)
+Week 8:   Phase 23 (Settings UX) + Phase 24 (Mobile UX)
+Week 9:   Phase 25 (Insights UX) + Phase 8 (Templates) + Phase 9 (Notifications)
+Week 10:  Phase 10 (Performance) + Phase 26 (PWA)
+Week 11:  Phase 27 (Onboarding Tips) + Phase 11 (UI Polish)
+Week 12:  Phase 12 (Code Quality) + Final QA & Testing
 ```
 
 ---
