@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Check, Plus } from "lucide-react";
+import { X, Check, Plus, Camera, Upload, Loader2 } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -28,6 +28,8 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("🏷️");
   const [newCatColor, setNewCatColor] = useState("#6B7280");
+  const [scanning, setScanning] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const { toast } = useToast();
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -50,6 +52,8 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       setNewCatName("");
       setNewCatIcon("🏷️");
       setNewCatColor("#6B7280");
+      setScanning(false);
+      setReceiptPreview(null);
     }
   }, [open, defaultDate]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -69,6 +73,74 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
     } catch (err) {
       console.error("Failed to add category:", err);
     }
+  };
+
+  const handleReceiptScan = async (file: File) => {
+    setScanning(true);
+    setReceiptPreview(URL.createObjectURL(file));
+    try {
+      // Loaded dynamically so the OCR engine (~2MB) only ships to users
+      // who actually use this feature.
+      const Tesseract = (await import("tesseract.js")).default;
+      const { data } = await Tesseract.recognize(file, "eng");
+      const text = data.text;
+
+      // Prefer a number that sits next to a "total" keyword (Grand Total,
+      // Total Amount, Receipt Total, Amount Due, etc.) since that's the
+      // actual amount paid, not just any number on the receipt.
+      const totalKeywordRegex = /(grand\s*total|total\s*amount|receipt\s*total|total\s*due|amount\s*due|net\s*total|total\s*payable|balance\s*due|total)\s*[:\-]?\s*[₹$€£]?\s*(\d{1,3}(?:[,.]\d{3})*(?:\.\d{2})?)/gi;
+      const totalMatches = [...text.matchAll(totalKeywordRegex)];
+      const totalCandidates = totalMatches
+          .map((m) => parseFloat(m[2].replace(/,/g, "")))
+          .filter((n) => !isNaN(n) && n > 0);
+
+      if (totalCandidates.length > 0) {
+        // If several "total" lines exist (subtotal, tax, grand total), the
+        // grand/final total is usually the largest of them.
+        setAmount(Math.max(...totalCandidates).toFixed(2));
+      } else {
+        // Fallback: no explicit total line found, so assume the largest
+        // currency-like number on the receipt is the total.
+        const amountMatches = [...text.matchAll(/\d{1,3}(?:[,.]\d{3})*\.\d{2}/g)];
+        const amounts = amountMatches
+            .map((m) => parseFloat(m[0].replace(/,/g, "")))
+            .filter((n) => !isNaN(n) && n > 0);
+        if (amounts.length > 0) {
+          setAmount(Math.max(...amounts).toFixed(2));
+        }
+      }
+
+      // Look for a date in common receipt formats.
+      const dateMatch = text.match(/\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/);
+      if (dateMatch) {
+        const parsed = new Date(dateMatch[0]);
+        if (!isNaN(parsed.getTime())) {
+          setDate(parsed.toISOString().split("T")[0]);
+        }
+      }
+
+      // Guess the merchant/expense name from the first meaningful line.
+      const firstLine = text
+          .split("\n")
+          .map((l) => l.trim())
+          .find((l) => l.length > 2 && /[a-zA-Z]/.test(l));
+      if (firstLine) {
+        setName(firstLine.slice(0, 60));
+      }
+
+      toast("Receipt scanned — please double-check the details");
+    } catch (err) {
+      console.error("Failed to scan receipt:", err);
+      toast("Couldn't read that receipt, please enter details manually", "error");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleReceiptScan(file);
+    e.target.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,197 +172,248 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const QUICK_COLORS = ["#16A34A", "#EA580C", "#2563EB", "#D946EF", "#8B5CF6", "#DC2626", "#0891B2", "#F59E0B", "#64748B", "#E11D48", "#7C3AED", "#6B7280"];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
-          <h2 className="font-handwritten text-2xl text-ink-dark">New Expense</h2>
-          <button onClick={onClose} className="p-1 hover:bg-paper-dark rounded transition-colors" aria-label="Close">
-            <X size={18} className="text-ink-light" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">What did you spend on?</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Milk, Bus fare, Groceries..."
-              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors"
-              autoFocus
-              required
-            />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+        <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
+            <h2 className="font-handwritten text-2xl text-ink-dark">New Expense</h2>
+            <button onClick={onClose} className="p-1 hover:bg-paper-dark rounded transition-colors" aria-label="Close">
+              <X size={18} className="text-ink-light" />
+            </button>
           </div>
 
-          {/* Amount */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Amount ({getCurrencySymbol()})</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors amount"
-              required
-            />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Category</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategory(cat.name)}
-                  className={`px-2 py-1.5 text-xs rounded border transition-all flex items-center gap-1 ${
-                    category === cat.name
-                      ? "text-white border-accent-warm"
-                      : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
-                  }`}
-                  style={category === cat.name ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}
-                >
-                  <span>{cat.icon}</span>
-                  <span className="truncate">{cat.name}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setShowAddCategory(!showAddCategory)}
-                className="px-2 py-1.5 text-xs rounded border border-dashed border-ink-light/40 text-ink-light hover:border-accent-warm hover:text-accent-warm transition-all flex items-center gap-1"
-              >
-                <Plus size={12} /> Add
-              </button>
-            </div>
-
-            {/* Inline add category form */}
-            {showAddCategory && (
-              <div className="mt-2 p-3 bg-paper-dark rounded border border-[rgba(0,0,0,0.06)] space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newCatIcon}
-                    onChange={(e) => setNewCatIcon(e.target.value)}
-                    className="w-12 text-center px-1 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm"
-                    placeholder="icon"
-                  />
-                  <input
-                    type="text"
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="Category name"
-                    className="flex-1 px-3 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {QUICK_COLORS.map((c) => (
+          <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            {/* Receipt scan */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Scan a Receipt</label>
+              {receiptPreview ? (
+                  <div className="flex items-center gap-3 p-2 bg-paper-dark rounded border border-[rgba(0,0,0,0.06)]">
+                    <img src={receiptPreview} alt="Receipt preview" className="w-12 h-12 object-cover rounded flex-shrink-0" />
+                    <div className="flex-1 text-xs text-ink-medium">
+                      {scanning ? (
+                          <span className="flex items-center gap-1.5">
+                      <Loader2 size={12} className="animate-spin" /> Reading receipt...
+                    </span>
+                      ) : (
+                          "Filled in below — please double-check before saving"
+                      )}
+                    </div>
                     <button
-                      key={c}
-                      type="button"
-                      onClick={() => setNewCatColor(c)}
-                      className={`w-5 h-5 rounded-full border-2 transition-transform ${newCatColor === c ? "border-ink-dark scale-125" : "border-transparent"}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAddCategory}
-                    disabled={!newCatName.trim()}
-                    className="px-3 py-1 bg-accent-warm text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50"
-                  >
-                    Add Category
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCategory(false)}
-                    className="px-3 py-1 border border-[rgba(0,0,0,0.1)] rounded text-xs text-ink-medium hover:bg-paper-bg"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Date */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
-            />
-          </div>
-
-          {/* Payment method */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Payment Method</label>
-            <div className="flex flex-wrap gap-2">
-              {PAYMENT_METHODS.map((pm) => (
-                <button
-                  key={pm}
-                  type="button"
-                  onClick={() => setPaymentMethod(pm)}
-                  className={`px-3 py-1.5 text-xs rounded border transition-all ${
-                    paymentMethod === pm
-                      ? "bg-ink-dark text-paper-bg border-ink-dark"
-                      : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
-                  }`}
-                >
-                  {pm}
-                </button>
-              ))}
+                        type="button"
+                        onClick={() => setReceiptPreview(null)}
+                        className="p-1 hover:bg-paper-bg rounded transition-colors flex-shrink-0"
+                        aria-label="Remove receipt"
+                    >
+                      <X size={14} className="text-ink-light" />
+                    </button>
+                  </div>
+              ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-center gap-1.5 w-full py-2.5 border border-dashed border-ink-light/40 rounded text-xs text-ink-light hover:border-accent-warm hover:text-accent-warm transition-all cursor-pointer">
+                      <Upload size={14} />
+                      Upload Photo
+                      <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleReceiptFileChange}
+                      />
+                    </label>
+                    <label className="flex items-center justify-center gap-1.5 w-full py-2.5 border border-dashed border-ink-light/40 rounded text-xs text-ink-light hover:border-accent-warm hover:text-accent-warm transition-all cursor-pointer">
+                      <Camera size={14} />
+                      Take Photo
+                      <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handleReceiptFileChange}
+                      />
+                    </label>
+                  </div>
+              )}
             </div>
-          </div>
 
-          {/* Expense type */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Type</label>
-            <select
-              value={expenseType}
-              onChange={(e) => setExpenseType(e.target.value)}
-              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
+            {/* Name */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">What did you spend on?</label>
+              <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Milk, Bus fare, Groceries..."
+                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors"
+                  autoFocus
+                  required
+              />
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Amount ({getCurrencySymbol()})</label>
+              <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors amount"
+                  required
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Category</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {categories.map((cat) => (
+                    <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategory(cat.name)}
+                        className={`px-2 py-1.5 text-xs rounded border transition-all flex items-center gap-1 ${
+                            category === cat.name
+                                ? "text-white border-accent-warm"
+                                : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
+                        }`}
+                        style={category === cat.name ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}
+                    >
+                      <span>{cat.icon}</span>
+                      <span className="truncate">{cat.name}</span>
+                    </button>
+                ))}
+                <button
+                    type="button"
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    className="px-2 py-1.5 text-xs rounded border border-dashed border-ink-light/40 text-ink-light hover:border-accent-warm hover:text-accent-warm transition-all flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add
+                </button>
+              </div>
+
+              {/* Inline add category form */}
+              {showAddCategory && (
+                  <div className="mt-2 p-3 bg-paper-dark rounded border border-[rgba(0,0,0,0.06)] space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                          type="text"
+                          value={newCatIcon}
+                          onChange={(e) => setNewCatIcon(e.target.value)}
+                          className="w-12 text-center px-1 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm"
+                          placeholder="icon"
+                      />
+                      <input
+                          type="text"
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          placeholder="Category name"
+                          className="flex-1 px-3 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm"
+                          autoFocus
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {QUICK_COLORS.map((c) => (
+                          <button
+                              key={c}
+                              type="button"
+                              onClick={() => setNewCatColor(c)}
+                              className={`w-5 h-5 rounded-full border-2 transition-transform ${newCatColor === c ? "border-ink-dark scale-125" : "border-transparent"}`}
+                              style={{ backgroundColor: c }}
+                          />
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                          type="button"
+                          onClick={handleAddCategory}
+                          disabled={!newCatName.trim()}
+                          className="px-3 py-1 bg-accent-warm text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                      >
+                        Add Category
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => setShowAddCategory(false)}
+                          className="px-3 py-1 border border-[rgba(0,0,0,0.1)] rounded text-xs text-ink-medium hover:bg-paper-bg"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+              )}
+            </div>
+
+            {/* Date */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Date</label>
+              <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
+              />
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Payment Method</label>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_METHODS.map((pm) => (
+                    <button
+                        key={pm}
+                        type="button"
+                        onClick={() => setPaymentMethod(pm)}
+                        className={`px-3 py-1.5 text-xs rounded border transition-all ${
+                            paymentMethod === pm
+                                ? "bg-ink-dark text-paper-bg border-ink-dark"
+                                : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
+                        }`}
+                    >
+                      {pm}
+                    </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Expense type */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Type</label>
+              <select
+                  value={expenseType}
+                  onChange={(e) => setExpenseType(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
+              >
+                {EXPENSE_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Note (optional)</label>
+              <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Any additional details..."
+                  rows={2}
+                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors resize-none"
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+                type="submit"
+                disabled={saving || scanning || !name.trim() || !amount}
+                className="w-full py-3 bg-accent-warm text-white rounded text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {EXPENSE_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Note */}
-          <div>
-            <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Note (optional)</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Any additional details..."
-              rows={2}
-              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors resize-none"
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={saving || !name.trim() || !amount}
-            className="w-full py-3 bg-accent-warm text-white rounded text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Check size={16} />
-            {saving ? "Saving..." : "Add Expense"}
-          </button>
-        </form>
+              <Check size={16} />
+              {saving ? "Saving..." : "Add Expense"}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
   );
 }
