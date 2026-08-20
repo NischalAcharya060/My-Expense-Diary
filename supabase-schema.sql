@@ -42,7 +42,7 @@ CREATE TABLE expenses (
   payment_method TEXT NOT NULL DEFAULT 'Cash',
   note TEXT,
   receipt_url TEXT,
-  expense_type TEXT NOT NULL DEFAULT 'Daily purchase',
+  expense_type TEXT NOT NULL DEFAULT 'Daily purchase' CHECK (expense_type IN ('Daily purchase', 'Bill', 'Subscription', 'Recurring payment', 'Other')),
   recurring_payment_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -63,6 +63,8 @@ CREATE TABLE recurring_payments (
   is_active BOOLEAN DEFAULT TRUE,
   reminder_days INTEGER DEFAULT 3,
   last_paid DATE,
+  payment_method TEXT DEFAULT 'Cash',
+  auto_pay BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -102,7 +104,10 @@ CREATE TABLE notes (
 -- Indexes for performance
 CREATE INDEX idx_expenses_user_date ON expenses(user_id, date DESC);
 CREATE INDEX idx_expenses_user_category ON expenses(user_id, category);
+CREATE INDEX idx_expenses_user_type ON expenses(user_id, expense_type);
 CREATE INDEX idx_recurring_payments_user ON recurring_payments(user_id, is_active);
+CREATE INDEX idx_recurring_payments_user_due ON recurring_payments(user_id, due_day);
+CREATE INDEX idx_categories_user ON categories(user_id);
 CREATE INDEX idx_budgets_user_month ON budgets(user_id, month, year);
 CREATE INDEX idx_notes_user ON notes(user_id, pinned DESC, updated_at DESC);
 
@@ -127,6 +132,25 @@ CREATE TRIGGER update_budgets_updated_at BEFORE UPDATE ON budgets
 
 CREATE TRIGGER update_notes_updated_at BEFORE UPDATE ON notes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger: sync last_paid on recurring_payments when an expense is linked
+CREATE OR REPLACE FUNCTION sync_recurring_last_paid()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.recurring_payment_id IS NOT NULL THEN
+    UPDATE recurring_payments
+    SET last_paid = NEW.date
+    WHERE id = NEW.recurring_payment_id
+      AND user_id = NEW.user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_sync_recurring_last_paid
+  AFTER INSERT ON expenses
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_recurring_last_paid();
 
 -- Row Level Security (RLS)
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;

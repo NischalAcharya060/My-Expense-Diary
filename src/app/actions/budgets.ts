@@ -2,11 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Budget } from "@/types";
+import { budgetSchema, validateOrThrow } from "@/lib/validations";
 
 async function getUser() {
   const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return { supabase, user };
 }
 
@@ -33,6 +35,8 @@ export async function upsertBudget(
 ): Promise<Budget> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  validateOrThrow(budgetSchema, { year, month, amount, category: category ?? null });
 
   const catValue = category || null;
 

@@ -2,11 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { RecurringPayment } from "@/types";
+import {
+  recurringPaymentSchema,
+  recurringPaymentUpdateSchema,
+  validateOrThrow,
+} from "@/lib/validations";
 
 async function getUser() {
   const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return { supabase, user };
 }
 
@@ -25,10 +31,12 @@ export async function fetchRecurringPayments(): Promise<RecurringPayment[]> {
 }
 
 export async function addRecurringPayment(
-  data: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">
+  rawData: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">
 ): Promise<RecurringPayment> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(recurringPaymentSchema, rawData);
 
   const { data: inserted, error } = await supabase
     .from("recurring_payments")
@@ -42,10 +50,12 @@ export async function addRecurringPayment(
 
 export async function updateRecurringPayment(
   id: string,
-  data: Partial<Omit<RecurringPayment, "id" | "user_id" | "created_at">>
+  rawData: Partial<Omit<RecurringPayment, "id" | "user_id" | "created_at">>
 ): Promise<void> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(recurringPaymentUpdateSchema, rawData);
 
   const { error } = await supabase
     .from("recurring_payments")

@@ -2,11 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Note } from "@/types";
+import { noteSchema, noteUpdateSchema, validateOrThrow } from "@/lib/validations";
 
 async function getUser() {
   const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return { supabase, user };
 }
 
@@ -26,10 +28,12 @@ export async function fetchNotes(): Promise<Note[]> {
 }
 
 export async function addNote(
-  data: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">
+  rawData: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">
 ): Promise<Note> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(noteSchema, rawData);
 
   const { data: inserted, error } = await supabase
     .from("notes")
@@ -43,10 +47,12 @@ export async function addNote(
 
 export async function updateNote(
   id: string,
-  data: Partial<Omit<Note, "id" | "user_id" | "created_at">>
+  rawData: Partial<Omit<Note, "id" | "user_id" | "created_at">>
 ): Promise<void> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(noteUpdateSchema, rawData);
 
   const { error } = await supabase
     .from("notes")

@@ -1,18 +1,14 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-
-export interface CategoryItem {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-}
+import type { CategoryItem } from "@/types";
+import { categorySchema, validateOrThrow } from "@/lib/validations";
 
 async function getUser() {
   const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return { supabase, user };
 }
 
@@ -38,9 +34,11 @@ export async function addCategory(
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
 
+  const data = validateOrThrow(categorySchema, { name, icon, color });
+
   const { data: inserted, error } = await supabase
     .from("categories")
-    .insert({ name, icon, color, user_id: user.id })
+    .insert({ ...data, user_id: user.id })
     .select()
     .single();
 

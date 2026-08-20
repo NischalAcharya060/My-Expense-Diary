@@ -2,11 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Expense } from "@/types";
+import {
+  expenseSchema,
+  expenseUpdateSchema,
+  validateOrThrow,
+} from "@/lib/validations";
 
 async function getUser() {
   const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return { supabase, user };
 }
 
@@ -26,10 +32,12 @@ export async function fetchExpenses(): Promise<Expense[]> {
 }
 
 export async function addExpense(
-  data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">
+  rawData: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">
 ): Promise<Expense> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(expenseSchema, rawData);
 
   const { data: inserted, error } = await supabase
     .from("expenses")
@@ -43,10 +51,12 @@ export async function addExpense(
 
 export async function updateExpense(
   id: string,
-  data: Partial<Omit<Expense, "id" | "user_id" | "created_at">>
+  rawData: Partial<Omit<Expense, "id" | "user_id" | "created_at">>
 ): Promise<void> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const data = validateOrThrow(expenseUpdateSchema, rawData);
 
   const { error } = await supabase
     .from("expenses")

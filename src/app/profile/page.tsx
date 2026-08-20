@@ -56,8 +56,10 @@ function ProfileContent() {
 
   const handleSaveAvatar = async () => {
     setAvatarLoading(true);
-    const supabase = createClient();
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
       toast("Supabase client failed to load", "error");
       setAvatarLoading(false);
       return;
@@ -82,14 +84,24 @@ function ProfileContent() {
       toast("Passwords do not match", "error");
       return;
     }
-    if (password.length < 6) {
-      toast("Password must be at least 6 characters", "error");
+    if (password.length < 8) {
+      toast("Password must be at least 8 characters", "error");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      toast("Password must contain at least one number", "error");
+      return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      toast("Password must contain at least one special character", "error");
       return;
     }
 
     setPasswordLoading(true);
-    const supabase = createClient();
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
       toast("Supabase client failed to load", "error");
       setPasswordLoading(false);
       return;
@@ -112,8 +124,10 @@ function ProfileContent() {
 
   const handleLinkGoogle = async () => {
     setGoogleLoading(true);
-    const supabase = createClient();
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
       toast("Supabase client failed to load", "error");
       setGoogleLoading(false);
       return;

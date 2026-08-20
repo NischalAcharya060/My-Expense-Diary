@@ -69,8 +69,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...`}
     setAuthLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
       setError("Failed to load Supabase auth client.");
       setAuthLoading(false);
       return;
