@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { 
-  Plus, Trash2, Edit2, Calendar, CreditCard, 
+import { useSyncExternalStore, useState } from "react";
+import {
+  Plus, Trash2, Edit2, Calendar,
   CheckCircle2, AlertCircle, Clock, History
 } from "lucide-react";
-import { useExpenses, useRecurringPayments, useCategories } from "@/lib/store";
+import { useExpenses, useRecurringPayments } from "@/lib/store";
 import { formatCurrency, getToday, getCurrentMonth } from "@/lib/utils";
 import AddBillModal from "@/components/AddBillModal";
 import { format, differenceInDays } from "date-fns";
@@ -21,13 +21,15 @@ export default function BillsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<RecurringPayment | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "history">("list");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
-
-  useEffect(() => setMounted(true), []);
 
   if (!mounted || !expensesLoaded || !paymentsLoaded) {
     return (

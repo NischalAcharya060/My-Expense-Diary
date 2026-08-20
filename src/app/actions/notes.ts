@@ -5,6 +5,7 @@ import type { Note } from "@/types";
 
 async function getUser() {
   const supabase = await createClient();
+  if (!supabase) throw new Error("Supabase not configured");
   const { data: { user } } = await supabase.auth.getUser();
   return { supabase, user };
 }

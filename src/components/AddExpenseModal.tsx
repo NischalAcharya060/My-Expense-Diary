@@ -5,6 +5,7 @@ import { X, Check, Plus } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import type { PaymentMethod, ExpenseType } from "@/types";
 
 interface Props {
   open: boolean;
@@ -29,10 +30,13 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const [newCatColor, setNewCatColor] = useState("#6B7280");
   const { toast } = useToast();
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (defaultDate) setDate(defaultDate);
   }, [defaultDate]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setName("");
@@ -48,6 +52,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       setNewCatColor("#6B7280");
     }
   }, [open, defaultDate]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
@@ -78,8 +83,8 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
         amount: parseFloat(amount),
         category,
         date,
-        payment_method: paymentMethod as any,
-        expense_type: expenseType as any,
+        payment_method: paymentMethod as PaymentMethod,
+        expense_type: expenseType as ExpenseType,
         note: note.trim() || undefined,
       });
       toast("Expense added");

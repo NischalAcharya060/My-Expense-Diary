@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState } from "react";
 import { Plus, Trash2, ToggleLeft, ToggleRight, Edit2 } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
 import { formatCurrency, FREQUENCIES, getCurrencySymbol } from "@/lib/utils";
-import type { RecurringPayment } from "@/types";
+import type { RecurringPayment, Category, RecurringFrequency } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import { useToast } from "@/components/Toast";
@@ -25,11 +25,13 @@ export default function RecurringPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState("");
   const [reminderDays, setReminderDays] = useState("3");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
-
-  useEffect(() => setMounted(true), []);
 
   if (!mounted || !loaded) {
     return (
@@ -53,7 +55,7 @@ export default function RecurringPage() {
     if (!name.trim()) return;
     const data = {
       user_id: "", name: name.trim(), amount: isVariable ? 0 : parseFloat(amount) || 0,
-      is_variable: isVariable, category: category as any, frequency: frequency as any,
+      is_variable: isVariable,       category: category as Category, frequency: frequency as RecurringFrequency,
       due_day: parseInt(dueDay), start_date: startDate, end_date: endDate || undefined,
       is_active: true, reminder_days: parseInt(reminderDays),
     };

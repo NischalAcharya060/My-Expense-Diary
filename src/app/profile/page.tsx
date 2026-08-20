@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { User, Eye, EyeOff, ShieldCheck, Link2, Check } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/components/AuthProvider";
@@ -30,7 +30,11 @@ function ProfileContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.user_metadata?.avatar_id || "");
   const [avatarLoading, setAvatarLoading] = useState(false);
 
@@ -38,13 +42,13 @@ function ProfileContent() {
   const hasGoogle = identities.some((id) => id.provider === "google");
   const googleAvatar = user?.user_metadata?.avatar_url;
 
-  useEffect(() => setMounted(true), []);
-
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (user?.user_metadata?.avatar_id) {
       setSelectedAvatar(user.user_metadata.avatar_id);
     }
   }, [user]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const currentAvatarUrl = selectedAvatar
     ? getAvatarUrl(selectedAvatar)
@@ -65,8 +69,8 @@ function ProfileContent() {
       });
       if (error) throw error;
       toast("Profile picture updated!");
-    } catch (err: any) {
-      toast(err.message || "Failed to update profile picture", "error");
+    } catch (err: unknown) {
+      toast((err as Error).message || "Failed to update profile picture", "error");
     } finally {
       setAvatarLoading(false);
     }
@@ -98,9 +102,9 @@ function ProfileContent() {
       setPassword("");
       setConfirmPassword("");
       setShowPassword(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || "Failed to update password", "error");
+      toast((err as Error).message || "Failed to update password", "error");
     } finally {
       setPasswordLoading(false);
     }
@@ -123,9 +127,9 @@ function ProfileContent() {
         },
       });
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast(err.message || "Failed to link Google account", "error");
+      toast((err as Error).message || "Failed to link Google account", "error");
       setGoogleLoading(false);
     }
   };
@@ -154,6 +158,7 @@ function ProfileContent() {
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-paper-dark shadow-md">
               {currentAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- user avatar
                 <img src={currentAvatarUrl} alt="Profile" className="w-12 h-12 rounded-full" />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-warm/20 to-accent-warm/5 flex items-center justify-center">
@@ -181,6 +186,7 @@ function ProfileContent() {
                     : "ring-transparent hover:ring-paper-dark/50"
                 }`}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element -- OAuth avatar */}
                 <img src={googleAvatar} alt="Google" className="w-full h-full object-cover" />
                 {selectedAvatar === "google" && (
                   <div className="absolute inset-0 bg-accent-warm/20 flex items-center justify-center">
@@ -201,6 +207,7 @@ function ProfileContent() {
                     : "ring-transparent hover:ring-paper-dark/50"
                 }`}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element -- predefined avatar */}
                 <img src={av.src} alt="" className="w-full h-full object-cover" />
                 {selectedAvatar === av.id && (
                   <div className="absolute inset-0 bg-accent-warm/20 flex items-center justify-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState } from "react";
 import { Plus, Trash2, Pin, PinOff, X, Check } from "lucide-react";
 import { useNotes } from "@/lib/store";
 import { format } from "date-fns";
@@ -39,12 +39,14 @@ function NotesContent() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("#FEF9C3");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
-
-  useEffect(() => setMounted(true), []);
 
   if (!mounted || !loaded) {
     return (

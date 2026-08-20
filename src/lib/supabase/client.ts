@@ -9,7 +9,7 @@ export function createClient() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key || url === "your-supabase-project-url") {
-    return null as any;
+    return null;
   }
 
   client = createBrowserClient(url, key);

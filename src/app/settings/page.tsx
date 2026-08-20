@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useSyncExternalStore, useState, useEffect, useRef } from "react";
 import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useCountry } from "@/components/CountryProvider";
@@ -28,23 +28,25 @@ function SettingsContent() {
   const [countrySearch, setCountrySearch] = useState("");
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
 
-  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
+  const { expenses, addExpense, deleteExpense } = useExpenses();
   const { payments, addPayment, deletePayment } = useRecurringPayments();
-  const { budgets, setBudget, getBudget, deleteBudget, fetchBudgets } = useBudgets(true);
+  const { budgets, setBudget, deleteBudget, fetchBudgets } = useBudgets();
   const { notes, addNote, deleteNote } = useNotes();
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetYear, setBudgetYear] = useState("");
   const [budgetMonth, setBudgetMonth] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
   const budgetRef = useRef<HTMLDivElement>(null);
   const countryRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const el = budgetRef.current;
@@ -76,10 +78,12 @@ function SettingsContent() {
 
   const { year, month } = getCurrentMonth();
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setBudgetYear(year.toString());
     setBudgetMonth(month.toString());
   }, [year, month]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!mounted) {
     return (
@@ -151,12 +155,14 @@ function SettingsContent() {
         const data = JSON.parse(event.target?.result as string);
         if (data.expenses) {
           for (const exp of data.expenses) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, created_at, updated_at, ...rest } = exp;
             await addExpense(rest);
           }
         }
         if (data.recurring) {
           for (const rec of data.recurring) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, created_at, updated_at, ...rest } = rec;
             await addPayment(rest);
           }
@@ -168,13 +174,14 @@ function SettingsContent() {
         }
         if (data.notes) {
           for (const n of data.notes) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id, created_at, updated_at, ...rest } = n;
             await addNote(rest);
           }
         }
         toast("Data imported");
       } catch {
-        alert("Invalid backup file");
+        toast("Invalid backup file", "error");
       }
     };
     reader.readAsText(file);

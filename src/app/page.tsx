@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { format } from "date-fns";
-import { Plus, ChevronRight, CalendarClock, TrendingUp } from "lucide-react";
+import { Plus, ChevronRight, CalendarClock } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useExpenses, useRecurringPayments, useBudgets, useCategories } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
@@ -19,10 +20,13 @@ export default function DashboardPage() {
   const { getCategoryByName } = useCategories();
   const today = new Date();
   const { year, month } = getCurrentMonth();
-  const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
-
-  useEffect(() => setMounted(true), []);
 
   if (!mounted || authLoading) {
     return (
@@ -125,7 +129,7 @@ export default function DashboardPage() {
             <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Today&apos;s Entries</h2>
             <Link
               href="/expenses?add=true"
-              onClick={(e) => { e.preventDefault(); requireAuth(() => window.location.href = "/expenses?add=true"); }}
+              onClick={(e) => { e.preventDefault(); requireAuth(() => router.push("/expenses?add=true")); }}
               className="flex items-center gap-1 px-3 py-1 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
             >
               <Plus size={14} /> Add Entry

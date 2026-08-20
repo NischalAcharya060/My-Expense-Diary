@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   BookOpen,
   Receipt,
@@ -63,16 +63,15 @@ const navSections = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const { user, loading, isConfigured, signOut } = useAuth();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
-
-  useEffect(() => {
-    const saved = localStorage.getItem("sidebar-collapsed");
-    if (saved === "true") setCollapsed(true);
-  }, []);
 
   const toggleCollapse = () => {
     setCollapsed((prev) => {
@@ -122,6 +121,7 @@ export default function Sidebar() {
         <div className={`px-4 pt-5 pb-4 border-b border-[rgba(0,0,0,0.06)] ${collapsed ? "px-3" : ""}`}>
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-warm/20 to-accent-warm/5 flex items-center justify-center shrink-0 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local static logo */}
               <img src="/logo/org-logo.png" alt="Logo" className="w-7 h-7 rounded-md" />
             </div>
             {!collapsed && (
@@ -224,7 +224,7 @@ export default function Sidebar() {
           <div className={`px-3 ${collapsed ? "px-2" : ""}`}>
             <Link
               href="/expenses?add=true"
-              onClick={(e) => { e.preventDefault(); setMobileOpen(false); requireAuth(() => window.location.href = "/expenses?add=true"); }}
+              onClick={(e) => { e.preventDefault(); setMobileOpen(false); requireAuth(() => router.push("/expenses?add=true")); }}
               title={collapsed ? "Add Expense" : undefined}
               onMouseEnter={() => collapsed && setHoveredItem("add")}
               onMouseLeave={() => setHoveredItem(null)}
@@ -271,12 +271,14 @@ export default function Sidebar() {
                 >
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent-warm/20 to-accent-warm/5 flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-paper-dark shadow-sm">
                     {user.user_metadata?.avatar_id && getAvatarUrl(user.user_metadata.avatar_id) ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar
                       <img
                         src={getAvatarUrl(user.user_metadata.avatar_id)}
                         alt=""
                         className="w-9 h-9 rounded-full"
                       />
                     ) : user.user_metadata?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- OAuth avatar URL
                       <img
                         src={user.user_metadata.avatar_url}
                         alt=""

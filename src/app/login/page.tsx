@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/Toast";
 
@@ -42,6 +42,7 @@ export default function LoginPage() {
           <div className="paper-card p-8 text-center">
             <div className="mb-6">
               <div className="w-16 h-16 mx-auto bg-paper-dark rounded-full flex items-center justify-center mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local static logo */}
                 <img src="/logo/org-logo.png" alt="Logo" className="w-10 h-10 rounded-md" />
               </div>
               <h1 className="font-handwritten text-4xl text-ink-dark">My Expense Diary</h1>
@@ -120,9 +121,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...`}
       } else {
         throw signInErr;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An authentication error occurred.");
+      setError((err as Error).message || "An authentication error occurred.");
     } finally {
       setAuthLoading(false);
     }
@@ -138,6 +139,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...`}
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-accent-warm/20 to-accent-warm/5 flex items-center justify-center rounded-2xl shadow-sm mb-4 border border-[rgba(0,0,0,0.06)] relative rotate-[-1.5deg] hover:rotate-0 transition-transform duration-200">
               {/* Tape style overlay */}
               <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-10 h-3 bg-amber-200/25 border border-amber-300/10 rotate-1 rounded-sm pointer-events-none" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- local static logo */}
               <img src="/logo/org-logo.png" alt="Logo" className="w-12 h-12 rounded-xl" />
             </div>
             <h1 className="font-handwritten text-4xl text-ink-dark font-bold leading-tight">My Expense Diary</h1>

@@ -112,6 +112,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_DATA);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (typeof window !== "undefined") {
       const cachedExpenses = localStorage.getItem("cache_expenses");
@@ -157,7 +158,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setNotes(data);
       if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
     }).catch(() => {}).finally(() => setNotesLoaded(true));
-  }, []);
+  }, []); // hydrating store from cache + server on mount
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
@@ -363,7 +365,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchBudgets().then(setBudgets).catch(() => setBudgets([])).finally(() => setBudgetsLoaded(true));
   }, [budgetsFetched]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => { fetchBudgetsIfNeeded(); }, [fetchBudgetsIfNeeded]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setBudget = useCallback(async (year: number, month: number, amount: number, category?: string) => {
     const budget = await upsertBudget(year, month, amount, category);
@@ -550,7 +554,7 @@ export function useRecurringPayments() {
   return { payments, loaded: paymentsLoaded, addPayment, updatePayment, deletePayment };
 }
 
-export function useBudgets(lazy = false) {
+export function useBudgets() {
   const { budgets, budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded } = useStore();
   return { budgets, loaded: budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgets: fetchBudgetsIfNeeded };
 }
@@ -595,7 +599,7 @@ export function getDueDates(payment: RecurringPayment, todayStr: string): string
       checkDate = new Date(year, month, Math.min(payment.due_day, getDaysInMonth(year, month)));
     }
   } else if (payment.frequency === "Weekly") {
-    let checkDate = new Date(start);
+    const checkDate = new Date(start);
     while (checkDate <= today) {
       if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
         dates.push(checkDate.toISOString().split("T")[0]);
@@ -603,7 +607,7 @@ export function getDueDates(payment: RecurringPayment, todayStr: string): string
       checkDate.setDate(checkDate.getDate() + 7);
     }
   } else if (payment.frequency === "Daily") {
-    let checkDate = new Date(start);
+    const checkDate = new Date(start);
     while (checkDate <= today) {
       if (checkDate >= start && (!lastPaid || checkDate > lastPaid)) {
         dates.push(checkDate.toISOString().split("T")[0]);

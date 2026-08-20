@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState } from "react";
 import { format, subMonths, addMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
 import { useExpenses, useBudgets, useCategories } from "@/lib/store";
@@ -10,14 +10,34 @@ import {
   PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
 } from "recharts";
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number; payload: { name?: string; icon?: string; day?: number } }>;
+  label?: string | number;
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="paper-card px-3 py-2 text-xs border border-accent-warm/30 shadow-md">
+        <p className="font-semibold text-ink-dark">{payload[0].payload.name ? `${payload[0].payload.icon} ${payload[0].payload.name}` : payload[0].payload.day ? `Day ${payload[0].payload.day}` : label}</p>
+        <p className="text-accent-warm amount font-bold mt-0.5">{formatCurrency(payload[0].value)}</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function InsightsPage() {
   const { expenses, loaded } = useExpenses();
   const { getBudget } = useBudgets();
-  const { categories, getCategoryByName } = useCategories();
+  const { categories } = useCategories();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   if (!mounted || !loaded) {
     return (
@@ -68,18 +88,6 @@ export default function InsightsPage() {
   const budget = getBudget(year, month);
   const budgetAmount = budget?.amount || 0;
   const budgetPercent = budgetAmount > 0 ? (totalSpending / budgetAmount) * 100 : 0;
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="paper-card px-3 py-2 text-xs border border-accent-warm/30 shadow-md">
-          <p className="font-semibold text-ink-dark">{payload[0].payload.name ? `${payload[0].payload.icon} ${payload[0].payload.name}` : payload[0].payload.day ? `Day ${payload[0].payload.day}` : label}</p>
-          <p className="text-accent-warm amount font-bold mt-0.5">{formatCurrency(payload[0].value)}</p>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="notebook-paper min-h-screen page-enter">

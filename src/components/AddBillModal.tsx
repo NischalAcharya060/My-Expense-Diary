@@ -5,7 +5,7 @@ import { X, Check, Sparkles } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, FREQUENCIES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
-import type { RecurringPayment, PaymentMethod } from "@/types";
+import type { RecurringPayment, PaymentMethod, RecurringFrequency } from "@/types";
 
 interface Props {
   open: boolean;
@@ -48,7 +48,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
   const [amount, setAmount] = useState("");
   const [isVariable, setIsVariable] = useState(false);
   const [category, setCategory] = useState("Bills");
-  const [frequency, setFrequency] = useState<any>("Monthly");
+  const [frequency, setFrequency] = useState<RecurringFrequency>("Monthly");
   const [dueDay, setDueDay] = useState("1");
   const [startDate, setStartDate] = useState(getToday());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Card");
@@ -56,6 +56,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
   const [reminderDays, setReminderDays] = useState("3");
   const [saving, setSaving] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       if (editingPayment) {
@@ -67,7 +68,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
         setFrequency(editingPayment.frequency);
         setDueDay(editingPayment.due_day.toString());
         setStartDate(editingPayment.start_date);
-        setPaymentMethod((editingPayment.payment_method as any) || "Card");
+        setPaymentMethod((editingPayment.payment_method as PaymentMethod) || "Card");
         setAutoPay(!!editingPayment.auto_pay);
         setReminderDays(editingPayment.reminder_days.toString());
       } else {
@@ -85,6 +86,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
       }
     }
   }, [open, editingPayment]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
@@ -272,7 +274,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
               <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Billing Frequency</label>
               <select
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
+                onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
                 className="w-full px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm"
               >
                 {FREQUENCIES.map((f) => (

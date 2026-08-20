@@ -29,7 +29,7 @@ function ExpensesPageInner() {
 
   useEffect(() => {
     if (searchParams.get("add") === "true") requireAuth(() => setShowAdd(true));
-  }, [searchParams]);
+  }, [searchParams, requireAuth]);
 
   const handleDelete = async (id: string) => {
     setDeleteId(id);

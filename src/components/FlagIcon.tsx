@@ -10,6 +10,7 @@ interface Props {
 
 export default function FlagIcon({ code, size = 20, className = "" }: Props) {
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- flag CDN image
     <img
       src={getFlagUrl(code)}
       alt=""

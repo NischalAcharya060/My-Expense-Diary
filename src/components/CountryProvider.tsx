@@ -19,16 +19,16 @@ export function useCountry() {
 
 export function CountryProvider({ children }: { children: React.ReactNode }) {
   const [country, setCountryState] = useState<Country>(DEFAULT_COUNTRY);
-  const [mounted, setMounted] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const saved = localStorage.getItem("country");
     if (saved) {
       const found = COUNTRIES.find((c) => c.code === saved);
       if (found) setCountryState(found);
     }
-    setMounted(true);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setCountry = useCallback((code: string) => {
     const found = COUNTRIES.find((c) => c.code === code);

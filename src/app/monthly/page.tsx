@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState } from "react";
 import { format, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useBudgets, useCategories } from "@/lib/store";
-import { formatCurrency, getCurrentMonth } from "@/lib/utils";
-import type { Category } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 export default function MonthlySummaryPage() {
   const { expenses, loaded } = useExpenses();
   const { getBudget } = useBudgets();
-  const { categories, getCategoryByName } = useCategories();
+  const { getCategoryByName } = useCategories();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   if (!mounted || !loaded) {
     return (
