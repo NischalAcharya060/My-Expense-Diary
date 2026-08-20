@@ -13,6 +13,7 @@ import {
   LineChart,
   StickyNote,
   Settings,
+  Tag,
   Plus,
   Menu,
   X,
@@ -55,6 +56,7 @@ const navSections = [
     label: "Tools",
     items: [
       { href: "/insights", label: "Insights", icon: LineChart },
+      { href: "/categories", label: "Categories", icon: Tag },
       { href: "/notes", label: "Notes", icon: StickyNote },
       { href: "/settings", label: "Settings", icon: Settings },
     ],

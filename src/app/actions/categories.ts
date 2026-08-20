@@ -46,6 +46,22 @@ export async function addCategory(
   return inserted as CategoryItem;
 }
 
+export async function updateCategory(
+  id: string,
+  updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>
+): Promise<void> {
+  const { supabase, user } = await getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("categories")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) throw error;
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   const { supabase, user } = await getUser();
   if (!user) throw new Error("Not authenticated");

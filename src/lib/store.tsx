@@ -34,6 +34,7 @@ import {
 import {
   fetchCategories,
   addCategory as addCategoryAction,
+  updateCategory as updateCategoryAction,
   deleteCategory as deleteCategoryAction,
 } from "@/app/actions/categories";
 import { useToast } from "@/components/Toast";
@@ -97,6 +98,7 @@ interface StoreContextValue {
   categoriesError: string | null;
   refetchCategories: () => Promise<void>;
   addCategory: (name: string, icon: string, color: string) => Promise<CategoryItem>;
+  updateCategory: (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryByName: (name: string) => CategoryItem | undefined;
 }
@@ -602,6 +604,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateCategory = useCallback(async (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => {
+    let originalCategories: CategoryItem[] = [];
+    setCategories((prev) => {
+      originalCategories = prev;
+      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await updateCategoryAction(id, updates);
+    } catch (err) {
+      setCategories(originalCategories);
+      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(originalCategories));
+      throw err;
+    }
+  }, []);
+
   const deleteCategory = useCallback(async (id: string) => {
     if (id.startsWith("default-")) return;
     let originalCategories: CategoryItem[] = [];
@@ -638,7 +658,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notes, notesLoaded, notesError, refetchNotes,
       addNote, updateNote, deleteNote,
       categories, categoriesLoaded, categoriesError, refetchCategories,
-      addCategory, deleteCategory, getCategoryByName,
+      addCategory, updateCategory, deleteCategory, getCategoryByName,
     }}>
       {children}
     </StoreContext.Provider>
@@ -680,8 +700,8 @@ export function useNotes() {
 }
 
 export function useCategories() {
-  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, deleteCategory, getCategoryByName } = useStore();
-  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, deleteCategory, getCategoryByName };
+  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName } = useStore();
+  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName };
 }
 
 export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {

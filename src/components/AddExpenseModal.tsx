@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { X, Check, Plus, Camera, Upload, Loader2 } from "lucide-react";
+import { X, Check, Camera, Upload, Loader2 } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -16,7 +16,7 @@ interface Props {
 
 export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const { addExpense } = useExpenses();
-  const { categories, addCategory } = useCategories();
+  const { categories } = useCategories();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Other");
@@ -25,10 +25,6 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const [expenseType, setExpenseType] = useState("Daily purchase");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatIcon, setNewCatIcon] = useState("🏷️");
-  const [newCatColor, setNewCatColor] = useState("#6B7280");
   const [scanning, setScanning] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const { toast } = useToast();
@@ -49,10 +45,6 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       setPaymentMethod("Cash");
       setExpenseType("Daily purchase");
       setNote("");
-      setShowAddCategory(false);
-      setNewCatName("");
-      setNewCatIcon("🏷️");
-      setNewCatColor("#6B7280");
       setScanning(false);
       setReceiptPreview(null);
     }
@@ -60,21 +52,6 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
-
-  const handleAddCategory = async () => {
-    if (!newCatName.trim()) return;
-    try {
-      const cat = await addCategory(newCatName.trim(), newCatIcon, newCatColor);
-      setCategory(cat.name);
-      setShowAddCategory(false);
-      setNewCatName("");
-      setNewCatIcon("🏷️");
-      setNewCatColor("#6B7280");
-      toast("Category added");
-    } catch (err) {
-      console.error("Failed to add category:", err);
-    }
-  };
 
   const handleReceiptScan = async (file: File) => {
     setScanning(true);
@@ -168,8 +145,6 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       setSaving(false);
     }
   };
-
-  const QUICK_COLORS = ["#16A34A", "#EA580C", "#2563EB", "#D946EF", "#8B5CF6", "#DC2626", "#0891B2", "#F59E0B", "#64748B", "#E11D48", "#7C3AED", "#6B7280"];
 
   return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -268,7 +243,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
             <div>
               <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Category</label>
               <div className="grid grid-cols-3 gap-1.5">
-                {categories.map((cat) => (
+                {categories.filter((cat) => cat.name !== "Bill" && cat.name !== "Subscription").map((cat) => (
                     <button
                         key={cat.id}
                         type="button"
@@ -284,65 +259,10 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
                       <span className="truncate">{cat.name}</span>
                     </button>
                 ))}
-                <button
-                    type="button"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    className="px-2 py-1.5 text-xs rounded border border-dashed border-ink-light/40 text-ink-light hover:border-accent-warm hover:text-accent-warm transition-all flex items-center gap-1"
-                >
-                  <Plus size={12} /> Add
-                </button>
               </div>
-
-              {/* Inline add category form */}
-              {showAddCategory && (
-                  <div className="mt-2 p-3 bg-paper-dark rounded border border-[rgba(0,0,0,0.06)] space-y-2">
-                    <div className="flex gap-2">
-                      <input
-                          type="text"
-                          value={newCatIcon}
-                          onChange={(e) => setNewCatIcon(e.target.value)}
-                          className="w-12 text-center px-1 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm"
-                          placeholder="icon"
-                      />
-                      <input
-                          type="text"
-                          value={newCatName}
-                          onChange={(e) => setNewCatName(e.target.value)}
-                          placeholder="Category name"
-                          className="flex-1 px-3 py-1.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-sm text-ink-dark focus:outline-none focus:border-accent-warm"
-                          autoFocus
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {QUICK_COLORS.map((c) => (
-                          <button
-                              key={c}
-                              type="button"
-                              onClick={() => setNewCatColor(c)}
-                              className={`w-5 h-5 rounded-full border-2 transition-transform ${newCatColor === c ? "border-ink-dark scale-125" : "border-transparent"}`}
-                              style={{ backgroundColor: c }}
-                          />
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                          type="button"
-                          onClick={handleAddCategory}
-                          disabled={!newCatName.trim()}
-                          className="px-3 py-1 bg-accent-warm text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50"
-                      >
-                        Add Category
-                      </button>
-                      <button
-                          type="button"
-                          onClick={() => setShowAddCategory(false)}
-                          className="px-3 py-1 border border-[rgba(0,0,0,0.1)] rounded text-xs text-ink-medium hover:bg-paper-bg"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-              )}
+              <p className="text-[10px] text-ink-light mt-1.5">
+                Manage categories on the <a href="/categories" className="text-accent-warm hover:underline">Categories page</a>
+              </p>
             </div>
 
             {/* Date */}
@@ -385,7 +305,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
                   onChange={(e) => setExpenseType(e.target.value)}
                   className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
               >
-                {EXPENSE_TYPES.map((t) => (
+                {EXPENSE_TYPES.filter((t) => t !== "Bill" && t !== "Subscription" && t !== "Recurring payment").map((t) => (
                     <option key={t} value={t}>{t}</option>
                 ))}
               </select>
