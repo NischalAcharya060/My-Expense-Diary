@@ -128,12 +128,12 @@ function NotesContent() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Note title..."
-                className="flex-1 bg-transparent border-none text-ink-dark font-handwritten text-xl font-bold placeholder:text-ink-light/50 focus:outline-none"
+                className="flex-1 bg-transparent border-none text-[#2C2C2C] font-handwritten text-xl font-bold placeholder:text-black/30 focus:outline-none"
                 autoFocus
               />
               <button 
                 onClick={() => { resetForm(); setShowEditor(false); }} 
-                className="p-1 hover:bg-black/5 rounded text-ink-light hover:text-ink-dark cursor-pointer"
+                className="p-1 hover:bg-black/10 rounded text-black/40 hover:text-[#2C2C2C] cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -144,7 +144,7 @@ function NotesContent() {
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write your thoughts here..."
               rows={5}
-              className="w-full bg-transparent border-none text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none resize-none font-medium leading-relaxed"
+              className="w-full bg-transparent border-none text-[#2C2C2C] text-sm placeholder:text-black/30 focus:outline-none resize-none font-medium leading-relaxed"
             />
             
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)]">
@@ -155,7 +155,7 @@ function NotesContent() {
                     type="button"
                     onClick={() => setColor(c.value)}
                     className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer hover:scale-110 ${
-                      color === c.value ? "border-ink-dark scale-110 shadow-sm" : "border-transparent"
+                      color === c.value ? "border-[#2C2C2C] scale-110 shadow-sm" : "border-transparent"
                     }`}
                     style={{ backgroundColor: c.value }}
                     title={c.name}
@@ -187,7 +187,7 @@ function NotesContent() {
               return (
                 <div
                   key={note.id}
-                  className={`p-5 rounded-lg shadow-sm hover:shadow-md relative group transition-all duration-300 cursor-pointer ${rotateClass}`}
+                  className={`p-5 rounded-lg shadow-sm hover:shadow-md relative group transition-all duration-300 cursor-pointer ${rotateClass} note-card`}
                   style={{ backgroundColor: note.color, minHeight: "150px" }}
                   onClick={() => startEdit(note)}
                 >
@@ -196,7 +196,7 @@ function NotesContent() {
 
                   {/* Header / Pin Button */}
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-handwritten text-lg font-bold text-ink-dark dark:text-black flex-1 truncate pr-2">
+                    <h3 className="font-handwritten text-lg font-bold text-[#2C2C2C] flex-1 truncate pr-2">
                       {note.title || "Untitled Note"}
                     </h3>
                     
@@ -208,7 +208,7 @@ function NotesContent() {
                           updateNote(note.id, { pinned: !note.pinned });
                           toast(note.pinned ? "Note unpinned" : "Note pinned");
                         }}
-                        className="p-1 hover:bg-black/5 dark:hover:bg-black/10 rounded text-ink-light dark:text-black/60 hover:text-ink-dark dark:hover:text-black cursor-pointer"
+                        className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-[#2C2C2C] cursor-pointer"
                         title={note.pinned ? "Unpin note" : "Pin note"}
                       >
                         {note.pinned ? <PinOff size={13} /> : <Pin size={13} />}
@@ -218,7 +218,7 @@ function NotesContent() {
                           e.stopPropagation();
                           setDeleteConfirm(note.id);
                         }}
-                        className="p-1 hover:bg-black/5 dark:hover:bg-black/10 rounded text-ink-light dark:text-black/60 hover:text-accent-red cursor-pointer"
+                        className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-red-600 cursor-pointer"
                         title="Delete note"
                       >
                         <Trash2 size={13} />
@@ -227,16 +227,16 @@ function NotesContent() {
                   </div>
                   
                   {note.pinned && (
-                    <span className="inline-block text-[9px] bg-black/5 dark:bg-black/10 text-ink-medium dark:text-black/70 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-2">
+                    <span className="inline-block text-[9px] bg-black/10 text-black/60 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-2">
                       📌 Pinned
                     </span>
                   )}
                   
-                  <p className="text-xs text-ink-medium dark:text-black/80 line-clamp-5 whitespace-pre-wrap leading-relaxed mt-1">
+                  <p className="text-xs text-[#333333] line-clamp-5 whitespace-pre-wrap leading-relaxed mt-1">
                     {note.content}
                   </p>
                   
-                  <p className="text-[9px] text-ink-light/80 dark:text-black/50 mt-4 border-t border-black/5 pt-2 text-right font-medium">
+                  <p className="text-[9px] text-black/40 mt-4 border-t border-black/10 pt-2 text-right font-medium">
                     Updated: {format(new Date(note.updated_at), "MMM d, yyyy")}
                   </p>
                 </div>

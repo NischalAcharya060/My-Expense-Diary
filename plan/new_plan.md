@@ -81,14 +81,14 @@
 ## Phase 4: Dark Mode Polish
 
 ### 4.1 Fix Dark Mode Breakages
-- [ ] `notes/page.tsx:197-238` — Replace hardcoded `dark:text-black`, `dark:bg-black/10` with CSS custom properties
-- [ ] `globals.css:152` — `.sticky-note` hardcoded `background: #FEF9C3` needs dark mode variant
-- [ ] `page.tsx:309-331` — Landing page sticky notes `bg-[#FEF9C3]`, `bg-[#DCFCE7]`, `bg-[#DBEAFE]` need dark variants
-- [ ] `login/page.tsx:209` — Google sign-in button `bg-white` needs dark mode handling
-- [ ] `components/FlagIcon.tsx` — External CDN dependency (`flagcdn.com`); add fallback for when CDN is down
+- [x] `notes/page.tsx:197-238` — Replace hardcoded `dark:text-black`, `dark:bg-black/10` with CSS custom properties
+- [x] `globals.css:152` — `.sticky-note` hardcoded `background: #FEF9C3` needs dark mode variant
+- [x] `page.tsx:309-331` — Landing page sticky notes `bg-[#FEF9C3]`, `bg-[#DCFCE7]`, `bg-[#DBEAFE]` need dark variants
+- [x] `login/page.tsx:209` — Google sign-in button `bg-white` needs dark mode handling
+- [x] `components/FlagIcon.tsx` — External CDN dependency (`flagcdn.com`); add fallback for when CDN is down
 
 ### 4.2 Theme Toggle Conflict
-- [ ] `ThemeToggle.tsx` and `Toast.tsx` both use `fixed bottom-6 right-6 z-50` — move toast container to `bottom-6 left-6` or adjust z-index stacking
+- [x] `ThemeToggle.tsx` and `Toast.tsx` both use `fixed bottom-6 right-6 z-50` — move toast container to `bottom-6 left-6` or adjust z-index stacking
 
 ---
 

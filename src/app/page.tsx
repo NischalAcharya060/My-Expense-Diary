@@ -310,7 +310,7 @@ function LandingPage() {
 
         {/* Features list in sticky notes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left max-w-4xl mx-auto mb-16">
-          <div className="p-6 bg-[#FEF9C3] rounded-lg shadow rotate-[-1.5deg] relative">
+          <div className="p-6 bg-[#FEF9C3] dark:bg-[#3D3520] rounded-lg shadow rotate-[-1.5deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-1deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">✍️ Cozy Cursive Journal</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">
@@ -318,7 +318,7 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="p-6 bg-[#DCFCE7] rounded-lg shadow rotate-[1deg] relative">
+          <div className="p-6 bg-[#DCFCE7] dark:bg-[#1A3325] rounded-lg shadow rotate-[1deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[2deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">⏰ Scheduled Auto-Pay</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">
@@ -326,7 +326,7 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="p-6 bg-[#DBEAFE] rounded-lg shadow rotate-[-0.5deg] relative">
+          <div className="p-6 bg-[#DBEAFE] dark:bg-[#1A2538] rounded-lg shadow rotate-[-0.5deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-2deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">📌 Checklist & Sticky Notes</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">

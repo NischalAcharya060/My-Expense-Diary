@@ -8,7 +8,6 @@ import {
   Receipt,
   Calendar,
   BarChart3,
-  RefreshCw,
   FileText,
   LineChart,
   StickyNote,
@@ -48,7 +47,6 @@ const navSections = [
     label: "Finance",
     items: [
       { href: "/monthly", label: "Monthly Summary", icon: BarChart3 },
-      { href: "/recurring", label: "Recurring", icon: RefreshCw },
       { href: "/bills", label: "Bills & Subs", icon: FileText },
     ],
   },
