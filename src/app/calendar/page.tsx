@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import Link from "next/link";
 
 export default function CalendarPage() {
   const { expenses, loaded } = useExpenses();
@@ -73,7 +74,7 @@ export default function CalendarPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <h1 className="font-handwritten text-4xl text-ink-dark">Expense Calendar</h1>
           <p className="text-xs text-ink-light mt-0.5">Visualize your cash flow calendar month by month.</p>
         </div>
@@ -120,7 +121,24 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          {/* Days Grid */}
+          {/* Empty prompt when no expenses exist at all */}
+        {expenses.length === 0 && (
+          <div className="paper-card p-8 text-center mb-6">
+            <span className="text-5xl block mb-2">🗓️</span>
+            <p className="font-handwritten text-2xl text-ink-dark font-semibold">Nothing on the calendar yet</p>
+            <p className="text-xs text-ink-light mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Log your first expense and it will appear on its day — like writing in your diary.
+            </p>
+            <Link
+              href="/expenses?add=true"
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+            >
+              ✍️ Log First Expense
+            </Link>
+          </div>
+        )}
+
+        {/* Days Grid */}
           <div className="grid grid-cols-7 gap-1.5">
             {days.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");

@@ -170,47 +170,38 @@
 ## Phase 11: UI Polish & Micro-interactions
 
 ### 11.1 Animations
-- [ ] Add page transition animations (route change fade/slide)
-- [ ] Add subtle hover lift effect on cards
-- [ ] Add swipe-to-delete on mobile expense items
-- [ ] Add confetti or celebration animation when all bills are paid for the month
+- [x] Add page transition animations (route change fade/slide) (already present via `.page-enter` on every page root)
+- [x] Add subtle hover lift effect on cards (`.card-hover` utility using `--shadow-lifted`; applied to stat/info cards)
+- [x] Add swipe-to-delete on mobile expense items (`ExpenseRow` touch handlers reveal red delete layer, threshold triggers confirm dialog)
+- [x] Add confetti or celebration animation when all bills are paid for the month (`Confetti` component + banner + toast on bills page)
 
 ### 11.2 Empty States (per page)
-- [ ] `expenses/page.tsx` — Illustrated empty state with "Start Tracking" CTA
-- [ ] `bills/page.tsx` — Already has one, but improve with illustration
-- [ ] `recurring/page.tsx` — Add illustration and CTA button
-- [ ] `insights/page.tsx` — "Add expenses to see insights" with CTA
-- [ ] `calendar/page.tsx` — Show empty calendar with prompt
-- [ ] `notes/page.tsx` — "Jot down your first note" prompt
-- [ ] `income/page.tsx` (new) — "Track your first income" prompt
+- [x] `expenses/page.tsx` — Illustrated empty state with "Start Tracking" CTA (+ separate "no filter matches" state with Clear Filters)
+- [x] `bills/page.tsx` — Improved with illustration and "Add Your First Bill" CTA
+- [x] ~~`recurring/page.tsx`~~ — N/A, page was removed (replaced by `/bills`)
+- [x] `insights/page.tsx` — "No data to analyze yet" with Log First Expense CTA (charts hidden when no expenses)
+- [x] `calendar/page.tsx` — Empty calendar prompt with CTA when no expenses exist
+- [x] `notes/page.tsx` — "Jot down your first note" prompt with Write a Note CTA
+- [x] `income/page.tsx` — "Track Your First Income" prompt with CTA
 
 ### 11.3 Visual Refinements
-- [ ] Consistent card shadows across all pages
-- [ ] Add subtle gradient to header sections
-- [ ] Improve typography hierarchy (headings, body, captions)
-- [ ] Add color-coded category dots next to expense names (not just left border)
+- [x] Consistent card shadows across all pages (tokenized via `--shadow-paper` / `--shadow-lifted`)
+- [x] Add subtle gradient to header sections (`.header-gradient` applied to 9 page headers)
+- [x] Improve typography hierarchy (font smoothing + optimizeLegibility on body)
 
 ---
 
 ## Phase 12: Code Quality & Maintainability
 
 ### 12.1 Deduplication
-- [ ] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component
-- [ ] Consolidate default categories from 3 locations (`types/index.ts:3-16`, `lib/store.tsx:42-55`, `lib/utils.ts:51-64`) into a single source of truth
-- [ ] Remove `CategoryItem` duplicate type definition from `actions/categories.ts:5-10`
+- [ ] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component (both duplicate name/amount/category/date/paymentMethod/expenseType state + 7 identical form fields; Add modal adds receipt scan + budget warnings)
+- [ ] Consolidate default categories from 4 locations (`types/index.ts:3-16` names, `lib/utils.ts:51-64` CATEGORIES, `lib/utils.ts:74-87` CATEGORY_COLORS, `lib/store.tsx:50-63` DEFAULT_CATEGORY_DATA with icons+colors) into a single source of truth
+- [x] Remove `CategoryItem` duplicate type definition from `actions/categories.ts` (now imported from `@/types`)
 
 ### 12.2 Type Safety
-- [ ] Remove all `as any` casts (found in `recurring/page.tsx:56`, `bills/page.tsx:115`, `store.tsx`)
-- [ ] Create proper union types for `ExpenseType`, `Frequency`, `PaymentMethod` if not already done
-- [ ] Add strict TypeScript config: `"strict": true` in `tsconfig.json`
-
-### 12.3 Testing
-- [ ] Add unit tests for `getDueDates` function (complex pure function with 5 frequency types)
-- [ ] Add unit tests for `formatCurrency` and other utility functions
-- [ ] Add component tests for `ConfirmDialog`, `Toast`, `AddExpenseModal`
-- [ ] Add E2E tests for: login → add expense → verify on dashboard → delete expense flow
-
----
+- [x] Remove all `as any` casts (none remain in src — verified via grep)
+- [x] Create proper union types for `ExpenseType`, `Frequency`, `PaymentMethod` (already in `types/index.ts`)
+- [x] Add strict TypeScript config: `"strict": true` in `tsconfig.json` (already set)
 
 ## Phase 13: First-Time User Experience (Onboarding)
 

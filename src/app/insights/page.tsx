@@ -3,6 +3,7 @@
 import { useSyncExternalStore, useState } from "react";
 import { format, subMonths, addMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
@@ -98,7 +99,7 @@ export default function InsightsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <h1 className="font-handwritten text-4xl text-ink-dark">Spending Insights</h1>
           <p className="text-xs text-ink-light mt-0.5">Statistical breakdown of your cash outflows.</p>
         </div>
@@ -121,9 +122,27 @@ export default function InsightsPage() {
           </div>
         </div>
 
+        {/* Empty state when no expenses exist at all */}
+        {expenses.length === 0 ? (
+          <div className="paper-card p-12 text-center">
+            <span className="text-6xl block mb-3">📊</span>
+            <p className="font-handwritten text-3xl text-ink-dark font-semibold">No data to analyze yet</p>
+            <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
+              Log a few expenses and come back to see your spending insights.
+            </p>
+            <Link
+              href="/expenses?add=true"
+              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+            >
+              ✍️ Log First Expense
+            </Link>
+          </div>
+        ) : (
+        <>
+
         {/* Budget Progress Gauge */}
         {budgetAmount > 0 && (
-          <div className="paper-card p-6 mb-6">
+          <div className="paper-card p-6 mb-6 card-hover">
             <div className="flex items-center gap-2 mb-3">
               <DollarSign size={20} className="text-accent-warm" />
               <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Budget Tracker</h3>
@@ -245,6 +264,8 @@ export default function InsightsPage() {
             <TypeBar label="Digital Subscriptions" amount={subTotal} total={totalSpending} color="#7C3AED" />
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
     </AuthGuard>

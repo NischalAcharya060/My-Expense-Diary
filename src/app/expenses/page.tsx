@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, memo, Suspense } from "react";
+import { useEffect, useState, useMemo, useCallback, memo, useRef, Suspense } from "react";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Plus, Trash2, Search, Edit2, CalendarDays, X } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -117,12 +117,19 @@ function ExpensesPageInner() {
   const visibleEntries = groupEntries.slice(0, visibleDays);
   const hiddenDays = groupEntries.length - visibleEntries.length;
 
+  const clearFilters = () => {
+    setSearch("");
+    setFilterCategory("All");
+    setDateRange(null);
+    setQuickFilter("All");
+  };
+
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <div>
             <h1 className="font-handwritten text-4xl text-ink-dark">Daily Expenses</h1>
             <p className="text-xs text-ink-light mt-0.5">Your financial journal logs sorted chronologically.</p>
@@ -219,11 +226,34 @@ function ExpensesPageInner() {
 
         {/* Expenses List */}
         {groupEntries.length === 0 ? (
-          <div className="paper-card p-12 text-center">
-            <span className="text-4xl block mb-2 font-handwritten">📓</span>
-            <p className="font-handwritten text-2xl text-ink-light">No entries found</p>
-            <p className="text-xs text-ink-light mt-1">Change your search terms or log a new entry!</p>
-          </div>
+          expenses.length === 0 ? (
+            <div className="paper-card p-12 text-center relative overflow-hidden">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-4 bg-amber-200/30 border border-amber-300/20 rotate-[-2deg] rounded-sm pointer-events-none" />
+              <span className="text-6xl block mb-3">📓</span>
+              <p className="font-handwritten text-3xl text-ink-dark font-semibold">Your diary is empty</p>
+              <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
+                Start tracking your daily spending — it takes just a few seconds per entry.
+              </p>
+              <button
+                onClick={() => requireAuth(() => setShowAdd(true))}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              >
+                <Plus size={16} /> Start Tracking
+              </button>
+            </div>
+          ) : (
+            <div className="paper-card p-12 text-center">
+              <span className="text-5xl block mb-3">🔍</span>
+              <p className="font-handwritten text-2xl text-ink-light">No entries found</p>
+              <p className="text-xs text-ink-light mt-1">Nothing matches your current search or filters.</p>
+              <button
+                onClick={clearFilters}
+                className="mt-4 px-4 py-2 bg-paper-dark rounded-lg text-xs font-semibold text-ink-medium hover:text-ink-dark transition-colors cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )
         ) : (
           <>
             {visibleEntries.map(([date, dayExpenses]) => {
@@ -317,39 +347,86 @@ interface ExpenseRowProps {
   onDelete: (id: string) => void;
 }
 
-const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, onEdit, onDelete }: ExpenseRowProps) {
-  return (
-    <div
-      className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4"
-      style={{ borderLeftColor: color }}
-    >
-      <span className="text-xl shrink-0">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
-        <p className="text-[10px] text-ink-light mt-0.5">
-          {expense.category} · {expense.payment_method}
-        </p>
-      </div>
-      <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color }}>
-        {formatCurrency(expense.amount)}
-      </span>
+const SWIPE_THRESHOLD = -64;
+const SWIPE_MAX = -96;
 
-      {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
-      <div className="flex items-center gap-0.5 shrink-0 ml-2">
-        <button
-          onClick={() => onEdit(expense)}
-          className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-          aria-label="Edit"
-        >
-          <Edit2 size={13} />
-        </button>
-        <button
-          onClick={() => onDelete(expense.id)}
-          className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-          aria-label="Delete"
-        >
-          <Trash2 size={13} />
-        </button>
+const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, onEdit, onDelete }: ExpenseRowProps) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    setDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startX.current === null) return;
+    const delta = e.touches[0].clientX - startX.current;
+    setDx(Math.max(Math.min(0, delta), SWIPE_MAX));
+  };
+
+  const handleTouchEnd = () => {
+    setDragging(false);
+    if (dx < SWIPE_THRESHOLD) {
+      setDx(0);
+      onDelete(expense.id);
+    } else {
+      setDx(0);
+    }
+    startX.current = null;
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded">
+      <button
+        onClick={() => onDelete(expense.id)}
+        className="absolute inset-y-0 right-0 w-24 bg-accent-red text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+        aria-label="Delete expense"
+        tabIndex={-1}
+      >
+        <Trash2 size={16} />
+        <span className="text-[10px] font-semibold">Delete</span>
+      </button>
+      <div
+        className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4 swipe-row"
+        style={{
+          borderLeftColor: color,
+          transform: `translateX(${dx}px)`,
+          transition: dragging ? "none" : "transform 0.25s ease",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <span className="text-xl shrink-0">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
+          <p className="text-[10px] text-ink-light mt-0.5">
+            {expense.category} · {expense.payment_method}
+          </p>
+        </div>
+        <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color }}>
+          {formatCurrency(expense.amount)}
+        </span>
+
+        {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
+        <div className="flex items-center gap-0.5 shrink-0 ml-2">
+          <button
+            onClick={() => onEdit(expense)}
+            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+            aria-label="Edit"
+          >
+            <Edit2 size={13} />
+          </button>
+          <button
+            onClick={() => onDelete(expense.id)}
+            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+            aria-label="Delete"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
     </div>
   );

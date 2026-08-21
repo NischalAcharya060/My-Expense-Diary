@@ -125,7 +125,7 @@ export default function IncomePage() {
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <div>
             <h1 className="font-handwritten text-4xl text-ink-dark">Income</h1>
             <p className="text-xs text-ink-light mt-0.5">Track your earnings and income sources.</p>
@@ -276,10 +276,19 @@ export default function IncomePage() {
 
         {/* Income List */}
         {Object.keys(grouped).length === 0 ? (
-          <div className="paper-card p-12 text-center">
-            <span className="text-4xl block mb-2 font-handwritten">💰</span>
-            <p className="font-handwritten text-2xl text-ink-light">No income entries yet</p>
-            <p className="text-xs text-ink-light mt-1">Start tracking your income by adding your first entry.</p>
+          <div className="paper-card p-12 text-center relative overflow-hidden">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-4 bg-amber-200/30 border border-amber-300/20 rotate-[-2deg] rounded-sm pointer-events-none" />
+            <span className="text-6xl block mb-3">💰</span>
+            <p className="font-handwritten text-3xl text-ink-dark font-semibold">No income entries yet</p>
+            <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
+              Track your first income to see your true monthly balance.
+            </p>
+            <button
+              onClick={() => requireAuth(() => setShowForm(true))}
+              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-green text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+            >
+              ＋ Track Your First Income
+            </button>
           </div>
         ) : (
           Object.entries(grouped).map(([date, dayItems]) => {

@@ -59,6 +59,9 @@ body {
   color: var(--ink-dark);
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Notebook paper background */
@@ -225,6 +228,49 @@ body {
 
 .page-enter {
   animation: pageIn 0.3s ease-out;
+}
+
+/* Card hover lift (pointer devices only) */
+@media (hover: hover) {
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lifted);
+  }
+}
+
+/* Subtle warm gradient for page headers */
+.header-gradient {
+  background-image: linear-gradient(90deg, rgba(212, 133, 74, 0.08) 0%, rgba(212, 133, 74, 0) 60%);
+}
+
+/* Swipe-to-delete row */
+.swipe-row {
+  touch-action: pan-y;
+}
+
+/* Confetti celebration */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-5vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(720deg);
+    opacity: 0.4;
+  }
+}
+
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 90;
+  animation: confetti-fall linear forwards;
 }
 
 /* Worn edge effect */

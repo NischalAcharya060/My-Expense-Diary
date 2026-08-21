@@ -142,7 +142,7 @@ export default function MonthlySummaryPage() {
     <AuthGuard feature="monthly summaries">
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 header-gradient">
           <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>
           {monthExpenses.length > 0 && (
             <div className="flex items-center gap-1.5">

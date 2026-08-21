@@ -96,7 +96,7 @@ export default function DashboardPage() {
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Date header */}
-        <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <h1 className="font-handwritten text-4xl sm:text-5xl text-ink-dark mb-1 leading-tight">
             {format(today, "MMMM d, yyyy")}
           </h1>

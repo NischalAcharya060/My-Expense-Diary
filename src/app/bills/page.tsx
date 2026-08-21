@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useSyncExternalStore, useState, useEffect, useRef } from "react";
 import {
   Plus, Trash2, Edit2, Calendar,
   CheckCircle2, AlertCircle, Clock, History
@@ -17,6 +17,7 @@ import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
 
 const AddBillModal = dynamic(() => import("@/components/AddBillModal"), { ssr: false });
+const Confetti = dynamic(() => import("@/components/Confetti"), { ssr: false });
 
 const HISTORY_PAGE_SIZE = 3;
 
@@ -38,19 +39,10 @@ export default function BillsPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<RecurringPayment | null>(null);
   const [variablePayTarget, setVariablePayTarget] = useState<{ payment: RecurringPayment; dueDateStr: string } | null>(null);
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
+  const [celebrate, setCelebrate] = useState(false);
+  const prevAllPaid = useRef<boolean | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
-
-  if (!mounted || !expensesLoaded || !paymentsLoaded) {
-    return (
-      <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-paper-dark rounded" />)}
-        </div>
-      </div>
-    );
-  }
 
   const todayStr = getToday();
   const today = new Date(todayStr);
@@ -60,7 +52,7 @@ export default function BillsPage() {
   const billExpenses = expenses.filter(
     (e) => e.expense_type === "Bill" || e.expense_type === "Subscription" || e.recurring_payment_id
   );
-  
+
   const currentMonthBillExpenses = billExpenses.filter((e) => e.date.startsWith(currentMonthPrefix));
   const totalPaidThisMonth = currentMonthBillExpenses.reduce((s, e) => s + e.amount, 0);
 
@@ -90,6 +82,30 @@ export default function BillsPage() {
 
   const paidBills = processedPayments.filter((p) => p.isPaid);
   const unpaidBills = processedPayments.filter((p) => !p.isPaid);
+
+  const allPaid = activePayments.length > 0 && unpaidBills.length === 0;
+
+  useEffect(() => {
+    if (prevAllPaid.current !== null && !prevAllPaid.current && allPaid) {
+      setCelebrate(true);
+      toast("🎉 All bills paid for this month!");
+      const t = setTimeout(() => setCelebrate(false), 4500);
+      prevAllPaid.current = allPaid;
+      return () => clearTimeout(t);
+    }
+    prevAllPaid.current = allPaid;
+  }, [allPaid, toast]);
+
+  if (!mounted || !expensesLoaded || !paymentsLoaded) {
+    return (
+      <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 bg-paper-dark rounded" />
+          {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-paper-dark rounded" />)}
+        </div>
+      </div>
+    );
+  }
 
   const dueBills = unpaidBills.filter((p) => p.dueDate <= today);
   const upcomingBills = unpaidBills.filter((p) => p.dueDate > today);
@@ -170,10 +186,11 @@ export default function BillsPage() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      {celebrate && <Confetti />}
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 header-gradient">
           <div>
             <h1 className="font-handwritten text-4xl text-ink-dark">Bills & Subscriptions</h1>
             <p className="text-xs text-ink-light mt-1">Manage scheduled bills, active subscriptions, and automatic payments.</p>
@@ -188,7 +205,7 @@ export default function BillsPage() {
 
         {/* Overview Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="paper-card p-4">
+          <div className="paper-card p-4 card-hover">
             <p className="text-[10px] text-ink-light uppercase tracking-wider font-semibold">Monthly Total</p>
             <p className="font-handwritten text-2xl text-accent-warm amount mt-1 font-bold">
               {formatCurrency(estimatedMonthlyTotal)}
@@ -196,7 +213,7 @@ export default function BillsPage() {
             <p className="text-[9px] text-ink-light mt-0.5">*Excludes variable</p>
           </div>
 
-          <div className="paper-card p-4">
+          <div className="paper-card p-4 card-hover">
             <p className="text-[10px] text-accent-green uppercase tracking-wider font-semibold">Total Paid</p>
             <p className="font-handwritten text-2xl text-accent-green amount mt-1 font-bold">
               {formatCurrency(totalPaidThisMonth)}
@@ -204,7 +221,7 @@ export default function BillsPage() {
             <p className="text-[9px] text-ink-light mt-0.5">Logged this month</p>
           </div>
 
-          <div className="paper-card p-4">
+          <div className="paper-card p-4 card-hover">
             <p className="text-[10px] text-ink-medium uppercase tracking-wider font-semibold">Remaining Due</p>
             <p className="font-handwritten text-2xl text-ink-dark amount mt-1 font-bold">
               {formatCurrency(remainingDueTotal)}
@@ -212,7 +229,7 @@ export default function BillsPage() {
             <p className="text-[9px] text-ink-light mt-0.5">Unpaid active items</p>
           </div>
 
-          <div className="paper-card p-4 bg-accent-warm/5 border-accent-warm/20">
+          <div className="paper-card p-4 bg-accent-warm/5 border-accent-warm/20 card-hover">
             <p className="text-[10px] text-accent-warm uppercase tracking-wider font-semibold">Next Upcoming</p>
             {nextUpcoming ? (
               <>
@@ -228,6 +245,19 @@ export default function BillsPage() {
             )}
           </div>
         </div>
+
+        {/* All Paid Banner */}
+        {allPaid && (
+          <div className="paper-card p-4 mb-6 bg-accent-green/10 border-l-4 border-l-accent-green flex items-center gap-3">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <p className="text-sm font-semibold text-accent-green">
+                All bills paid for {format(new Date(year, month - 1), "MMMM")}!
+              </p>
+              <p className="text-xs text-ink-light">Great job staying on top of your payments.</p>
+            </div>
+          </div>
+        )}
 
         {/* Tab switcher */}
         <div className="flex border-b border-[rgba(0,0,0,0.06)] mb-6">
@@ -499,12 +529,19 @@ export default function BillsPage() {
             )}
 
             {payments.length === 0 && (
-              <div className="paper-card p-12 text-center">
-                <span className="text-4xl block mb-2">💡</span>
-                <p className="font-handwritten text-2xl text-ink-medium">No bills or subscriptions tracked yet</p>
-                <p className="text-xs text-ink-light mt-1 max-w-sm mx-auto">
-                  Click &ldquo;Add Bill / Subscription&rdquo; above to catalog your monthly expenses, utilities, or digital services.
+              <div className="paper-card p-12 text-center relative overflow-hidden">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-4 bg-amber-200/30 border border-amber-300/20 rotate-[-2deg] rounded-sm pointer-events-none" />
+                <span className="text-6xl block mb-3">💡</span>
+                <p className="font-handwritten text-3xl text-ink-dark font-semibold">No bills tracked yet</p>
+                <p className="text-xs text-ink-light mt-2 max-w-sm mx-auto leading-relaxed">
+                  Catalog your monthly utilities, rent, and subscriptions — never miss a due date again.
                 </p>
+                <button
+                  onClick={() => requireAuth(() => { setEditingPayment(null); setShowAddModal(true); })}
+                  className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+                >
+                  <Plus size={16} /> Add Your First Bill
+                </button>
               </div>
             )}
           </div>

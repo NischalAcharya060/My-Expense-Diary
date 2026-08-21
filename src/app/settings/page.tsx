@@ -325,7 +325,7 @@ function SettingsContent() {
         <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Settings</h1>
 
         {/* Theme */}
-        <div className="paper-card p-6 mb-6">
+        <div className="paper-card p-6 mb-6 card-hover">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4">Appearance</h3>
           <div className="flex items-center justify-between">
             <div>
@@ -343,7 +343,7 @@ function SettingsContent() {
         </div>
 
         {/* Country & Currency */}
-        <div className="paper-card p-6 mb-6">
+        <div className="paper-card p-6 mb-6 card-hover">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4">Country & Currency</h3>
           <p className="text-xs text-ink-light mb-3">Select your country to set the currency symbol</p>
           <div ref={countryRef} className="relative">
@@ -522,7 +522,7 @@ function SettingsContent() {
         </div>
 
         {/* Data Stats */}
-        <div className="paper-card p-6 mb-6">
+        <div className="paper-card p-6 mb-6 card-hover">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4">Data Overview</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="text-center p-3 bg-paper-dark rounded">
@@ -638,7 +638,7 @@ function SettingsContent() {
         </div>
 
         {/* Performance / Cache */}
-        <div className="paper-card p-6 mb-6">
+        <div className="paper-card p-6 mb-6 card-hover">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
             <RefreshCw size={18} /> Performance
           </h3>
