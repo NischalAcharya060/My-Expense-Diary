@@ -17,7 +17,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
-import Link from "next/link";
 
 export default function CalendarPage() {
   const { expenses, loaded } = useExpenses();
@@ -127,14 +126,8 @@ export default function CalendarPage() {
             <span className="text-5xl block mb-2">🗓️</span>
             <p className="font-handwritten text-2xl text-ink-dark font-semibold">Nothing on the calendar yet</p>
             <p className="text-xs text-ink-light mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Log your first expense and it will appear on its day — like writing in your diary.
+              This is your month. Tap any day below to add expenses — today is glowing to get you started.
             </p>
-            <Link
-              href="/expenses?add=true"
-              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
-            >
-              ✍️ Log First Expense
-            </Link>
           </div>
         )}
 
@@ -155,7 +148,7 @@ export default function CalendarPage() {
                   className={`
                     relative p-2 rounded-lg text-left transition-all min-h-[56px] sm:min-h-[68px] flex flex-col justify-between cursor-pointer
                     ${!isCurrentMonth ? "opacity-25" : ""}
-                    ${isToday ? "bg-accent-warm/5 ring-1 ring-accent-warm" : "bg-paper-dark/20 border border-[rgba(0,0,0,0.02)]"}
+                    ${isToday ? (expenses.length === 0 ? "bg-accent-warm/10 ring-2 ring-accent-warm animate-pulse" : "bg-accent-warm/5 ring-1 ring-accent-warm") : "bg-paper-dark/20 border border-[rgba(0,0,0,0.02)]"}
                     ${isSelected ? "bg-accent-warm/15 ring-2 ring-accent-warm scale-[1.02] shadow-sm" : "hover:bg-paper-dark/45"}
                   `}
                 >

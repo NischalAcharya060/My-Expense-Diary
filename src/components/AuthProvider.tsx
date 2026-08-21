@@ -10,6 +10,7 @@ interface AuthContextType {
   isConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  completeOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   isConfigured: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  completeOnboarding: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -87,8 +89,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  // Optimistically flip the flag so the onboarding gate never re-triggers,
+  // then persist to user_metadata for cross-device/session persistence.
+  const completeOnboarding = async () => {
+    setUser((u) =>
+      u ? { ...u, user_metadata: { ...u.user_metadata, onboarded: true } } : u
+    );
+    try {
+      const supabase = createClient();
+      await supabase.auth.updateUser({ data: { onboarded: true } });
+    } catch {
+      // Local state already updated; metadata sync can retry on next login.
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isConfigured, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isConfigured, signInWithGoogle, signOut, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );

@@ -128,11 +128,29 @@ export default function InsightsPage() {
             <span className="text-6xl block mb-3">📊</span>
             <p className="font-handwritten text-3xl text-ink-dark font-semibold">No data to analyze yet</p>
             <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
-              Log a few expenses and come back to see your spending insights.
+              Add 3+ expenses to unlock insights about your spending patterns.
             </p>
+            <div className="mt-5 max-w-[220px] mx-auto" aria-label={`${expenses.length} of 3 expenses logged`}>
+              <div className="flex justify-between text-[10px] font-bold text-ink-light mb-1.5 uppercase tracking-wider">
+                <span>Progress</span>
+                <span>{expenses.length}/3</span>
+              </div>
+              <div
+                className="h-2.5 bg-paper-dark rounded-full overflow-hidden border border-[rgba(0,0,0,0.04)]"
+                role="progressbar"
+                aria-valuenow={expenses.length}
+                aria-valuemin={0}
+                aria-valuemax={3}
+              >
+                <div
+                  className="h-full bg-accent-warm rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (expenses.length / 3) * 100)}%` }}
+                />
+              </div>
+            </div>
             <Link
               href="/expenses?add=true"
-              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
             >
               ✍️ Log First Expense
             </Link>

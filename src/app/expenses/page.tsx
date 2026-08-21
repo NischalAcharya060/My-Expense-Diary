@@ -227,18 +227,38 @@ function ExpensesPageInner() {
         {/* Expenses List */}
         {groupEntries.length === 0 ? (
           expenses.length === 0 ? (
-            <div className="paper-card p-12 text-center relative overflow-hidden">
+            <div className="paper-card relative overflow-hidden min-h-[340px] flex items-center justify-center">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-4 bg-amber-200/30 border border-amber-300/20 rotate-[-2deg] rounded-sm pointer-events-none" />
-              <span className="text-6xl block mb-3">📓</span>
-              <p className="font-handwritten text-3xl text-ink-dark font-semibold">Your diary is empty</p>
-              <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
-                Start tracking your daily spending — it takes just a few seconds per entry.
-              </p>
+              {/* Faded mock journal entries */}
+              <div className="absolute inset-x-4 sm:inset-x-8 top-8 space-y-3 select-none pointer-events-none opacity-40 blur-[0.7px]" aria-hidden="true">
+                {[
+                  { icon: "☕", name: "Morning coffee", amount: "$4.50" },
+                  { icon: "🛒", name: "Weekly groceries", amount: "$63.50" },
+                  { icon: "🚌", name: "Bus fare", amount: "$1.75" },
+                  { icon: "📺", name: "Netflix", amount: "$15.99" },
+                ].map((row) => (
+                  <div key={row.name} className="handwritten-entry flex items-baseline !pl-3">
+                    <span className="mr-1.5">{row.icon}</span>
+                    <span className="text-ink-dark">{row.name}</span>
+                    <span className="dots" />
+                    <span className="amount font-bold text-accent-warm">{row.amount}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Overlay CTA */}
               <button
                 onClick={() => requireAuth(() => setShowAdd(true))}
-                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+                className="relative z-10 mx-6 my-10 w-full max-w-xs bg-paper-bg/70 backdrop-blur-[2px] border border-[rgba(0,0,0,0.08)] rounded-xl shadow-lg p-8 text-center hover:bg-paper-bg/90 transition-colors cursor-pointer group"
+                aria-label="Start tracking your expenses"
               >
-                <Plus size={16} /> Start Tracking
+                <span className="text-5xl block mb-2 group-hover:scale-110 transition-transform">📓</span>
+                <span className="font-handwritten text-3xl text-ink-dark font-semibold block">Your diary is empty</span>
+                <span className="text-xs text-ink-light mt-2 block leading-relaxed">
+                  Tap to start tracking — it takes just a few seconds per entry.
+                </span>
+                <span className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold shadow-sm">
+                  <Plus size={16} /> Tap to start tracking
+                </span>
               </button>
             </div>
           ) : (

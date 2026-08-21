@@ -26,6 +26,7 @@ export default function BillsPage() {
   const { payments, loaded: paymentsLoaded, deletePayment, updatePayment } = useRecurringPayments();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<RecurringPayment | null>(null);
+  const [billPreset, setBillPreset] = useState<{ name: string; category: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "history">("list");
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -534,14 +535,34 @@ export default function BillsPage() {
                 <span className="text-6xl block mb-3">💡</span>
                 <p className="font-handwritten text-3xl text-ink-dark font-semibold">No bills tracked yet</p>
                 <p className="text-xs text-ink-light mt-2 max-w-sm mx-auto leading-relaxed">
-                  Catalog your monthly utilities, rent, and subscriptions — never miss a due date again.
+                  No bills yet — add Netflix, rent, electricity... never miss a due date again.
                 </p>
                 <button
-                  onClick={() => requireAuth(() => { setEditingPayment(null); setShowAddModal(true); })}
+                  onClick={() => requireAuth(() => { setEditingPayment(null); setBillPreset(null); setShowAddModal(true); })}
                   className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
                 >
                   <Plus size={16} /> Add Your First Bill
                 </button>
+                <div className="mt-6 pt-5 border-t border-[rgba(0,0,0,0.05)]">
+                  <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-3">Quick add</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {[
+                      { name: "Netflix", category: "Subscription" },
+                      { name: "Rent", category: "Bills" },
+                      { name: "Electricity", category: "Bills" },
+                      { name: "Internet", category: "Bills" },
+                      { name: "Spotify", category: "Subscription" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => requireAuth(() => { setEditingPayment(null); setBillPreset(preset); setShowAddModal(true); })}
+                        className="px-3.5 py-1.5 rounded-full text-xs font-semibold border border-[rgba(0,0,0,0.1)] text-ink-dark hover:bg-accent-warm/10 hover:border-accent-warm hover:text-accent-warm transition-colors cursor-pointer"
+                      >
+                        + {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -619,8 +640,9 @@ export default function BillsPage() {
       {showAddModal && (
         <AddBillModal
           open
-          onClose={() => { setShowAddModal(false); setEditingPayment(null); }}
+          onClose={() => { setShowAddModal(false); setEditingPayment(null); setBillPreset(null); }}
           editingPayment={editingPayment}
+          preset={billPreset}
         />
       )}
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="managing bills" />

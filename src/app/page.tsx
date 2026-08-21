@@ -1,7 +1,8 @@
 "use client";
 
-import { useSyncExternalStore, memo } from "react";
+import { useSyncExternalStore, memo, useState, useEffect } from "react";
 import { format } from "date-fns";
+import dynamic from "next/dynamic";
 import { Plus, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,8 +14,10 @@ import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 
+const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
+
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isConfigured, completeOnboarding } = useAuth();
   const { expenses, loaded, getTodayTotal, getMonthTotal } = useExpenses();
   const { payments } = useRecurringPayments();
   const { budgets, getBudget } = useBudgets();
@@ -23,12 +26,25 @@ export default function DashboardPage() {
   const today = new Date();
   const { year, month } = getCurrentMonth();
   const router = useRouter();
+  const [showAdd, setShowAdd] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+
+  // First-time user experience: route brand-new users through onboarding once.
+  // Users who already have data (pre-onboarding accounts) are silently marked onboarded.
+  useEffect(() => {
+    if (!mounted || authLoading || !isConfigured || !user || !loaded) return;
+    if (user.user_metadata?.onboarded) return;
+    if (expenses.length > 0) {
+      completeOnboarding();
+    } else {
+      router.replace("/onboarding");
+    }
+  }, [mounted, authLoading, isConfigured, user, loaded, expenses.length, completeOnboarding, router]);
 
   if (!mounted || authLoading) {
     return (
@@ -291,9 +307,19 @@ export default function DashboardPage() {
             </Link>
           </div>
           {expenses.length === 0 ? (
-            <p className="text-center text-ink-light font-handwritten text-lg py-4">
-              Your expense diary is empty. Start writing!
-            </p>
+            <div className="text-center py-10">
+              <div className="animate-floaty text-6xl mb-3" aria-hidden="true">📓</div>
+              <p className="font-handwritten text-2xl text-ink-dark font-semibold">Your diary is empty!</p>
+              <p className="text-xs text-ink-light mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Every entry is a line in your journal. Write your first one — it takes 10 seconds.
+              </p>
+              <button
+                onClick={() => requireAuth(() => setShowAdd(true))}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              >
+                <Plus size={16} /> Add First Expense
+              </button>
+            </div>
           ) : (
             <div className="space-y-1">
               {expenses.slice(0, 5).map((expense) => {
@@ -318,6 +344,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {showAdd && <AddExpenseModal open onClose={() => setShowAdd(false)} />}
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
     </div>
   );

@@ -206,20 +206,20 @@
 ## Phase 13: First-Time User Experience (Onboarding)
 
 ### 13.1 Welcome Flow
-- [ ] Create `src/app/onboarding/page.tsx` — 3-step guided welcome after first login
+- [x] Create `src/app/onboarding/page.tsx` — 3-step guided welcome after first login
   - Step 1: "Welcome to My Expense Diary" — short animated intro with app preview
   - Step 2: "Pick your currency" — country/currency selector (reuses CountryProvider)
   - Step 3: "Log your first expense" — inline mini form to add one expense right there
-- [ ] Store `onboarded` flag in `user_metadata` to skip flow on return visits
-- [ ] Show onboarding only once per user (check `user.user_metadata.onboarded`)
+- [x] Store `onboarded` flag in `user_metadata` to skip flow on return visits
+- [x] Show onboarding only once per user (check `user.user_metadata.onboarded`)
 
 ### 13.2 Empty State CTAs with Guidance
-- [ ] Dashboard empty state: "Your diary is empty!" with animated illustration + "Add First Expense" button that opens the modal
-- [ ] Expenses page empty: Show a mock journal page with faded example entries and "Tap to start tracking" overlay
-- [ ] Bills page empty: Show a card with "No bills yet — add Netflix, rent, electricity..." and quick-add presets
-- [ ] Notes page empty: Show a blank sticky note with blinking cursor prompt "Jot something down..."
-- [ ] Insights page empty: "Add 3+ expenses to unlock insights" with progress indicator
-- [ ] Calendar page empty: Show current month calendar with "Tap any day to add expenses"
+- [x] Dashboard empty state: "Your diary is empty!" with animated illustration + "Add First Expense" button that opens the modal
+- [x] Expenses page empty: Show a mock journal page with faded example entries and "Tap to start tracking" overlay
+- [x] Bills page empty: Show a card with "No bills yet — add Netflix, rent, electricity..." and quick-add presets
+- [x] Notes page empty: Show a blank sticky note with blinking cursor prompt "Jot something down..."
+- [x] Insights page empty: "Add 3+ expenses to unlock insights" with progress indicator
+- [x] Calendar page empty: Show current month calendar with "Tap any day to add expenses"
 
 ---
 

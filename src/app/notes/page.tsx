@@ -180,14 +180,19 @@ function NotesContent() {
             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-4 bg-amber-200/30 border border-amber-300/20 rotate-[-2deg] rounded-sm pointer-events-none" />
             <span className="text-6xl block mb-3">📌</span>
             <p className="font-handwritten text-3xl text-ink-dark font-semibold">Your corkboard is empty</p>
-            <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed">
+            <p className="text-xs text-ink-light mt-2 max-w-xs mx-auto leading-relaxed mb-8">
               Jot down your first note — grocery lists, ideas, reminders, anything.
             </p>
             <button
               onClick={() => requireAuth(() => { resetForm(); setShowEditor(true); })}
-              className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              className="group relative block mx-auto w-52 h-44 bg-[#FEF9C3] dark:bg-[#3D3520] rounded-md shadow-md rotate-[-2deg] hover:rotate-0 hover:shadow-lg transition-all p-4 text-left cursor-pointer"
+              aria-label="Write your first note"
             >
-              ✍️ Write a Note
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[2deg] rounded-sm pointer-events-none" aria-hidden="true" />
+              <span className="font-handwritten text-xl text-ink-dark/80 leading-relaxed break-words">
+                Jot something down<span className="cursor-blink font-sans">|</span>
+              </span>
+              <span className="absolute bottom-3 right-4 text-lg opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all" aria-hidden="true">✍️</span>
             </button>
           </div>
         ) : (

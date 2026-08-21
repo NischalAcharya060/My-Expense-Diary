@@ -11,6 +11,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   editingPayment?: RecurringPayment | null;
+  preset?: { name: string; category: string } | null;
 }
 
 interface Preset {
@@ -38,7 +39,7 @@ const SUB_PRESETS: Preset[] = [
   { name: "GitHub", category: "Subscription", icon: "💻", color: "#24292F" },
 ];
 
-export default function AddBillModal({ open, onClose, editingPayment }: Props) {
+export default function AddBillModal({ open, onClose, editingPayment, preset }: Props) {
   const { addPayment, updatePayment } = useRecurringPayments();
   const { categories } = useCategories();
   const { toast } = useToast();
@@ -71,6 +72,18 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
         setPaymentMethod((editingPayment.payment_method as PaymentMethod) || "Card");
         setAutoPay(!!editingPayment.auto_pay);
         setReminderDays(editingPayment.reminder_days.toString());
+      } else if (preset) {
+        setName(preset.name);
+        setAmount("");
+        setIsVariable(false);
+        setCategory(preset.category === "Subscription" ? "Subscription" : "Bills");
+        setType(preset.category === "Subscription" ? "Subscription" : "Bill");
+        setFrequency("Monthly");
+        setDueDay("1");
+        setStartDate(getToday());
+        setPaymentMethod("Card");
+        setAutoPay(false);
+        setReminderDays("3");
       } else {
         setName("");
         setAmount("");
@@ -85,7 +98,7 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
         setReminderDays("3");
       }
     }
-  }, [open, editingPayment]);
+  }, [open, editingPayment, preset]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
