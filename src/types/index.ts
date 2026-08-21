@@ -1,19 +1,27 @@
 export type Category = string;
 
-export const DEFAULT_CATEGORIES = [
-  "Groceries",
-  "Food",
-  "Transport",
-  "Shopping",
-  "Personal",
-  "Medicine",
-  "Education",
-  "Entertainment",
-  "Household",
-  "Bills",
-  "Subscription",
-  "Other",
-] as const;
+export interface DefaultCategory {
+  name: string;
+  icon: string;
+  color: string;
+}
+
+export const DEFAULT_CATEGORY_DATA = [
+  { name: "Groceries", icon: "🛒", color: "#16A34A" },
+  { name: "Food", icon: "🍔", color: "#EA580C" },
+  { name: "Transport", icon: "🚌", color: "#2563EB" },
+  { name: "Shopping", icon: "🛍️", color: "#D946EF" },
+  { name: "Personal", icon: "💆", color: "#8B5CF6" },
+  { name: "Medicine", icon: "💊", color: "#DC2626" },
+  { name: "Education", icon: "📚", color: "#0891B2" },
+  { name: "Entertainment", icon: "🎬", color: "#F59E0B" },
+  { name: "Household", icon: "🏠", color: "#64748B" },
+  { name: "Bills", icon: "💡", color: "#E11D48" },
+  { name: "Subscription", icon: "📺", color: "#7C3AED" },
+  { name: "Other", icon: "📝", color: "#6B7280" },
+] as const satisfies readonly DefaultCategory[];
+
+export const DEFAULT_CATEGORIES: Category[] = DEFAULT_CATEGORY_DATA.map((c) => c.name);
 
 export interface CategoryItem {
   id: string;

@@ -37,7 +37,8 @@ export default function MonthlySummaryPage() {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
-  const monthExpenses = expenses.filter((e) => e.date.startsWith(format(currentDate, "yyyy-MM")));
+  const prefix = format(currentDate, "yyyy-MM");
+  const monthExpenses = expenses.filter((e) => e.date.startsWith(prefix));
   const totalSpending = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const bills = monthExpenses.filter((e) => e.expense_type === "Bill");
   const totalBills = bills.reduce((s, e) => s + e.amount, 0);

@@ -194,8 +194,8 @@
 ## Phase 12: Code Quality & Maintainability
 
 ### 12.1 Deduplication
-- [ ] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component (both duplicate name/amount/category/date/paymentMethod/expenseType state + 7 identical form fields; Add modal adds receipt scan + budget warnings)
-- [ ] Consolidate default categories from 4 locations (`types/index.ts:3-16` names, `lib/utils.ts:51-64` CATEGORIES, `lib/utils.ts:74-87` CATEGORY_COLORS, `lib/store.tsx:50-63` DEFAULT_CATEGORY_DATA with icons+colors) into a single source of truth
+- [x] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component (controlled component with `ExpenseFormData` + `onChange(patch)`; variations via `allExpenseTypes`, `categoryTilesExtra`, `categoryHint` props)
+- [x] Consolidate default categories from 4 locations into a single source of truth (`types/index.ts` now holds `DEFAULT_CATEGORY_DATA` with name/icon/color; `DEFAULT_CATEGORIES`, utils `CATEGORIES`/`CATEGORY_COLORS`, and store `INITIAL_CATEGORIES` are all derived from it)
 - [x] Remove `CategoryItem` duplicate type definition from `actions/categories.ts` (now imported from `@/types`)
 
 ### 12.2 Type Safety

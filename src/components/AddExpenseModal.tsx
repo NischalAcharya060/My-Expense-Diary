@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Check, Camera, Upload, Loader2 } from "lucide-react";
 import { useExpenses, useCategories, useBudgets } from "@/lib/store";
-import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol, formatCurrency } from "@/lib/utils";
+import { getToday, formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import ExpenseForm, { type ExpenseFormData } from "@/components/ExpenseForm";
 import type { PaymentMethod, ExpenseType, Expense } from "@/types";
 
 interface Props {
@@ -14,38 +15,40 @@ interface Props {
   defaultDate?: string;
 }
 
+const emptyForm = (defaultDate?: string): ExpenseFormData => ({
+  name: "",
+  amount: "",
+  category: "Other",
+  date: defaultDate || getToday(),
+  paymentMethod: "Cash",
+  expenseType: "Daily purchase",
+  note: "",
+});
+
 export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const { addExpense, expenses } = useExpenses();
   const { categories } = useCategories();
   const { budgets } = useBudgets();
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Other");
-  const [date, setDate] = useState(defaultDate || getToday());
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [expenseType, setExpenseType] = useState("Daily purchase");
-  const [note, setNote] = useState("");
+  const [form, setForm] = useState<ExpenseFormData>(() => emptyForm(defaultDate));
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const updateForm = useCallback((patch: Partial<ExpenseFormData>) => {
+    setForm((f) => ({ ...f, ...patch }));
+  }, []);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (defaultDate) setDate(defaultDate);
-  }, [defaultDate]);
+    if (defaultDate) updateForm({ date: defaultDate });
+  }, [defaultDate, updateForm]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
-      setName("");
-      setAmount("");
-      setCategory("Other");
-      setDate(defaultDate || getToday());
-      setPaymentMethod("Cash");
-      setExpenseType("Daily purchase");
-      setNote("");
+      setForm(emptyForm(defaultDate));
       setScanning(false);
       setReceiptPreview(null);
     }
@@ -76,7 +79,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       if (totalCandidates.length > 0) {
         // If several "total" lines exist (subtotal, tax, grand total), the
         // grand/final total is usually the largest of them.
-        setAmount(Math.max(...totalCandidates).toFixed(2));
+        updateForm({ amount: Math.max(...totalCandidates).toFixed(2) });
       } else {
         // Fallback: no explicit total line found, so assume the largest
         // currency-like number on the receipt is the total.
@@ -85,7 +88,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
             .map((m) => parseFloat(m[0].replace(/,/g, "")))
             .filter((n) => !isNaN(n) && n > 0);
         if (amounts.length > 0) {
-          setAmount(Math.max(...amounts).toFixed(2));
+          updateForm({ amount: Math.max(...amounts).toFixed(2) });
         }
       }
 
@@ -94,7 +97,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       if (dateMatch) {
         const parsed = new Date(dateMatch[0]);
         if (!isNaN(parsed.getTime())) {
-          setDate(parsed.toISOString().split("T")[0]);
+          updateForm({ date: parsed.toISOString().split("T")[0] });
         }
       }
 
@@ -104,7 +107,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
           .map((l) => l.trim())
           .find((l) => l.length > 2 && /[a-zA-Z]/.test(l));
       if (firstLine) {
-        setName(firstLine.slice(0, 60));
+        updateForm({ name: firstLine.slice(0, 60) });
       }
 
       toast("Receipt scanned — please double-check the details");
@@ -162,18 +165,18 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !amount || parseFloat(amount) <= 0) return;
+    if (!form.name.trim() || !form.amount || parseFloat(form.amount) <= 0) return;
 
     setSaving(true);
     try {
       const saved = await addExpense({
-        name: name.trim(),
-        amount: parseFloat(amount),
-        category,
-        date,
-        payment_method: paymentMethod as PaymentMethod,
-        expense_type: expenseType as ExpenseType,
-        note: note.trim() || undefined,
+        name: form.name.trim(),
+        amount: parseFloat(form.amount),
+        category: form.category,
+        date: form.date,
+        payment_method: form.paymentMethod as PaymentMethod,
+        expense_type: form.expenseType as ExpenseType,
+        note: form.note.trim() || undefined,
       });
       checkBudgetWarning(saved);
       toast("Expense added");
@@ -250,123 +253,21 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
               )}
             </div>
 
-            {/* Name */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">What did you spend on?</label>
-              <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Milk, Bus fare, Groceries..."
-                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors"
-                  autoFocus
-                  required
-              />
-            </div>
-
-            {/* Amount */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Amount ({getCurrencySymbol()})</label>
-              <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors amount"
-                  required
-              />
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Category</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {categories.filter((cat) => cat.name !== "Bill" && cat.name !== "Subscription").map((cat) => (
-                    <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setCategory(cat.name)}
-                        className={`px-2 py-1.5 text-xs rounded border transition-all flex items-center gap-1 ${
-                            category === cat.name
-                                ? "text-white border-accent-warm"
-                                : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
-                        }`}
-                        style={category === cat.name ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}
-                    >
-                      <span>{cat.icon}</span>
-                      <span className="truncate">{cat.name}</span>
-                    </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-ink-light mt-1.5">
-                Manage categories on the <a href="/categories" className="text-accent-warm hover:underline">Categories page</a>
-              </p>
-            </div>
-
-            {/* Date */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Date</label>
-              <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
-              />
-            </div>
-
-            {/* Payment method */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Payment Method</label>
-              <div className="flex flex-wrap gap-2">
-                {PAYMENT_METHODS.map((pm) => (
-                    <button
-                        key={pm}
-                        type="button"
-                        onClick={() => setPaymentMethod(pm)}
-                        className={`px-3 py-1.5 text-xs rounded border transition-all ${
-                            paymentMethod === pm
-                                ? "bg-ink-dark text-paper-bg border-ink-dark"
-                                : "bg-paper-bg text-ink-medium border-[rgba(0,0,0,0.08)] hover:border-ink-light"
-                        }`}
-                    >
-                      {pm}
-                    </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Expense type */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Type</label>
-              <select
-                  value={expenseType}
-                  onChange={(e) => setExpenseType(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm focus:outline-none focus:border-accent-warm transition-colors"
-              >
-                {EXPENSE_TYPES.filter((t) => t !== "Bill" && t !== "Subscription" && t !== "Recurring payment").map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Note */}
-            <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Note (optional)</label>
-              <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Any additional details..."
-                  rows={2}
-                  className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded text-ink-dark text-sm placeholder:text-ink-light/50 focus:outline-none focus:border-accent-warm transition-colors resize-none"
-              />
-            </div>
+            <ExpenseForm
+              data={form}
+              onChange={updateForm}
+              categories={categories.filter((cat) => cat.name !== "Bill" && cat.name !== "Subscription")}
+              categoryHint={
+                <p className="text-[10px] text-ink-light mt-1.5">
+                  Manage categories on the <a href="/categories" className="text-accent-warm hover:underline">Categories page</a>
+                </p>
+              }
+            />
 
             {/* Submit */}
             <button
                 type="submit"
-                disabled={saving || scanning || !name.trim() || !amount}
+                disabled={saving || scanning || !form.name.trim() || !form.amount}
                 className="w-full py-3 bg-accent-warm text-white rounded text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check size={16} />

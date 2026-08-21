@@ -9,6 +9,7 @@ import type {
   CategoryItem,
   Income,
 } from "@/types";
+import { DEFAULT_CATEGORY_DATA } from "@/types";
 import {
   fetchExpenses,
   addExpense as addExpenseAction,
@@ -47,20 +48,12 @@ import {
 import { useToast } from "@/components/Toast";
 
 
-const DEFAULT_CATEGORY_DATA: CategoryItem[] = [
-  { id: "default-groceries", name: "Groceries", icon: "🛒", color: "#16A34A" },
-  { id: "default-food", name: "Food", icon: "🍔", color: "#EA580C" },
-  { id: "default-transport", name: "Transport", icon: "🚌", color: "#2563EB" },
-  { id: "default-shopping", name: "Shopping", icon: "🛍️", color: "#D946EF" },
-  { id: "default-personal", name: "Personal", icon: "💆", color: "#8B5CF6" },
-  { id: "default-medicine", name: "Medicine", icon: "💊", color: "#DC2626" },
-  { id: "default-education", name: "Education", icon: "📚", color: "#0891B2" },
-  { id: "default-entertainment", name: "Entertainment", icon: "🎬", color: "#F59E0B" },
-  { id: "default-household", name: "Household", icon: "🏠", color: "#64748B" },
-  { id: "default-bills", name: "Bills", icon: "💡", color: "#E11D48" },
-  { id: "default-subscription", name: "Subscription", icon: "📺", color: "#7C3AED" },
-  { id: "default-other", name: "Other", icon: "📝", color: "#6B7280" },
-];
+const INITIAL_CATEGORIES: CategoryItem[] = DEFAULT_CATEGORY_DATA.map((c) => ({
+  id: `default-${c.name.toLowerCase()}`,
+  name: c.name,
+  icon: c.icon,
+  color: c.color,
+}));
 
 const CACHE_VERSION = "v2";
 
@@ -97,7 +90,7 @@ interface StoreContextValue {
   expensesLoaded: boolean;
   expensesError: string | null;
   refetchExpenses: () => Promise<void>;
-  addExpense: (data: Omit<Expense, "id" | "created_at" | "updated_at">) => Promise<Expense>;
+  addExpense: (data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Expense>;
   updateExpense: (id: string, data: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   getExpensesByDate: (date: string) => Expense[];
@@ -109,7 +102,7 @@ interface StoreContextValue {
   paymentsLoaded: boolean;
   paymentsError: string | null;
   refetchPayments: () => Promise<void>;
-  addPayment: (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => Promise<RecurringPayment>;
+  addPayment: (data: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">) => Promise<RecurringPayment>;
   updatePayment: (id: string, data: Partial<RecurringPayment>) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 
@@ -126,7 +119,7 @@ interface StoreContextValue {
   notesLoaded: boolean;
   notesError: string | null;
   refetchNotes: () => Promise<void>;
-  addNote: (data: Omit<Note, "id" | "created_at" | "updated_at">) => Promise<Note>;
+  addNote: (data: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Note>;
   updateNote: (id: string, data: Partial<Note>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
@@ -143,7 +136,7 @@ interface StoreContextValue {
   incomeLoaded: boolean;
   incomeError: string | null;
   refetchIncome: () => Promise<void>;
-  addIncome: (data: Omit<Income, "id" | "created_at" | "updated_at">) => Promise<Income>;
+  addIncome: (data: Omit<Income, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Income>;
   updateIncome: (id: string, data: Partial<Income>) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   getMonthIncome: (year: number, month: number) => number;
@@ -173,7 +166,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [notesLoaded, setNotesLoaded] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
-  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_DATA);
+  const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
@@ -360,11 +353,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ]);
   }, [refetchExpenses, refetchPayments, refetchNotes, refetchCategories, refetchIncome, refetchBudgets]);
 
-  const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
+  const addExpense = useCallback(async (data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticExpense: Expense = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -450,11 +444,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [expenses]);
 
   // Payments
-  const addPayment = useCallback(async (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => {
+  const addPayment = useCallback(async (data: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticPayment: RecurringPayment = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -597,11 +592,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Notes
-  const addNote = useCallback(async (data: Omit<Note, "id" | "created_at" | "updated_at">) => {
+  const addNote = useCallback(async (data: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticNote: Note = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -743,11 +739,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   // Income
-  const addIncome = useCallback(async (data: Omit<Income, "id" | "created_at" | "updated_at">) => {
+  const addIncome = useCallback(async (data: Omit<Income, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticIncome: Income = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

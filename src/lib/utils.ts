@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import type { Expense, Category } from "@/types";
+import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_DATA } from "@/types";
 import { COUNTRIES, DEFAULT_COUNTRY, getFlagUrl } from "@/lib/countries";
 
 function getCountry() {
@@ -48,20 +49,7 @@ export function getCurrentMonth(): { year: number; month: number } {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-export const CATEGORIES: Category[] = [
-  "Groceries",
-  "Food",
-  "Transport",
-  "Shopping",
-  "Personal",
-  "Medicine",
-  "Education",
-  "Entertainment",
-  "Household",
-  "Bills",
-  "Subscription",
-  "Other",
-];
+export const CATEGORIES: Category[] = DEFAULT_CATEGORIES;
 
 export const PAYMENT_METHODS = ["Cash", "Bank", "Card", "Digital Wallet", "Other"] as const;
 
@@ -71,20 +59,9 @@ export const BILL_TYPES = ["Electricity", "Water", "Internet", "Mobile/Phone", "
 
 export const FREQUENCIES = ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"] as const;
 
-export const CATEGORY_COLORS: Record<Category, string> = {
-  Groceries: "#16A34A",
-  Food: "#EA580C",
-  Transport: "#2563EB",
-  Shopping: "#D946EF",
-  Personal: "#8B5CF6",
-  Medicine: "#DC2626",
-  Education: "#0891B2",
-  Entertainment: "#F59E0B",
-  Household: "#64748B",
-  Bills: "#E11D48",
-  Subscription: "#7C3AED",
-  Other: "#6B7280",
-};
+export const CATEGORY_COLORS: Record<Category, string> = Object.fromEntries(
+  DEFAULT_CATEGORY_DATA.map((c) => [c.name, c.color])
+);
 
 export function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
   const grouped: Record<string, Expense[]> = {};

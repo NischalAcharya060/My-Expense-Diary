@@ -93,7 +93,7 @@ export default function IncomePage() {
         date,
         source,
         category,
-        note: note.trim() || null,
+        note: note.trim() || undefined,
       };
       if (editing) {
         await updateIncome(editing, data);
@@ -344,7 +344,7 @@ export default function IncomePage() {
         )}
       </div>
 
-      {showAuthPrompt && <AuthPrompt onClose={() => setShowAuthPrompt(false)} />}
+      {showAuthPrompt && <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} />}
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -352,7 +352,7 @@ export default function IncomePage() {
         onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
         title="Delete Income?"
         message="This will permanently remove this income entry."
-        confirmText="Delete"
+        confirmLabel="Delete"
       />
     </div>
   );
