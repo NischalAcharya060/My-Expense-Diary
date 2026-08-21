@@ -8,6 +8,7 @@ import { CountryProvider } from "@/components/CountryProvider";
 import { StoreProvider } from "@/lib/store";
 import ThemeToggle from "@/components/ThemeToggle";
 import Sidebar from "@/components/Sidebar";
+import BillReminderManager from "@/components/BillReminderManager";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                     {children}
                   </main>
                   <ThemeToggle />
+                  <BillReminderManager />
                 </StoreProvider>
               </ToastProvider>
             </AuthProvider>

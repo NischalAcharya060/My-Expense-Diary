@@ -2,12 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { format } from "date-fns";
-import { Plus, ChevronRight, CalendarClock } from "lucide-react";
+import { Plus, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
+import { getUpcomingBills, getDueBadge } from "@/lib/reminders";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
@@ -16,7 +17,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const { expenses, loaded, getTodayTotal, getMonthTotal } = useExpenses();
   const { payments } = useRecurringPayments();
-  const { getBudget } = useBudgets();
+  const { budgets, getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
   const { getMonthIncome } = useIncome();
   const today = new Date();
@@ -74,10 +75,22 @@ export default function DashboardPage() {
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - monthTotal;
   
-  const upcomingPayments = payments
-    .filter((p) => p.is_active)
-    .sort((a, b) => a.due_day - b.due_day)
-    .slice(0, 3);
+  const upcomingBills = getUpcomingBills(payments, expenses, todayStr).slice(0, 5);
+
+  // Budget alerts: overall + per-category budgets at or above 80% usage
+  const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
+  const budgetAlerts = budgets
+    .filter((b) => b.year === year && b.month === month && b.amount > 0)
+    .map((b) => {
+      const spent = b.category
+        ? expenses
+            .filter((e) => e.category === b.category && e.date.startsWith(monthPrefix))
+            .reduce((s, e) => s + e.amount, 0)
+        : monthTotal;
+      return { budget: b, spent, pct: (spent / b.amount) * 100 };
+    })
+    .filter((a) => a.pct >= 80)
+    .sort((a, b) => b.pct - a.pct);
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
@@ -137,6 +150,62 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Budget alerts */}
+        {budgetAlerts.length > 0 && (
+          <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg] border-l-4 border-l-accent-warm">
+            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={20} className="text-accent-warm" />
+                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Budget Alerts</h2>
+              </div>
+              <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">
+                Manage →
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {budgetAlerts.map(({ budget, spent, pct }) => {
+                const over = pct > 100;
+                const cat = budget.category ? getCategoryByName(budget.category) : null;
+                return (
+                  <div key={budget.id}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm text-ink-dark font-semibold flex items-center gap-1.5">
+                        <span>{cat?.icon || "💰"}</span>
+                        {budget.category || "Overall Budget"}
+                        {over && (
+                          <span className="text-[10px] bg-accent-red/10 text-accent-red border border-accent-red/25 px-2 py-0.5 rounded-full font-semibold">
+                            Over
+                          </span>
+                        )}
+                      </span>
+                      <span className={`text-xs font-bold amount ${over ? "text-accent-red" : "text-amber-600 dark:text-amber-400"}`}>
+                        {Math.round(pct)}% used
+                      </span>
+                    </div>
+                    <div className="h-2 bg-paper-dark rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(pct, 100)}%`,
+                          backgroundColor: over ? "#DC2626" : "#F59E0B",
+                        }}
+                        role="progressbar"
+                        aria-valuenow={Math.round(pct)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${budget.category || "Overall"} budget usage`}
+                      />
+                    </div>
+                    <p className="text-[10px] text-ink-light mt-1 amount">
+                      {formatCurrency(spent)} of {formatCurrency(budget.amount)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Today's entries */}
         <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
           <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
@@ -172,34 +241,40 @@ export default function DashboardPage() {
         </div>
 
         {/* Upcoming bills */}
-        {upcomingPayments.length > 0 && (
+        {upcomingBills.length > 0 && (
           <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg]">
             <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
               <div className="flex items-center gap-2">
                 <CalendarClock size={20} className="text-accent-warm" />
-                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Upcoming Bills & Subs</h2>
+                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Upcoming Bills &amp; Subs</h2>
               </div>
               <Link href="/bills" className="text-xs text-accent-warm hover:underline font-bold">
                 View All →
               </Link>
             </div>
             <div className="space-y-3">
-              {upcomingPayments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl shrink-0">{p.category === "Subscription" ? "📺" : "💡"}</span>
-                    <div>
-                      <p className="text-sm text-ink-dark font-semibold leading-tight">{p.name}</p>
-                      <p className="text-[10px] text-ink-light mt-0.5">
-                        Due on day {p.due_day} {p.auto_pay && "· ⏰ Auto-Pay"}
-                      </p>
+              {upcomingBills.map(({ payment: p, dueDateStr, daysUntil }) => {
+                const badge = getDueBadge({ payment: p, dueDateStr, daysUntil, isPaid: false });
+                return (
+                  <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xl shrink-0">{p.category === "Subscription" ? "📺" : "💡"}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-ink-dark font-semibold leading-tight">{p.name}</p>
+                          {badge && <span className={badge.className}>{badge.label}</span>}
+                        </div>
+                        <p className="text-[10px] text-ink-light mt-0.5">
+                          Due {format(new Date(`${dueDateStr}T00:00:00`), "MMM d")} {p.auto_pay && "· ⏰ Auto-Pay"}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-sm font-semibold text-ink-medium amount shrink-0 ml-2">
+                      {p.is_variable ? "Variable" : formatCurrency(p.amount)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-ink-medium amount shrink-0">
-                    {p.is_variable ? "Variable" : formatCurrency(p.amount)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

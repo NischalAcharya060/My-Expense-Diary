@@ -135,26 +135,16 @@
 
 ---
 
-## Phase 8: Expense Templates
-
-- [ ] Add `expense_templates` table (id, user_id, name, amount, category, payment_method, expense_type, created_at)
-- [ ] Add server actions for CRUD
-- [ ] Add "Save as Template" button on expense creation success
-- [ ] Add "Use Template" section in AddExpenseModal to pre-fill from template
-- [ ] Show templates list in settings or as a dropdown on expense page
-
----
-
 ## Phase 9: Notifications & Reminders
 
 ### 9.1 Bill Reminders
-- [ ] Use the `reminder_days` field on `RecurringPayment` (currently unused)
-- [ ] On dashboard, show "Upcoming in X days" badges for bills within reminder window
-- [ ] Add browser Notification API support (request permission, show notification on due date)
+- [x] Use the `reminder_days` field on `RecurringPayment` (currently unused)
+- [x] On dashboard, show "Upcoming in X days" badges for bills within reminder window
+- [x] Add browser Notification API support (request permission, show notification on due date)
 
 ### 9.2 Budget Alerts
-- [ ] When adding an expense that pushes a category over budget, show warning toast
-- [ ] On dashboard, show budget warning cards when any category is >80% used
+- [x] When adding an expense that pushes a category over budget, show warning toast
+- [x] On dashboard, show budget warning cards when any category is >80% used
 
 ---
 
@@ -577,11 +567,11 @@ Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE
 Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility)
 Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add) + Phase 15 (Smart Defaults)
 Week 4:   Phase 6 (Income + Categories + CSV + Date Filter)
-Week 5:   Phase 7 (Dashboard) + Phase 16 (Micro-interactions) + Phase 17 (Navigation)
+Week 5:   Phase 16 (Micro-interactions) + Phase 17 (Navigation)
 Week 6:   Phase 18 (Dashboard UX) + Phase 19 (Expense List UX)
 Week 7:   Phase 20 (Bills UX) + Phase 21 (Notes UX) + Phase 22 (Calendar UX)
 Week 8:   Phase 23 (Settings UX) + Phase 24 (Mobile UX)
-Week 9:   Phase 25 (Insights UX) + Phase 8 (Templates) + Phase 9 (Notifications)
+Week 9:   Phase 25 (Insights UX) + Phase 9 (Notifications) — DONE
 Week 10:  Phase 10 (Performance) + Phase 26 (PWA)
 Week 11:  Phase 27 (Onboarding Tips) + Phase 11 (UI Polish)
 Week 12:  Phase 12 (Code Quality) + Final QA & Testing
@@ -648,7 +638,7 @@ Week 12:  Phase 12 (Code Quality) + Final QA & Testing
 | `src/lib/utils.ts` | Consolidate categories, add CSV utils | |
 | `src/lib/supabase/client.ts` | Replace null returns with thrown errors | DONE |
 | `src/lib/supabase/server.ts` | Replace null returns with thrown errors | DONE |
-| `src/types/index.ts` | Add Income type, Template type, consolidate categories | |
+| `src/types/index.ts` | Add Income type, consolidate categories | |
 | `src/app/actions/expenses.ts` | Add Zod validation | DONE |
 | `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay | DONE |
 | `src/app/actions/budgets.ts` | Add Zod validation | DONE |

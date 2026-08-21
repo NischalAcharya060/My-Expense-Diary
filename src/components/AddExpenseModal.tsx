@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X, Check, Camera, Upload, Loader2 } from "lucide-react";
-import { useExpenses, useCategories } from "@/lib/store";
-import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol } from "@/lib/utils";
+import { useExpenses, useCategories, useBudgets } from "@/lib/store";
+import { PAYMENT_METHODS, EXPENSE_TYPES, getToday, getCurrencySymbol, formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
-import type { PaymentMethod, ExpenseType } from "@/types";
+import type { PaymentMethod, ExpenseType, Expense } from "@/types";
 
 interface Props {
   open: boolean;
@@ -15,8 +15,9 @@ interface Props {
 }
 
 export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
-  const { addExpense } = useExpenses();
+  const { addExpense, expenses } = useExpenses();
   const { categories } = useCategories();
+  const { budgets } = useBudgets();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Other");
@@ -121,13 +122,51 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
     e.target.value = "";
   };
 
+  // Warn when this expense pushes a budgeted category (or the overall
+  // monthly budget) past 80% / over 100% for the first time.
+  const checkBudgetWarning = (saved: Expense) => {
+    const monthPrefix = saved.date.slice(0, 7);
+    const monthBudgets = budgets.filter(
+      (b) => b.year === parseInt(saved.date.slice(0, 4)) && b.month === parseInt(monthPrefix.replace(/^\d{4}-/, "")) && b.amount > 0
+    );
+    if (monthBudgets.length === 0) return;
+
+    const evaluate = (label: string, amount: number, spent: number) => {
+      const beforePct = ((spent - saved.amount) / amount) * 100;
+      if (beforePct > 100) return;
+      const pct = (spent / amount) * 100;
+      if (pct > 100) {
+        toast(`${label} budget exceeded — ${formatCurrency(spent)} of ${formatCurrency(amount)}`, "error");
+      } else if (pct >= 80) {
+        toast(`${label} budget at ${Math.round(pct)}% used`, "info");
+      }
+    };
+
+    const catBudget = monthBudgets.find((b) => b.category === saved.category);
+    if (catBudget) {
+      const spent =
+        expenses
+          .filter((e) => e.category === saved.category && e.date.startsWith(monthPrefix))
+          .reduce((s, e) => s + e.amount, 0) + saved.amount;
+      evaluate(saved.category, catBudget.amount, spent);
+      return;
+    }
+
+    const overallBudget = monthBudgets.find((b) => !b.category);
+    if (overallBudget) {
+      const spent =
+        expenses.filter((e) => e.date.startsWith(monthPrefix)).reduce((s, e) => s + e.amount, 0) + saved.amount;
+      evaluate("Monthly", overallBudget.amount, spent);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !amount || parseFloat(amount) <= 0) return;
 
     setSaving(true);
     try {
-      await addExpense({
+      const saved = await addExpense({
         name: name.trim(),
         amount: parseFloat(amount),
         category,
@@ -136,6 +175,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
         expense_type: expenseType as ExpenseType,
         note: note.trim() || undefined,
       });
+      checkBudgetWarning(saved);
       toast("Expense added");
       onClose();
     } catch (err) {
