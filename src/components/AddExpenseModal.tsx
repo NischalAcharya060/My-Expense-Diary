@@ -1,10 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, Check, Camera, Upload, Loader2 } from "lucide-react";
 import { useExpenses, useCategories, useBudgets } from "@/lib/store";
-import { getToday, formatCurrency } from "@/lib/utils";
+import {
+  getToday,
+  formatCurrency,
+  formatDateShort,
+  getQuickAddPrefs,
+  saveQuickAddPrefs,
+  hapticFeedback,
+  PAYMENT_METHODS,
+} from "@/lib/utils";
 import { useToast } from "@/components/Toast";
 import ExpenseForm, { type ExpenseFormData } from "@/components/ExpenseForm";
 import type { PaymentMethod, ExpenseType, Expense } from "@/types";
@@ -45,15 +53,54 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   }, [defaultDate, updateForm]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Pre-select the last used category and payment method for faster re-entry.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
-      setForm(emptyForm(defaultDate));
+      const prefs = getQuickAddPrefs();
+      setForm({
+        ...emptyForm(defaultDate),
+        category: prefs.category || "Other",
+        paymentMethod:
+          prefs.paymentMethod && PAYMENT_METHODS.includes(prefs.paymentMethod as PaymentMethod)
+            ? prefs.paymentMethod
+            : "Cash",
+      });
       setScanning(false);
       setReceiptPreview(null);
     }
   }, [open, defaultDate]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Keep the selected category valid if the category list changes while open.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!open) return;
+    setForm((f) =>
+      categories.some((c) => c.name === f.category) ? f : { ...f, category: "Other" }
+    );
+  }, [open, categories]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const recentNames = useMemo(() => {
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const e of expenses) {
+      const trimmed = e.name.trim();
+      const key = trimmed.toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      names.push(trimmed);
+      if (names.length >= 6) break;
+    }
+    return names;
+  }, [expenses]);
+
+  const dayTotal = useMemo(
+    () => expenses.filter((e) => e.date === form.date).reduce((sum, e) => sum + e.amount, 0),
+    [expenses, form.date]
+  );
+  const entryAmount = parseFloat(form.amount);
 
   if (!open) return null;
 
@@ -179,6 +226,8 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
         note: form.note.trim() || undefined,
       });
       checkBudgetWarning(saved);
+      saveQuickAddPrefs({ category: form.category, paymentMethod: form.paymentMethod });
+      hapticFeedback();
       toast("Expense added");
       onClose();
     } catch (err) {
@@ -257,12 +306,27 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
               data={form}
               onChange={updateForm}
               categories={categories.filter((cat) => cat.name !== "Bill" && cat.name !== "Subscription")}
+              recentNames={recentNames}
+              enableSmartCategory
               categoryHint={
                 <p className="text-[10px] text-ink-light mt-1.5">
                   Manage categories on the <a href="/categories" className="text-accent-warm hover:underline">Categories page</a>
                 </p>
               }
             />
+
+            {/* Running daily total */}
+            <div className="flex items-center justify-between text-xs text-ink-light bg-paper-dark/50 rounded px-3 py-2" aria-live="polite">
+              <span>Spent so far on {formatDateShort(form.date)}</span>
+              <span className="font-bold text-ink-dark tabular-nums amount">
+                {formatCurrency(dayTotal)}
+                {!isNaN(entryAmount) && entryAmount > 0 && (
+                  <span className="text-accent-warm">
+                    {" "}+{formatCurrency(entryAmount)} = {formatCurrency(dayTotal + entryAmount)}
+                  </span>
+                )}
+              </span>
+            </div>
 
             {/* Submit */}
             <button

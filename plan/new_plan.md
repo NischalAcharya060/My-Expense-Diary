@@ -226,15 +226,15 @@
 ## Phase 14: Frictionless Expense Entry (Core UX)
 
 ### 14.1 Quick Add (1-Tap Expense)
-- [ ] Remember last used category and pre-select it
-- [ ] Remember last used payment method and pre-select it
-- [ ] Show recent expense names as chips above the name field for quick re-entry
+- [x] Remember last used category and pre-select it (`getQuickAddPrefs`/`saveQuickAddPrefs` in utils, persisted to localStorage on save; validated against live category list)
+- [x] Remember last used payment method and pre-select it
+- [x] Show recent expense names as chips above the name field for quick re-entry (6 most recent unique names from expense history in `ExpenseForm`)
 
 ### 14.2 Smart Expense Form
-- [ ] Auto-categorize based on expense name (e.g., "Netflix" → Subscription, "Uber" → Transport)
-- [ ] Show category suggestions as user types the name
-- [ ] Show running daily total at the bottom of the form as user adds expenses
-- [ ] Haptic feedback on mobile when expense is saved (navigator.vibrate)
+- [x] Auto-categorize based on expense name (e.g., "Netflix" → Subscription, "Uber" → Transport) — `lib/smartCategory.ts` keyword engine with word-boundary matching; suggestions validated against visible categories so hidden Bill/Subscription categories are never auto-picked on the Add form
+- [x] Show category suggestions as user types the name (✨ suggestion chip when a manual category override is active; "Auto-matched" hint otherwise; manual pick stops auto-categorize until name is cleared)
+- [x] Show running daily total at the bottom of the form as user adds expenses ("Spent so far on {date}" + live `+ entry = new total`)
+- [x] Haptic feedback on mobile when expense is saved (navigator.vibrate via `hapticFeedback()` util)
 
 ## Phase 16: Visual Feedback & Micro-interactions
 

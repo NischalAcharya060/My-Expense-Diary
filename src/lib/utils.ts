@@ -83,3 +83,39 @@ export function getTotalByCategory(expenses: Expense[]): Record<Category, number
   });
   return totals;
 }
+
+/* Quick-add preferences — remembers the last used category / payment method
+   so the Add Expense form opens pre-selected for faster entry. */
+
+const QUICK_ADD_PREFS_KEY = "quick_add_prefs_v1";
+
+export interface QuickAddPrefs {
+  category?: string;
+  paymentMethod?: string;
+}
+
+export function getQuickAddPrefs(): QuickAddPrefs {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(QUICK_ADD_PREFS_KEY);
+    return raw ? (JSON.parse(raw) as QuickAddPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveQuickAddPrefs(prefs: QuickAddPrefs): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(QUICK_ADD_PREFS_KEY, JSON.stringify({ ...getQuickAddPrefs(), ...prefs }));
+  } catch {
+    // storage unavailable or full — preference writes are best-effort
+  }
+}
+
+/** Short vibration tick on supported devices (mobile expense saved). */
+export function hapticFeedback(): void {
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    navigator.vibrate(35);
+  }
+}

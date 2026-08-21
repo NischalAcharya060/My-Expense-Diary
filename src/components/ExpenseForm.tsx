@@ -1,7 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
+import { Sparkles } from "lucide-react";
 import { PAYMENT_METHODS, EXPENSE_TYPES, getCurrencySymbol } from "@/lib/utils";
+import { suggestCategoryFrom } from "@/lib/smartCategory";
 import type { CategoryItem } from "@/types";
 
 export interface ExpenseFormData {
@@ -21,6 +23,10 @@ interface ExpenseFormProps {
   allExpenseTypes?: boolean;
   categoryTilesExtra?: ReactNode;
   categoryHint?: ReactNode;
+  /** Recent expense names shown as quick re-entry chips above the name field. */
+  recentNames?: string[];
+  /** Auto-select the suggested category as the user types the expense name. */
+  enableSmartCategory?: boolean;
 }
 
 const inputClass =
@@ -33,7 +39,33 @@ export default function ExpenseForm({
   allExpenseTypes = false,
   categoryTilesExtra,
   categoryHint,
+  recentNames,
+  enableSmartCategory = false,
 }: ExpenseFormProps) {
+  // Becomes true when the user explicitly picks a category, so auto-categorize
+  // stops overriding them until the name field is cleared again.
+  const categoryManuallyPicked = useRef(false);
+
+  const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const suggestion = useMemo(
+    () => (enableSmartCategory && data.name.trim() ? suggestCategoryFrom(data.name, categoryNames) : null),
+    [enableSmartCategory, data.name, categoryNames]
+  );
+
+  const applyNameChange = (name: string) => {
+    const patch: Partial<ExpenseFormData> = { name };
+    if (enableSmartCategory) {
+      if (!name.trim()) categoryManuallyPicked.current = false;
+      if (!categoryManuallyPicked.current) {
+        const match = suggestCategoryFrom(name, categoryNames);
+        if (match && match !== data.category) patch.category = match;
+      }
+    }
+    onChange(patch);
+  };
+
+  const suggestionMeta = suggestion ? categories.find((c) => c.name === suggestion) : undefined;
+
   const expenseTypeOptions = allExpenseTypes
     ? EXPENSE_TYPES
     : EXPENSE_TYPES.filter((t) => t !== "Bill" && t !== "Subscription" && t !== "Recurring payment");
@@ -43,15 +75,51 @@ export default function ExpenseForm({
       {/* Name */}
       <div>
         <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">What did you spend on?</label>
+        {recentNames && recentNames.length > 0 && !data.name && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            <span className="text-[10px] uppercase tracking-wide text-ink-light self-center mr-0.5">Recent</span>
+            {recentNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => applyNameChange(name)}
+                title={`Reuse "${name}"`}
+                className="px-2 py-1 max-w-[9rem] truncate text-xs rounded-full bg-paper-dark/70 text-ink-medium border border-[rgba(0,0,0,0.08)] hover:border-accent-warm hover:text-accent-warm transition-colors"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
         <input
           type="text"
           value={data.name}
-          onChange={(e) => onChange({ name: e.target.value })}
+          onChange={(e) => applyNameChange(e.target.value)}
           placeholder="e.g. Milk, Bus fare, Groceries..."
           className={inputClass}
           autoFocus
           required
         />
+        {suggestionMeta && (
+          suggestion === data.category ? (
+            <p className="flex items-center gap-1 text-[10px] text-ink-light mt-1.5" aria-live="polite">
+              <Sparkles size={10} className="text-accent-green" aria-hidden="true" />
+              Auto-matched to {suggestionMeta.icon} {suggestionMeta.name}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                categoryManuallyPicked.current = true;
+                onChange({ category: suggestionMeta.name });
+              }}
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-dashed border-accent-warm/50 text-accent-warm hover:bg-accent-warm/10 transition-colors"
+            >
+              <Sparkles size={10} aria-hidden="true" />
+              Suggested: {suggestionMeta.icon} {suggestionMeta.name}
+            </button>
+          )
+        )}
       </div>
 
       {/* Amount */}
@@ -77,7 +145,10 @@ export default function ExpenseForm({
             <button
               key={cat.id}
               type="button"
-              onClick={() => onChange({ category: cat.name })}
+              onClick={() => {
+                categoryManuallyPicked.current = true;
+                onChange({ category: cat.name });
+              }}
               className={`px-2 py-1.5 text-xs rounded border transition-all flex items-center gap-1 ${
                 data.category === cat.name
                   ? "text-white border-accent-warm"
