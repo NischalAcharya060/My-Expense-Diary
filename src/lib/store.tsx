@@ -62,6 +62,36 @@ const DEFAULT_CATEGORY_DATA: CategoryItem[] = [
   { id: "default-other", name: "Other", icon: "📝", color: "#6B7280" },
 ];
 
+const CACHE_VERSION = "v2";
+
+const cacheKey = (name: string) => `${name}_${CACHE_VERSION}`;
+
+function readCache<T>(name: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(cacheKey(name));
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(name: string, data: unknown): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(cacheKey(name), JSON.stringify(data));
+  } catch {
+    // storage unavailable or full — cache writes are best-effort
+  }
+}
+
+const CACHE_NAMES = ["cache_expenses", "cache_payments", "cache_categories", "cache_notes", "cache_income"];
+
+function clearLegacyCache(): void {
+  if (typeof window === "undefined") return;
+  CACHE_NAMES.forEach((name) => localStorage.removeItem(name));
+}
+
 interface StoreContextValue {
   expenses: Expense[];
   expensesLoaded: boolean;
@@ -117,6 +147,8 @@ interface StoreContextValue {
   updateIncome: (id: string, data: Partial<Income>) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   getMonthIncome: (year: number, month: number) => number;
+
+  clearCache: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -151,30 +183,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    clearLegacyCache();
     if (typeof window !== "undefined") {
-      const cachedExpenses = localStorage.getItem("cache_expenses");
+      const cachedExpenses = readCache<Expense[]>("cache_expenses");
       if (cachedExpenses) {
-        setExpenses(JSON.parse(cachedExpenses));
+        setExpenses(cachedExpenses);
         setExpensesLoaded(true);
       }
-      const cachedPayments = localStorage.getItem("cache_payments");
+      const cachedPayments = readCache<RecurringPayment[]>("cache_payments");
       if (cachedPayments) {
-        setPayments(JSON.parse(cachedPayments));
+        setPayments(cachedPayments);
         setPaymentsLoaded(true);
       }
-      const cachedCategories = localStorage.getItem("cache_categories");
+      const cachedCategories = readCache<CategoryItem[]>("cache_categories");
       if (cachedCategories) {
-        setCategories(JSON.parse(cachedCategories));
+        setCategories(cachedCategories);
         setCategoriesLoaded(true);
       }
-      const cachedNotes = localStorage.getItem("cache_notes");
+      const cachedNotes = readCache<Note[]>("cache_notes");
       if (cachedNotes) {
-        setNotes(JSON.parse(cachedNotes));
+        setNotes(cachedNotes);
         setNotesLoaded(true);
       }
-      const cachedIncome = localStorage.getItem("cache_income");
+      const cachedIncome = readCache<Income[]>("cache_income");
       if (cachedIncome) {
-        setIncome(JSON.parse(cachedIncome));
+        setIncome(cachedIncome);
         setIncomeLoaded(true);
       }
     }
@@ -182,7 +215,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchExpenses().then((data) => {
       setExpenses(data);
       setExpensesError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
+      writeCache("cache_expenses", data);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Failed to load expenses";
       setExpensesError(msg);
@@ -192,7 +225,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchRecurringPayments().then((data) => {
       setPayments(data);
       setPaymentsError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
+      writeCache("cache_payments", data);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
       setPaymentsError(msg);
@@ -202,7 +235,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchCategories().then((data) => {
       if (data.length > 0) {
         setCategories(data);
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
+        writeCache("cache_categories", data);
       }
       setCategoriesError(null);
     }).catch((err) => {
@@ -214,7 +247,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchNotes().then((data) => {
       setNotes(data);
       setNotesError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
+      writeCache("cache_notes", data);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Failed to load notes";
       setNotesError(msg);
@@ -224,7 +257,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchIncome().then((data) => {
       setIncome(data);
       setIncomeError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(data));
+      writeCache("cache_income", data);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Failed to load income";
       setIncomeError(msg);
@@ -238,7 +271,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchExpenses();
       setExpenses(data);
       setExpensesError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
+      writeCache("cache_expenses", data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load expenses";
       setExpensesError(msg);
@@ -251,7 +284,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchRecurringPayments();
       setPayments(data);
       setPaymentsError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
+      writeCache("cache_payments", data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
       setPaymentsError(msg);
@@ -264,7 +297,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchNotes();
       setNotes(data);
       setNotesError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
+      writeCache("cache_notes", data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load notes";
       setNotesError(msg);
@@ -277,7 +310,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchCategories();
       if (data.length > 0) {
         setCategories(data);
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
+        writeCache("cache_categories", data);
       }
       setCategoriesError(null);
     } catch (err) {
@@ -292,7 +325,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const data = await fetchIncome();
       setIncome(data);
       setIncomeError(null);
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(data));
+      writeCache("cache_income", data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load income";
       setIncomeError(msg);
@@ -312,6 +345,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
+  const clearCache = useCallback(async () => {
+    if (typeof window !== "undefined") {
+      CACHE_NAMES.forEach((name) => localStorage.removeItem(cacheKey(name)));
+      clearLegacyCache();
+    }
+    await Promise.all([
+      refetchExpenses(),
+      refetchPayments(),
+      refetchNotes(),
+      refetchCategories(),
+      refetchIncome(),
+      refetchBudgets(),
+    ]);
+  }, [refetchExpenses, refetchPayments, refetchNotes, refetchCategories, refetchIncome, refetchBudgets]);
+
   const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticExpense: Expense = {
@@ -323,7 +371,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setExpenses((prev) => {
       const next = [optimisticExpense, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
 
@@ -331,14 +379,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realExpense = await addExpenseAction(data);
       setExpenses((prev) => {
         const next = prev.map((e) => (e.id === tempId ? realExpense : e));
-        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        writeCache("cache_expenses", next);
         return next;
       });
       return realExpense;
     } catch (err) {
       setExpenses((prev) => {
         const next = prev.filter((e) => e.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        writeCache("cache_expenses", next);
         return next;
       });
       throw err;
@@ -350,7 +398,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setExpenses((prev) => {
       originalExpenses = prev;
       const next = prev.map((e) => (e.id === id ? { ...e, ...data, updated_at: new Date().toISOString() } : e));
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
 
@@ -358,7 +406,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateExpenseAction(id, data);
     } catch (err) {
       setExpenses(originalExpenses);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      writeCache("cache_expenses", originalExpenses);
       throw err;
     }
   }, []);
@@ -368,7 +416,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setExpenses((prev) => {
       originalExpenses = prev;
       const next = prev.filter((e) => e.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
 
@@ -376,7 +424,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteExpenseAction(id);
     } catch (err) {
       setExpenses(originalExpenses);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      writeCache("cache_expenses", originalExpenses);
       throw err;
     }
   }, []);
@@ -413,7 +461,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setPayments((prev) => {
       const next = [optimisticPayment, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -421,14 +469,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realPayment = await addRecurringPayment(data);
       setPayments((prev) => {
         const next = prev.map((p) => (p.id === tempId ? realPayment : p));
-        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        writeCache("cache_payments", next);
         return next;
       });
       return realPayment;
     } catch (err) {
       setPayments((prev) => {
         const next = prev.filter((p) => p.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        writeCache("cache_payments", next);
         return next;
       });
       throw err;
@@ -440,7 +488,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPayments((prev) => {
       originalPayments = prev;
       const next = prev.map((p) => (p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p));
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -448,7 +496,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateRecurringPayment(id, data);
     } catch (err) {
       setPayments(originalPayments);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      writeCache("cache_payments", originalPayments);
       throw err;
     }
   }, []);
@@ -458,7 +506,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPayments((prev) => {
       originalPayments = prev;
       const next = prev.filter((p) => p.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -466,7 +514,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteRecurringPayment(id);
     } catch (err) {
       setPayments(originalPayments);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      writeCache("cache_payments", originalPayments);
       throw err;
     }
   }, []);
@@ -560,7 +608,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setNotes((prev) => {
       const next = [optimisticNote, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -568,14 +616,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realNote = await addNoteAction(data);
       setNotes((prev) => {
         const next = prev.map((n) => (n.id === tempId ? realNote : n));
-        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        writeCache("cache_notes", next);
         return next;
       });
       return realNote;
     } catch (err) {
       setNotes((prev) => {
         const next = prev.filter((n) => n.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        writeCache("cache_notes", next);
         return next;
       });
       throw err;
@@ -587,7 +635,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => {
       originalNotes = prev;
       const next = prev.map((n) => (n.id === id ? { ...n, ...data, updated_at: new Date().toISOString() } : n));
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -595,7 +643,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateNoteAction(id, data);
     } catch (err) {
       setNotes(originalNotes);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      writeCache("cache_notes", originalNotes);
       throw err;
     }
   }, []);
@@ -605,7 +653,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => {
       originalNotes = prev;
       const next = prev.filter((n) => n.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -613,7 +661,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteNoteAction(id);
     } catch (err) {
       setNotes(originalNotes);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      writeCache("cache_notes", originalNotes);
       throw err;
     }
   }, []);
@@ -630,7 +678,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setCategories((prev) => {
       const next = [...prev, optimisticCategory];
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      writeCache("cache_categories", next);
       return next;
     });
 
@@ -638,14 +686,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realCategory = await addCategoryAction(name, icon, color);
       setCategories((prev) => {
         const next = prev.map((c) => (c.id === tempId ? realCategory : c));
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        writeCache("cache_categories", next);
         return next;
       });
       return realCategory;
     } catch (err) {
       setCategories((prev) => {
         const next = prev.filter((c) => c.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        writeCache("cache_categories", next);
         return next;
       });
       throw err;
@@ -657,7 +705,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCategories((prev) => {
       originalCategories = prev;
       const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      writeCache("cache_categories", next);
       return next;
     });
 
@@ -665,7 +713,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateCategoryAction(id, updates);
     } catch (err) {
       setCategories(originalCategories);
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(originalCategories));
+      writeCache("cache_categories", originalCategories);
       throw err;
     }
   }, []);
@@ -676,7 +724,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCategories((prev) => {
       originalCategories = prev;
       const next = prev.filter((c) => c.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      writeCache("cache_categories", next);
       return next;
     });
 
@@ -684,7 +732,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteCategoryAction(id);
     } catch (err) {
       setCategories(originalCategories);
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(originalCategories));
+      writeCache("cache_categories", originalCategories);
       throw err;
     }
   }, []);
@@ -706,7 +754,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setIncome((prev) => {
       const next = [optimisticIncome, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      writeCache("cache_income", next);
       return next;
     });
 
@@ -714,14 +762,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realIncome = await addIncomeAction(data);
       setIncome((prev) => {
         const next = prev.map((i) => (i.id === tempId ? realIncome : i));
-        if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+        writeCache("cache_income", next);
         return next;
       });
       return realIncome;
     } catch (err) {
       setIncome((prev) => {
         const next = prev.filter((i) => i.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+        writeCache("cache_income", next);
         return next;
       });
       throw err;
@@ -733,7 +781,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIncome((prev) => {
       originalIncome = prev;
       const next = prev.map((i) => (i.id === id ? { ...i, ...updates } : i));
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      writeCache("cache_income", next);
       return next;
     });
 
@@ -741,7 +789,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateIncomeAction(id, updates);
     } catch (err) {
       setIncome(originalIncome);
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(originalIncome));
+      writeCache("cache_income", originalIncome);
       throw err;
     }
   }, []);
@@ -751,7 +799,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIncome((prev) => {
       originalIncome = prev;
       const next = prev.filter((i) => i.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(next));
+      writeCache("cache_income", next);
       return next;
     });
 
@@ -759,7 +807,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteIncomeAction(id);
     } catch (err) {
       setIncome(originalIncome);
-      if (typeof window !== "undefined") localStorage.setItem("cache_income", JSON.stringify(originalIncome));
+      writeCache("cache_income", originalIncome);
       throw err;
     }
   }, []);
@@ -786,6 +834,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory, getCategoryByName,
       income, incomeLoaded, incomeError, refetchIncome,
       addIncome, updateIncome, deleteIncome, getMonthIncome,
+      clearCache,
     }}>
       {children}
     </StoreContext.Provider>
@@ -834,6 +883,11 @@ export function useCategories() {
 export function useIncome() {
   const { income, incomeLoaded, incomeError, refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome } = useStore();
   return { income, loaded: incomeLoaded, error: incomeError, refetch: refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome };
+}
+
+export function useClearCache() {
+  const { clearCache } = useStore();
+  return clearCache;
 }
 
 export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, memo } from "react";
 import { format } from "date-fns";
 import { Plus, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -323,7 +323,7 @@ export default function DashboardPage() {
   );
 }
 
-function ExpenseEntry({ expense }: { expense: Expense }) {
+const ExpenseEntry = memo(function ExpenseEntry({ expense }: { expense: Expense }) {
   const { getCategoryByName } = useCategories();
   const color = getCategoryByName(expense.category)?.color || "#6B7280";
   return (
@@ -336,7 +336,7 @@ function ExpenseEntry({ expense }: { expense: Expense }) {
       </span>
     </div>
   );
-}
+});
 
 // Guest Marketing Landing Page Component
 function LandingPage() {

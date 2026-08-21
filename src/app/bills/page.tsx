@@ -5,9 +5,9 @@ import {
   Plus, Trash2, Edit2, Calendar,
   CheckCircle2, AlertCircle, Clock, History
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useExpenses, useRecurringPayments } from "@/lib/store";
 import { formatCurrency, getToday, getCurrentMonth } from "@/lib/utils";
-import AddBillModal from "@/components/AddBillModal";
 import { format, differenceInDays } from "date-fns";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
@@ -15,6 +15,10 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
+
+const AddBillModal = dynamic(() => import("@/components/AddBillModal"), { ssr: false });
+
+const HISTORY_PAGE_SIZE = 3;
 
 export default function BillsPage() {
   const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
@@ -33,6 +37,7 @@ export default function BillsPage() {
   const [deletingExpense, setDeletingExpense] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<RecurringPayment | null>(null);
   const [variablePayTarget, setVariablePayTarget] = useState<{ payment: RecurringPayment; dueDateStr: string } | null>(null);
+  const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -97,6 +102,11 @@ export default function BillsPage() {
     : dueBills.length > 0
     ? [...dueBills].sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())[0]
     : null;
+
+  const historyMonthKeys = Array.from(new Set(billExpenses.map((e) => e.date.substring(0, 7))))
+    .sort((a, b) => b.localeCompare(a));
+  const visibleHistoryMonths = historyMonthKeys.slice(0, historyLimit);
+  const hiddenHistoryMonths = historyMonthKeys.length - visibleHistoryMonths.length;
 
   const executePayNow = async (p: RecurringPayment, dueDateStr: string, amountOverride?: number) => {
     const amountToPay = amountOverride ?? p.amount;
@@ -505,8 +515,7 @@ export default function BillsPage() {
             
             {billExpenses.length > 0 ? (
               <div className="space-y-4">
-                {Array.from(new Set(billExpenses.map((e) => e.date.substring(0, 7))))
-                  .sort((a, b) => b.localeCompare(a))
+                {visibleHistoryMonths
                   .map((monthKey) => {
                     const monthExpenses = billExpenses.filter((e) => e.date.startsWith(monthKey));
                     const monthTotal = monthExpenses.reduce((s, e) => s + e.amount, 0);
@@ -551,6 +560,14 @@ export default function BillsPage() {
                       </div>
                     );
                   })}
+                {hiddenHistoryMonths > 0 && (
+                  <button
+                    onClick={() => setHistoryLimit((n) => n + HISTORY_PAGE_SIZE)}
+                    className="w-full py-3 bg-paper-dark/50 hover:bg-paper-dark rounded-lg text-sm font-semibold text-ink-medium hover:text-ink-dark transition-colors cursor-pointer"
+                  >
+                    Load More ({hiddenHistoryMonths} more month{hiddenHistoryMonths === 1 ? "" : "s"})
+                  </button>
+                )}
               </div>
             ) : (
               <div className="paper-card p-8 text-center text-ink-light bg-paper-dark/20 italic text-xs">
@@ -562,11 +579,13 @@ export default function BillsPage() {
 
       </div>
 
-      <AddBillModal 
-        open={showAddModal} 
-        onClose={() => { setShowAddModal(false); setEditingPayment(null); }} 
-        editingPayment={editingPayment}
-      />
+      {showAddModal && (
+        <AddBillModal
+          open
+          onClose={() => { setShowAddModal(false); setEditingPayment(null); }}
+          editingPayment={editingPayment}
+        />
+      )}
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="managing bills" />
       <ConfirmDialog
         open={!!deletePaymentId}

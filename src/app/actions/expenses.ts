@@ -16,16 +16,30 @@ async function getUser() {
   return { supabase, user };
 }
 
-export async function fetchExpenses(): Promise<Expense[]> {
+export interface FetchExpensesOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export async function fetchExpenses(
+  options: FetchExpensesOptions = {}
+): Promise<Expense[]> {
   const { supabase, user } = await getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("expenses")
     .select("*")
     .eq("user_id", user.id)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
+
+  if (options.limit != null) {
+    const offset = options.offset ?? 0;
+    query = query.range(offset, offset + options.limit - 1);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return (data || []) as Expense[];

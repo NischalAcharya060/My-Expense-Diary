@@ -151,19 +151,19 @@
 ## Phase 10: Performance Optimization
 
 ### 10.1 Pagination
-- [ ] Add server-side pagination to `fetchExpenses` (limit/offset)
-- [ ] Add "Load More" button or infinite scroll to expenses page
-- [ ] Paginate bills history tab
+- [x] Add server-side pagination to `fetchExpenses` (limit/offset)
+- [x] Add "Load More" button or infinite scroll to expenses page
+- [x] Paginate bills history tab
 
 ### 10.2 Code Splitting
-- [ ] Lazy load `recharts` in `insights/page.tsx` (400KB bundle)
-- [ ] Lazy load `AddBillModal` and `AddExpenseModal` (only needed on interaction)
-- [ ] Use `next/dynamic` for chart components
+- [x] Lazy load `recharts` in `insights/page.tsx` (400KB bundle)
+- [x] Lazy load `AddBillModal` and `AddExpenseModal` (only needed on interaction)
+- [x] Use `next/dynamic` for chart components
 
 ### 10.3 Caching
-- [ ] Add `React.memo` to expense list item components
-- [ ] Add `useMemo` for filtered/sorted expense lists
-- [ ] Improve localStorage cache with version stamp (invalidate on schema changes)
+- [x] Add `React.memo` to expense list item components
+- [x] Add `useMemo` for filtered/sorted expense lists
+- [x] Improve localStorage cache with version stamp (invalidate on schema changes)
 
 ---
 

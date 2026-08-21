@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useState, useEffect, useRef } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet, FileText, Info } from "lucide-react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet, FileText, Info, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -9,17 +9,36 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useCountry } from "@/components/CountryProvider";
 import FlagIcon from "@/components/FlagIcon";
 import { COUNTRIES } from "@/lib/countries";
-import { useExpenses, useRecurringPayments, useBudgets, useNotes } from "@/lib/store";
+import { useExpenses, useRecurringPayments, useBudgets, useNotes, useClearCache } from "@/lib/store";
 import { formatCurrency, getCurrentMonth, getCurrencySymbol } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+function getCacheBytes(): number {
+  if (typeof window === "undefined") return 0;
+  let bytes = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("cache_")) {
+      bytes += key.length + (localStorage.getItem(key)?.length ?? 0);
+    }
+  }
+  return bytes;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
 
 export default function SettingsPage() {
   return <AuthGuard feature="Budget & Settings"><SettingsContent /></AuthGuard>;
@@ -45,7 +64,12 @@ function SettingsContent() {
     () => true,
     () => false,
   );
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
+  const [deletingData, setDeletingData] = useState(false);
+  const [showCacheConfirm, setShowCacheConfirm] = useState(false);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const clearCache = useClearCache();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
   const budgetRef = useRef<HTMLDivElement>(null);
@@ -85,6 +109,7 @@ function SettingsContent() {
   useEffect(() => {
     setBudgetYear(year.toString());
     setBudgetMonth(month.toString());
+    setCacheSize(getCacheBytes());
   }, [year, month]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -265,16 +290,33 @@ function SettingsContent() {
   };
 
   const handleClearAll = async () => {
+    setDeletingData(true);
     try {
       for (const exp of expenses) await deleteExpense(exp.id);
       for (const p of payments) await deletePayment(p.id);
       for (const b of budgets) await deleteBudget(b.id);
       for (const n of notes) await deleteNote(n.id);
       toast("All data cleared");
+      setShowClearDataConfirm(false);
     } catch (err) {
       console.error("Failed to clear data:", err);
       toast("Failed to clear data", "error");
     }
+    setDeletingData(false);
+  };
+
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    try {
+      await clearCache();
+      toast("Cache cleared — fresh data loaded");
+      setCacheSize(getCacheBytes());
+    } catch (err) {
+      console.error("Failed to clear cache:", err);
+      toast("Failed to clear cache", "error");
+    }
+    setClearingCache(false);
+    setShowCacheConfirm(false);
   };
 
   return (
@@ -595,38 +637,68 @@ function SettingsContent() {
           </div>
         </div>
 
+        {/* Performance / Cache */}
+        <div className="paper-card p-6 mb-6">
+          <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
+            <RefreshCw size={18} /> Performance
+          </h3>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-ink-dark">Clear local cache</p>
+              <p className="text-xs text-ink-light mt-0.5">
+                {cacheSize === null
+                  ? "Removes temporarily stored data on this device and re-downloads fresh data from the server."
+                  : `Using ${formatBytes(cacheSize)} of local storage. Clearing re-downloads fresh data — your saved entries are safe on the server.`}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCacheConfirm(true)}
+              disabled={clearingCache}
+              className="flex items-center gap-2 px-4 py-2 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-warm hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <RefreshCw size={16} className={clearingCache ? "animate-spin" : ""} />
+              {clearingCache ? "Clearing..." : "Clear Cache"}
+            </button>
+          </div>
+        </div>
+
         {/* Danger zone */}
         <div className="paper-card p-6 border-l-2 border-accent-red">
-          <h3 className="font-handwritten text-xl text-accent-red mb-2">Danger Zone</h3>
-          <p className="text-xs text-ink-light mb-4">This action cannot be undone. All your data will be permanently deleted.</p>
-          {showClearConfirm ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-accent-red font-medium">Are you sure?</span>
-              <button
-                onClick={handleClearAll}
-                className="px-3 py-1.5 bg-accent-red text-white rounded text-xs font-medium hover:opacity-90"
-              >
-                Yes, Delete All
-              </button>
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                className="px-3 py-1.5 border border-[rgba(0,0,0,0.1)] rounded text-xs text-ink-medium hover:bg-paper-dark"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 border border-accent-red text-accent-red rounded text-sm hover:bg-accent-red hover:text-white transition-colors"
-            >
-              <Trash2 size={16} /> Clear All Data
-            </button>
-          )}
+          <h3 className="font-handwritten text-xl text-accent-red mb-2 flex items-center gap-2">
+            <Trash2 size={18} /> Danger Zone
+          </h3>
+          <p className="text-xs text-ink-light mb-4">
+            Permanently delete all expenses, recurring payments, budgets, and notes from your account. This action cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowClearDataConfirm(true)}
+            disabled={deletingData}
+            className="flex items-center gap-2 px-4 py-2 border border-accent-red text-accent-red rounded text-sm font-medium hover:bg-accent-red hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Trash2 size={16} /> Clear All Data
+          </button>
         </div>
       </div>
 
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="budget management" />
+      <ConfirmDialog
+        open={showCacheConfirm}
+        onClose={() => setShowCacheConfirm(false)}
+        onConfirm={handleClearCache}
+        loading={clearingCache}
+        title="Clear local cache?"
+        message="This removes temporarily stored data on this device and re-downloads fresh data from the server. Your expenses, bills, and settings will not be deleted."
+        confirmLabel="Clear Cache"
+      />
+      <ConfirmDialog
+        open={showClearDataConfirm}
+        onClose={() => setShowClearDataConfirm(false)}
+        onConfirm={handleClearAll}
+        loading={deletingData}
+        title="Clear all data?"
+        message="This will permanently delete all expenses, recurring payments, budgets, and notes from your account. This action cannot be undone."
+        confirmLabel="Yes, Delete All"
+      />
     </div>
   );
 }

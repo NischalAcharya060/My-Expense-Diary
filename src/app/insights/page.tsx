@@ -3,31 +3,27 @@
 import { useSyncExternalStore, useState } from "react";
 import { format, subMonths, addMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, PieChart as PieIcon, LineChart as LineIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
-} from "recharts";
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{ value: number; payload: { name?: string; icon?: string; day?: number } }>;
-  label?: string | number;
+function ChartSkeleton({ className }: { className: string }) {
+  return <div className={`animate-pulse bg-paper-dark rounded ${className}`} />;
 }
 
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="paper-card px-3 py-2 text-xs border border-accent-warm/30 shadow-md">
-        <p className="font-semibold text-ink-dark">{payload[0].payload.name ? `${payload[0].payload.icon} ${payload[0].payload.name}` : payload[0].payload.day ? `Day ${payload[0].payload.day}` : label}</p>
-        <p className="text-accent-warm amount font-bold mt-0.5">{formatCurrency(payload[0].value)}</p>
-      </div>
-    );
-  }
-  return null;
-}
+const CategoryPie = dynamic(
+  () => import("@/components/insights/Charts").then((m) => m.CategoryPie),
+  { ssr: false, loading: () => <ChartSkeleton className="w-44 h-44" /> }
+);
+const DailyTrendArea = dynamic(
+  () => import("@/components/insights/Charts").then((m) => m.DailyTrendArea),
+  { ssr: false, loading: () => <ChartSkeleton className="h-48 w-full" /> }
+);
+const MonthlyComparisonBar = dynamic(
+  () => import("@/components/insights/Charts").then((m) => m.MonthlyComparisonBar),
+  { ssr: false, loading: () => <ChartSkeleton className="h-48 w-full" /> }
+);
 
 export default function InsightsPage() {
   const { expenses, loaded } = useExpenses();
@@ -173,18 +169,7 @@ export default function InsightsPage() {
           ) : (
             <div className="flex flex-col md:flex-row gap-8 items-center">
               {/* Pie Chart */}
-              <div className="w-44 h-44 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={catData} cx="50%" cy="50%" innerRadius={45} outerRadius={68} paddingAngle={3} dataKey="value">
-                      {catData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <CategoryPie data={catData} />
 
               {/* Progress rows */}
               <div className="flex-1 space-y-2 w-full">
@@ -213,23 +198,7 @@ export default function InsightsPage() {
             <LineIcon size={20} className="text-accent-warm" />
             <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Daily Spending Curve</h3>
           </div>
-          <div className="h-48 pr-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyTrend}>
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#D4854A" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#D4854A" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 9, fill: "#888" }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="amount" stroke="#D4854A" strokeWidth={2} fillOpacity={1} fill="url(#colorAmount)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <DailyTrendArea data={dailyTrend} />
         </div>
 
         {/* Monthly Comparison */}
@@ -238,18 +207,7 @@ export default function InsightsPage() {
             <TrendingUp size={20} className="text-accent-warm" />
             <h3 className="font-handwritten text-2xl text-ink-dark font-semibold">Income vs Expenses (6 Months)</h3>
           </div>
-          <div className="h-48 pr-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyComparison}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#888" }} />
-                <YAxis tick={{ fontSize: 9, fill: "#888" }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="income" name="Income" fill="#4A8C6F" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="expenses" name="Expenses" fill="#E87070" radius={[4, 4, 0, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <MonthlyComparisonBar data={monthlyComparison} />
           <div className="flex items-center justify-center gap-4 mt-3">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded bg-accent-green" />

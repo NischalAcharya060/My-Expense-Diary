@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback, memo, Suspense } from "react";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Plus, Trash2, Search, Edit2, CalendarDays, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
-import AddExpenseModal from "@/components/AddExpenseModal";
-import EditExpenseModal from "@/components/EditExpenseModal";
 import type { Expense } from "@/types";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+
+const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
+const EditExpenseModal = dynamic(() => import("@/components/EditExpenseModal"), { ssr: false });
+
+const PAGE_SIZE = 10;
 
 function ExpensesPageInner() {
   const { expenses, loaded, deleteExpense } = useExpenses();
@@ -26,6 +29,7 @@ function ExpensesPageInner() {
   const [quickFilter, setQuickFilter] = useState<string>("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pagination, setPagination] = useState<{ key: string; days: number }>({ key: "", days: PAGE_SIZE });
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
@@ -34,9 +38,44 @@ function ExpensesPageInner() {
     if (searchParams.get("add") === "true") requireAuth(() => setShowAdd(true));
   }, [searchParams, requireAuth]);
 
-  const handleDelete = async (id: string) => {
+  const filterKey = `${search}|${filterCategory}|${dateRange?.start ?? ""}|${dateRange?.end ?? ""}`;
+  const visibleDays = pagination.key === filterKey ? pagination.days : PAGE_SIZE;
+
+  const filtered = useMemo(
+    () =>
+      expenses
+        .filter((e) => {
+          const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase());
+          const matchCategory = filterCategory === "All" || e.category === filterCategory;
+          let matchDate = true;
+          if (dateRange) {
+            matchDate = e.date >= dateRange.start && e.date <= dateRange.end;
+          }
+          return matchSearch && matchCategory && matchDate;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)),
+    [expenses, search, filterCategory, dateRange]
+  );
+
+  const grouped = useMemo(() => {
+    const g: Record<string, Expense[]> = {};
+    filtered.forEach((e) => {
+      if (!g[e.date]) g[e.date] = [];
+      g[e.date].push(e);
+    });
+    return g;
+  }, [filtered]);
+
+  const handleDelete = useCallback((id: string) => {
     setDeleteId(id);
-  };
+  }, []);
+
+  const handleEdit = useCallback(
+    (expense: Expense) => {
+      requireAuth(() => setEditingExpense(expense));
+    },
+    [requireAuth]
+  );
 
   if (!loaded) {
     return (
@@ -50,24 +89,6 @@ function ExpensesPageInner() {
       </div>
     );
   }
-
-  const filtered = expenses
-    .filter((e) => {
-      const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = filterCategory === "All" || e.category === filterCategory;
-      let matchDate = true;
-      if (dateRange) {
-        matchDate = e.date >= dateRange.start && e.date <= dateRange.end;
-      }
-      return matchSearch && matchCategory && matchDate;
-    })
-    .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-
-  const grouped: Record<string, Expense[]> = {};
-  filtered.forEach((e) => {
-    if (!grouped[e.date]) grouped[e.date] = [];
-    grouped[e.date].push(e);
-  });
 
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
@@ -91,6 +112,10 @@ function ExpensesPageInner() {
       setDateRange({ start, end: todayStr });
     }
   }
+
+  const groupEntries = Object.entries(grouped);
+  const visibleEntries = groupEntries.slice(0, visibleDays);
+  const hiddenDays = groupEntries.length - visibleEntries.length;
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
@@ -193,74 +218,57 @@ function ExpensesPageInner() {
         </div>
 
         {/* Expenses List */}
-        {Object.keys(grouped).length === 0 ? (
+        {groupEntries.length === 0 ? (
           <div className="paper-card p-12 text-center">
             <span className="text-4xl block mb-2 font-handwritten">📓</span>
             <p className="font-handwritten text-2xl text-ink-light">No entries found</p>
             <p className="text-xs text-ink-light mt-1">Change your search terms or log a new entry!</p>
           </div>
         ) : (
-          Object.entries(grouped).map(([date, dayExpenses]) => {
-            const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
-            return (
-              <div key={date} className="mb-6">
-                <div className="flex items-center gap-3 mb-2 px-1">
-                  <h3 className="font-handwritten text-xl text-ink-dark font-semibold">
-                    {format(new Date(date + "T00:00:00"), "EEEE, MMMM d")}
-                  </h3>
-                  <span className="dots" />
-                  <span className="font-handwritten text-xl text-accent-warm amount font-bold">{formatCurrency(dayTotal)}</span>
-                </div>
-                
-                <div className="space-y-2">
-                  {dayExpenses.map((expense) => {
-                    const catColor = getCategoryByName(expense.category)?.color || "#6B7280";
-                    return (
-                      <div
+          <>
+            {visibleEntries.map(([date, dayExpenses]) => {
+              const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
+              return (
+                <div key={date} className="mb-6">
+                  <div className="flex items-center gap-3 mb-2 px-1">
+                    <h3 className="font-handwritten text-xl text-ink-dark font-semibold">
+                      {format(new Date(date + "T00:00:00"), "EEEE, MMMM d")}
+                    </h3>
+                    <span className="dots" />
+                    <span className="font-handwritten text-xl text-accent-warm amount font-bold">{formatCurrency(dayTotal)}</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {dayExpenses.map((expense) => (
+                      <ExpenseRow
                         key={expense.id}
-                        className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4"
-                        style={{ borderLeftColor: catColor }}
-                      >
-                        <span className="text-xl shrink-0">{getCategoryByName(expense.category)?.icon || "🏷️"}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
-                          <p className="text-[10px] text-ink-light mt-0.5">
-                            {expense.category} · {expense.payment_method}
-                          </p>
-                        </div>
-                        <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color: catColor }}>
-                          {formatCurrency(expense.amount)}
-                        </span>
-                        
-                        {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
-                        <div className="flex items-center gap-0.5 shrink-0 ml-2">
-                          <button
-                            onClick={() => requireAuth(() => setEditingExpense(expense))}
-                            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-                            aria-label="Edit"
-                          >
-                            <Edit2 size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(expense.id)}
-                            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        expense={expense}
+                        color={getCategoryByName(expense.category)?.color || "#6B7280"}
+                        icon={getCategoryByName(expense.category)?.icon || "🏷️"}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+            {hiddenDays > 0 && (
+              <button
+                onClick={() => setPagination({ key: filterKey, days: visibleDays + PAGE_SIZE })}
+                className="w-full py-3 mb-6 bg-paper-dark/50 hover:bg-paper-dark rounded-lg text-sm font-semibold text-ink-medium hover:text-ink-dark transition-colors cursor-pointer"
+              >
+                Load More ({hiddenDays} more day{hiddenDays === 1 ? "" : "s"})
+              </button>
+            )}
+          </>
         )}
       </div>
 
-      <AddExpenseModal open={showAdd} onClose={() => setShowAdd(false)} />
-      <EditExpenseModal open={!!editingExpense} onClose={() => setEditingExpense(null)} expense={editingExpense} />
+      {showAdd && <AddExpenseModal open onClose={() => setShowAdd(false)} />}
+      {editingExpense && (
+        <EditExpenseModal open onClose={() => setEditingExpense(null)} expense={editingExpense} />
+      )}
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
       <ConfirmDialog
         open={!!deleteId}
@@ -300,3 +308,49 @@ export default function ExpensesPage() {
     </Suspense>
   );
 }
+
+interface ExpenseRowProps {
+  expense: Expense;
+  color: string;
+  icon: string;
+  onEdit: (expense: Expense) => void;
+  onDelete: (id: string) => void;
+}
+
+const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, onEdit, onDelete }: ExpenseRowProps) {
+  return (
+    <div
+      className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4"
+      style={{ borderLeftColor: color }}
+    >
+      <span className="text-xl shrink-0">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
+        <p className="text-[10px] text-ink-light mt-0.5">
+          {expense.category} · {expense.payment_method}
+        </p>
+      </div>
+      <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color }}>
+        {formatCurrency(expense.amount)}
+      </span>
+
+      {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
+      <div className="flex items-center gap-0.5 shrink-0 ml-2">
+        <button
+          onClick={() => onEdit(expense)}
+          className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+          aria-label="Edit"
+        >
+          <Edit2 size={13} />
+        </button>
+        <button
+          onClick={() => onDelete(expense.id)}
+          className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+          aria-label="Delete"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+});
