@@ -343,7 +343,7 @@ function SettingsContent() {
         </div>
 
         {/* Country & Currency */}
-        <div className="paper-card p-6 mb-6 card-hover">
+        <div className="paper-card p-6 mb-6 card-hover relative z-10">
           <h3 className="font-handwritten text-xl text-ink-dark mb-4">Country & Currency</h3>
           <p className="text-xs text-ink-light mb-3">Select your country to set the currency symbol</p>
           <div ref={countryRef} className="relative">
