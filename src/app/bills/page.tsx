@@ -247,6 +247,34 @@ export default function BillsPage() {
           </div>
         </div>
 
+        {/* Monthly bill payment progress */}
+        {activePayments.length > 0 && (
+          <div className="paper-card p-4 mb-6">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-ink-medium uppercase tracking-wide">This Month&apos;s Progress</span>
+              <span
+                className={`text-xs font-bold amount ${allPaid ? "text-accent-green" : "text-accent-warm"}`}
+                aria-live="polite"
+              >
+                {paidBills.length} of {activePayments.length} bills paid
+              </span>
+            </div>
+            <div
+              className="w-full h-2.5 bg-paper-dark rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuenow={paidBills.length}
+              aria-valuemin={0}
+              aria-valuemax={activePayments.length}
+              aria-label="Bills paid this month"
+            >
+              <div
+                className="h-full rounded-full bg-accent-green transition-all duration-500"
+                style={{ width: `${(paidBills.length / activePayments.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* All Paid Banner */}
         {allPaid && (
           <div className="paper-card p-4 mb-6 bg-accent-green/10 border-l-4 border-l-accent-green flex items-center gap-3">

@@ -39,6 +39,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
   const { budgets } = useBudgets();
   const [form, setForm] = useState<ExpenseFormData>(() => emptyForm(defaultDate));
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const { toast } = useToast();
@@ -67,6 +68,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
             : "Cash",
       });
       setScanning(false);
+      setSaved(false);
       setReceiptPreview(null);
     }
   }, [open, defaultDate]);
@@ -210,13 +212,30 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
     }
   };
 
+  // Celebrate round-number milestones (10, 25, 50, 100...) once each.
+  const celebrateMilestone = (count: number) => {
+    const MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+    const reached = MILESTONES.filter((m) => count >= m);
+    if (reached.length === 0) return;
+    const latest = reached[reached.length - 1];
+    try {
+      const raw = localStorage.getItem("expense_milestones_v1");
+      const seen = raw ? (JSON.parse(raw) as number[]) : [];
+      if (seen.includes(latest)) return;
+      localStorage.setItem("expense_milestones_v1", JSON.stringify([...seen, latest]));
+    } catch {
+      return;
+    }
+    setTimeout(() => toast(`🎉 ${latest} expenses logged!`), 900);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.amount || parseFloat(form.amount) <= 0) return;
 
     setSaving(true);
     try {
-      const saved = await addExpense({
+      const savedExpense = await addExpense({
         name: form.name.trim(),
         amount: parseFloat(form.amount),
         category: form.category,
@@ -225,11 +244,14 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
         expense_type: form.expenseType as ExpenseType,
         note: form.note.trim() || undefined,
       });
-      checkBudgetWarning(saved);
+      checkBudgetWarning(savedExpense);
       saveQuickAddPrefs({ category: form.category, paymentMethod: form.paymentMethod });
       hapticFeedback();
       toast("Expense added");
-      onClose();
+      celebrateMilestone(expenses.length + 1);
+      // Brief success state on the button before dismissing.
+      setSaved(true);
+      setTimeout(onClose, 800);
     } catch (err) {
       console.error("Failed to save expense:", err);
       toast("Failed to save expense", "error");
@@ -331,11 +353,22 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
             {/* Submit */}
             <button
                 type="submit"
-                disabled={saving || scanning || !form.name.trim() || !form.amount}
-                className="w-full py-3 bg-accent-warm text-white rounded text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving || scanning || saved || !form.name.trim() || !form.amount}
+                className={`w-full py-3 text-white rounded text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  saved ? "bg-accent-green" : "bg-accent-warm"
+                }`}
             >
-              <Check size={16} />
-              {saving ? "Saving..." : "Add Expense"}
+              {saved ? (
+                <>
+                  <Check size={16} className="check-pop" />
+                  Added!
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  {saving ? "Saving..." : "Add Expense"}
+                </>
+              )}
             </button>
           </form>
         </div>

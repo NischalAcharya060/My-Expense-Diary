@@ -9,6 +9,7 @@ import autoTable from "jspdf-autotable";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import BudgetBar from "@/components/BudgetBar";
 import { useToast } from "@/components/Toast";
 
 export default function MonthlySummaryPage() {
@@ -234,10 +235,10 @@ export default function MonthlySummaryPage() {
               <span className="dots" />
               <span className="text-sm text-ink-medium">Budget: {formatCurrency(budgetAmount)}</span>
             </div>
-            <div className="w-full h-2 bg-paper-dark rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${remaining < 0 ? "bg-accent-red" : "bg-accent-green"}`}
-                style={{ width: `${Math.min((totalSpending / budgetAmount) * 100, 100)}%` }}
+            <div className={remaining < 0 ? "budget-pulse rounded-full" : ""}>
+              <BudgetBar
+                pct={(totalSpending / budgetAmount) * 100}
+                label="Monthly budget usage"
               />
             </div>
             <p className={`text-xs mt-1 ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>

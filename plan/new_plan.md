@@ -239,22 +239,22 @@
 ## Phase 16: Visual Feedback & Micro-interactions
 
 ### 16.1 Success Celebrations
-- [ ] After adding expense: Show a subtle checkmark animation (scale up + fade) on the button
+- [x] After adding expense: Show a subtle checkmark animation (scale up + fade) on the button (button turns green with `check-pop` icon for ~800ms before modal closes)
 - [x] After paying all bills for the month: Show confetti animation on bills page (done in Phase 11 — Confetti component + banner + toast)
-- [ ] After reaching budget limit: Show a gentle "Budget reached" pulse animation on the category
-- [ ] After deleting: Slide-out animation on the deleted row before removing from DOM
+- [x] After reaching budget limit: Show a gentle "Budget reached" pulse animation on the category (`budget-pulse` glow on dashboard + monthly budget bars when over 100%)
+- [x] After deleting: Slide-out animation on the deleted row before removing from DOM (`row-exit` on ExpenseRow; dialog dismisses, row slides right/fades/collapses over 340ms, then delete runs)
 
 ### 16.2 Progress Indicators
-- [ ] Budget progress bars with color gradient: green (0-50%) → yellow (50-80%) → red (80-100%)
-- [ ] Monthly savings goal progress ring (circular progress)
-- [ ] Bill payment progress: "3 of 5 bills paid this month" with visual progress bar
-- [ ] Expense count milestone badges: "100 expenses logged! 🎉"
+- [x] Budget progress bars with color gradient: green (0-50%) → yellow (50-80%) → red (80-100%) — shared `BudgetBar` component used by dashboard overall-budget card, budget alerts, and monthly page
+- [x] Monthly savings goal progress ring (circular progress) — `ProgressRing` SVG ring on dashboard "Budget & Savings" card showing savings rate (net/income), green/red by sign
+- [x] Bill payment progress: "3 of 5 bills paid this month" with visual progress bar (bills page overview card)
+- [x] Expense count milestone badges: "100 expenses logged! 🎉" — one-time toast at 10/25/50/100/250/500/1000 after adding an expense (seen milestones tracked in localStorage)
 
 ### 16.4 Skeleton Loading Improvements
-- [ ] Expense list skeletons: Show rows with animated gradient shimmer matching handwritten style
-- [ ] Chart skeletons: Show faint chart outlines with pulse animation
-- [ ] Dashboard skeletons: Show stat cards with shimmer effect
-- [ ] Calendar skeletons: Show grid with pulse
+- [x] Expense list skeletons: Show rows with animated gradient shimmer matching handwritten style (route loading.tsx + inline !loaded state: journal rows, day headers, filter bar)
+- [x] Chart skeletons: Show faint chart outlines with pulse animation (pie ring outline + legend lines, bar chart columns, dashed-grid area chart with pulsing stroke)
+- [x] Dashboard skeletons: Show stat cards with shimmer effect (rotated stat-card shapes + entries card lines)
+- [x] Calendar skeletons: Show grid with pulse (day cells with date/dot placeholders, today-ring hint, weekday header)
 
 ---
 
@@ -511,6 +511,8 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/app/categories/error.tsx` | Categories error boundary | DONE |
 | `src/components/ExpenseForm.tsx` | Shared expense form (dedup) | DONE |
 | `src/components/VariableAmountModal.tsx` | Replace prompt() in bills | DONE |
+| `src/components/BudgetBar.tsx` | Gradient budget progress bar (green/yellow/red) | DONE |
+| `src/components/ProgressRing.tsx` | Circular progress ring (savings rate) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
 | `src/app/expenses/error.tsx` | Expenses error boundary | DONE |

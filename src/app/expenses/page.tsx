@@ -29,6 +29,7 @@ function ExpensesPageInner() {
   const [quickFilter, setQuickFilter] = useState<string>("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [exitingId, setExitingId] = useState<string | null>(null);
   const [pagination, setPagination] = useState<{ key: string; days: number }>({ key: "", days: PAGE_SIZE });
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
@@ -80,10 +81,40 @@ function ExpensesPageInner() {
   if (!loaded) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-16 bg-paper-dark rounded" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4">
+            <div className="shimmer h-9 w-52 rounded" />
+            <div className="shimmer h-10 w-28 rounded-lg" />
+          </div>
+          {/* Filter bar */}
+          <div className="mb-6 p-3 rounded-lg bg-paper-dark/30 border border-[rgba(0,0,0,0.04)]">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="shimmer h-10 flex-1 rounded-md" />
+              <div className="shimmer h-10 w-full sm:w-36 rounded-md" />
+            </div>
+          </div>
+          {/* Journal rows grouped by day */}
+          {[1, 2].map((day) => (
+            <div key={day} className="mb-6">
+              <div className="flex items-center gap-3 mb-2 px-1">
+                <div className="shimmer h-6 w-40 rounded" />
+                <span className="dots" />
+                <div className="shimmer h-6 w-16 rounded" />
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3].map((row) => (
+                  <div key={row} className="paper-card px-4 py-3 flex items-center gap-3 border-l-4 border-l-paper-dark">
+                    <div className="shimmer w-7 h-7 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="shimmer h-3.5 rounded" style={{ width: `${45 + ((day * 13 + row * 17) % 25)}%` }} />
+                      <div className="shimmer h-2.5 w-1/4 rounded" />
+                    </div>
+                    <div className="shimmer h-4 w-14 rounded shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -295,6 +326,7 @@ function ExpensesPageInner() {
                         expense={expense}
                         color={getCategoryByName(expense.category)?.color || "#6B7280"}
                         icon={getCategoryByName(expense.category)?.icon || "🏷️"}
+                        exiting={exitingId === expense.id}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                       />
@@ -323,19 +355,25 @@ function ExpensesPageInner() {
       <ConfirmDialog
         open={!!deleteId}
         onClose={() => { setDeleteId(null); setDeleting(false); }}
-        onConfirm={async () => {
-          if (deleteId) {
-            setDeleting(true);
+        onConfirm={() => {
+          if (!deleteId) return;
+          const id = deleteId;
+          // Dismiss the dialog and play the slide-out animation first,
+          // then remove the expense from state/server.
+          setDeleteId(null);
+          setDeleting(false);
+          setExitingId(id);
+          window.setTimeout(async () => {
             try {
-              await deleteExpense(deleteId);
+              await deleteExpense(id);
               toast("Expense deleted");
             } catch (err) {
               console.error(err);
               toast("Failed to delete expense", "error");
+            } finally {
+              setExitingId((cur) => (cur === id ? null : cur));
             }
-            setDeleteId(null);
-            setDeleting(false);
-          }
+          }, 340);
         }}
         loading={deleting}
         title="Delete expense?"
@@ -363,6 +401,7 @@ interface ExpenseRowProps {
   expense: Expense;
   color: string;
   icon: string;
+  exiting?: boolean;
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
 }
@@ -370,7 +409,7 @@ interface ExpenseRowProps {
 const SWIPE_THRESHOLD = -64;
 const SWIPE_MAX = -96;
 
-const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, onEdit, onDelete }: ExpenseRowProps) {
+const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, exiting, onEdit, onDelete }: ExpenseRowProps) {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef<number | null>(null);
@@ -398,7 +437,7 @@ const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, onEdit, onDe
   };
 
   return (
-    <div className="relative overflow-hidden rounded">
+    <div className={`relative overflow-hidden rounded ${exiting ? "row-exit" : ""}`} aria-hidden={exiting}>
       <button
         onClick={() => onDelete(expense.id)}
         className="absolute inset-y-0 right-0 w-24 bg-accent-red text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer"

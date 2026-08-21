@@ -355,3 +355,72 @@ body {
 .toast-enter {
   animation: toast-in 0.25s ease-out;
 }
+
+/* Skeleton shimmer (sweeping highlight over paper-dark base) */
+:root {
+  --shimmer-highlight: rgba(255, 255, 255, 0.55);
+}
+.dark {
+  --shimmer-highlight: rgba(255, 255, 255, 0.05);
+}
+
+@keyframes shimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.shimmer {
+  background-color: var(--paper-dark);
+  background-image: linear-gradient(90deg, transparent 15%, var(--shimmer-highlight) 50%, transparent 85%);
+  background-size: 1200px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s infinite linear;
+}
+
+/* Row slide-out before a deleted expense is removed from the DOM */
+@keyframes rowExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 240px;
+    margin-top: 0;
+  }
+  40% {
+    opacity: 0;
+    transform: translateX(64px);
+    max-height: 240px;
+    margin-top: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(64px);
+    max-height: 0;
+    margin-top: -8px;
+  }
+}
+
+.row-exit {
+  animation: rowExit 0.34s ease-in forwards;
+  overflow: hidden;
+}
+
+/* Gentle pulse when a budget is reached or exceeded */
+@keyframes budgetPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 92, 92, 0.30); }
+  50% { box-shadow: 0 0 0 7px rgba(196, 92, 92, 0); }
+}
+
+.budget-pulse {
+  animation: budgetPulse 2.2s ease-in-out infinite;
+}
+
+/* Checkmark pop-in for success states */
+@keyframes checkPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.check-pop {
+  animation: checkPop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

@@ -13,6 +13,8 @@ import { getUpcomingBills, getDueBadge } from "@/lib/reminders";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import BudgetBar from "@/components/BudgetBar";
+import ProgressRing from "@/components/ProgressRing";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
 
@@ -49,12 +51,14 @@ export default function DashboardPage() {
   if (!mounted || authLoading) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          <div className="h-4 w-32 bg-paper-dark rounded" />
-          <div className="space-y-3 mt-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-6 bg-paper-dark rounded" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-8">
+          <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 space-y-2">
+            <div className="shimmer h-11 w-64 rounded" />
+            <div className="shimmer h-3 w-24 rounded" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={`shimmer h-[76px] rounded ${i % 2 === 0 ? "rotate-1" : "-rotate-1"}`} />
             ))}
           </div>
         </div>
@@ -71,9 +75,30 @@ export default function DashboardPage() {
   if (!loaded) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          <div className="h-4 w-32 bg-paper-dark rounded" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-8">
+          <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 space-y-2">
+            <div className="shimmer h-11 w-64 rounded" />
+            <div className="shimmer h-3 w-24 rounded" />
+          </div>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={`paper-card px-4 py-3 ${i % 2 === 0 ? "rotate-1" : "-rotate-1"}`}>
+                <div className={`shimmer h-2.5 rounded mb-2 ${["w-10", "w-14", "w-12", "w-16"][i - 1]}`} />
+                <div className="shimmer h-7 w-full max-w-[90px] rounded" />
+              </div>
+            ))}
+          </div>
+          {/* Today's entries card */}
+          <div className="paper-card p-6 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <div className="shimmer h-6 w-40 rounded" />
+              <div className="shimmer h-7 w-24 rounded" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="shimmer h-5 rounded" style={{ width: `${88 - i * 18}%` }} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -92,6 +117,11 @@ export default function DashboardPage() {
   const remaining = budgetAmount - monthTotal;
   
   const upcomingBills = getUpcomingBills(payments, expenses, todayStr).slice(0, 5);
+
+  // Budget + savings progress values
+  const budgetPct = budgetAmount > 0 ? (monthTotal / budgetAmount) * 100 : 0;
+  const savingsRate = monthIncome > 0 ? (netBalance / monthIncome) * 100 : 0;
+  const savingsRateDisplay = Math.round(Math.min(Math.max(savingsRate, 0), 100));
 
   // Budget alerts: overall + per-category budgets at or above 80% usage
   const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
@@ -166,6 +196,58 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Monthly budget & savings */}
+        {(budgetAmount > 0 || monthIncome > 0) && (
+          <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
+            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Budget &amp; Savings</h2>
+              <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">
+                Manage →
+              </Link>
+            </div>
+            <div className="flex items-center gap-8 flex-wrap justify-between">
+              {budgetAmount > 0 && (
+                <div className="flex-1 min-w-[220px]">
+                  <div className="flex items-center justify-between mb-1.5 text-xs">
+                    <span className="text-ink-medium font-semibold">Monthly budget</span>
+                    <span
+                      className={`font-bold amount ${budgetPct >= 100 ? "text-accent-red" : budgetPct >= 80 ? "text-amber-600 dark:text-amber-400" : "text-ink-medium"}`}
+                    >
+                      {Math.round(budgetPct)}% used
+                    </span>
+                  </div>
+                  <BudgetBar pct={budgetPct} label="Monthly budget usage" />
+                  <p className="text-[10px] text-ink-light mt-1.5 amount">
+                    {formatCurrency(monthTotal)} of {formatCurrency(budgetAmount)} ·{" "}
+                    {remaining < 0 ? `${formatCurrency(Math.abs(remaining))} over` : `${formatCurrency(remaining)} left`}
+                  </p>
+                </div>
+              )}
+              {monthIncome > 0 && (
+                <div className="flex items-center gap-3 shrink-0 ml-auto">
+                  <ProgressRing
+                    pct={savingsRate}
+                    color={netBalance >= 0 ? "var(--accent-green)" : "var(--accent-red)"}
+                    label={`Savings rate ${savingsRateDisplay}% of income`}
+                    size={76}
+                  >
+                    <span className={`text-sm font-bold amount ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                      {savingsRateDisplay}%
+                    </span>
+                  </ProgressRing>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-ink-light mb-0.5">Saved</p>
+                    <p className={`font-handwritten text-xl amount font-semibold leading-none ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                      {formatCurrency(netBalance)}
+                    </p>
+                    <p className="text-[10px] text-ink-light mt-1">of {formatCurrency(monthIncome)} income</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Budget alerts */}
         {budgetAlerts.length > 0 && (
           <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg] border-l-4 border-l-accent-warm">
@@ -198,19 +280,8 @@ export default function DashboardPage() {
                         {Math.round(pct)}% used
                       </span>
                     </div>
-                    <div className="h-2 bg-paper-dark rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(pct, 100)}%`,
-                          backgroundColor: over ? "#DC2626" : "#F59E0B",
-                        }}
-                        role="progressbar"
-                        aria-valuenow={Math.round(pct)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`${budget.category || "Overall"} budget usage`}
-                      />
+                    <div className={over ? "budget-pulse rounded-full" : ""}>
+                      <BudgetBar pct={pct} label={`${budget.category || "Overall"} budget usage`} />
                     </div>
                     <p className="text-[10px] text-ink-light mt-1 amount">
                       {formatCurrency(spent)} of {formatCurrency(budget.amount)}
