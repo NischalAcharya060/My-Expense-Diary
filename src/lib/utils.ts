@@ -16,8 +16,8 @@ function getCountry() {
 }
 
 export function formatCurrency(amount: number): string {
-  const { symbol, locale } = getCountry();
-  return `${symbol} ${amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const { symbol } = getCountry();
+  return `${symbol} ${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 export function getCurrencySymbol(): string {
