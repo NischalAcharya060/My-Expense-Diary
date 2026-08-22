@@ -3,7 +3,7 @@
 import { useSyncExternalStore, memo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import dynamic from "next/dynamic";
-import { Plus, ChevronRight, CalendarClock, AlertTriangle } from "lucide-react";
+import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome } from "@/lib/store";
@@ -123,21 +123,6 @@ export default function DashboardPage() {
   const savingsRate = monthIncome > 0 ? (netBalance / monthIncome) * 100 : 0;
   const savingsRateDisplay = Math.round(Math.min(Math.max(savingsRate, 0), 100));
 
-  // Budget alerts: overall + per-category budgets at or above 80% usage
-  const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
-  const budgetAlerts = budgets
-    .filter((b) => b.year === year && b.month === month && b.amount > 0)
-    .map((b) => {
-      const spent = b.category
-        ? expenses
-            .filter((e) => e.category === b.category && e.date.startsWith(monthPrefix))
-            .reduce((s, e) => s + e.amount, 0)
-        : monthTotal;
-      return { budget: b, spent, pct: (spent / b.amount) * 100 };
-    })
-    .filter((a) => a.pct >= 80)
-    .sort((a, b) => b.pct - a.pct);
-
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
@@ -244,51 +229,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Budget alerts */}
-        {budgetAlerts.length > 0 && (
-          <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg] border-l-4 border-l-accent-warm">
-            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={20} className="text-accent-warm" />
-                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Budget Alerts</h2>
-              </div>
-              <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">
-                Manage →
-              </Link>
-            </div>
-            <div className="space-y-4">
-              {budgetAlerts.map(({ budget, spent, pct }) => {
-                const over = pct > 100;
-                const cat = budget.category ? getCategoryByName(budget.category) : null;
-                return (
-                  <div key={budget.id}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm text-ink-dark font-semibold flex items-center gap-1.5">
-                        <span>{cat?.icon || "💰"}</span>
-                        {budget.category || "Overall Budget"}
-                        {over && (
-                          <span className="text-[10px] bg-accent-red/10 text-accent-red border border-accent-red/25 px-2 py-0.5 rounded-full font-semibold">
-                            Over
-                          </span>
-                        )}
-                      </span>
-                      <span className={`text-xs font-bold amount ${over ? "text-accent-red" : "text-amber-600 dark:text-amber-400"}`}>
-                        {Math.round(pct)}% used
-                      </span>
-                    </div>
-                    <div className={over ? "budget-pulse rounded-full" : ""}>
-                      <BudgetBar pct={pct} label={`${budget.category || "Overall"} budget usage`} />
-                    </div>
-                    <p className="text-[10px] text-ink-light mt-1 amount">
-                      {formatCurrency(spent)} of {formatCurrency(budget.amount)}
-                    </p>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}
