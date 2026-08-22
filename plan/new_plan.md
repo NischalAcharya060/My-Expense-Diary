@@ -323,22 +323,22 @@
 ## Phase 20: Bills & Subscriptions UX
 
 ### 20.1 Visual Status Cards
-- [ ] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge (red border + red "Overdue since ..." text exist; no pulsing dot or badge)
-- [ ] Due today: Orange left border + "DUE TODAY" badge
+- [x] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge (due-date split by string compare; red pill w/ `.pulse-dot` (reduced-motion aware) + existing "Overdue since ..." line)
+- [x] Due today: Orange left border + "DUE TODAY" badge (`border-l-accent-warm` card, warm pill badge, "Due today (...)" subtitle; section header shows "· Due Today" suffix when only due-today items remain)
 - [x] Upcoming: Blue left border + countdown badge (blue border + "(X days left)" inline countdown)
 - [x] Paid: Green left border + checkmark + strikethrough name (green border, strikethrough name, green "Paid" pill; CheckCircle2 on section header)
 
 ### 20.2 Pay Flow
-- [ ] "Pay Now" button opens a confirmation modal (not instant) (fixed-amount bills pay instantly; variable bills open the amount modal)
-- [ ] Show payment summary before confirming: Name, Amount, Date, Method
-- [ ] After payment: Green checkmark animation + toast (toast exists, no animation)
+- [x] "Pay Now" button opens a confirmation modal (not instant) (fixed bills open `PayConfirmModal`; variable bills go through the amount modal first, then the same confirmation)
+- [x] Show payment summary before confirming: Name, Amount, Date, Method (dl rows; Date reflects early-pay logging rule `dueDate <= today ? dueDate : today`)
+- [x] After payment: Green checkmark animation + toast (centered success card with `check-pop` CheckCircle2 + name/amount, auto-dismisses after ~2.4s; toast unchanged)
 - [x] Show "All bills paid! 🎉" celebration when all monthly bills are settled (Confetti component + green banner + toast)
 
 ### 20.3 Subscription Health
 - [x] Show monthly subscription total prominently ("Monthly Total" overview stat card)
-- [ ] Show "You spend $X/month on subscriptions" with comparison to income
-- [ ] Flag unused subscriptions: "Haven't used in 30 days" warning
-- [ ] Suggest canceling expensive subscriptions (UX hint, not actual cancel)
+- [x] Show "You spend $X/month on subscriptions" with comparison to income (Subscription Health card; frequency-normalized monthly cost, % of `getMonthIncome` with color-coded bar — green ≤10%, warm ≤25%, red >25%; prompts to log income when none)
+- [x] Flag unused subscriptions: "Haven't used in 30 days" warning (activity proxy: latest logged expense / `last_paid`; amber AlertTriangle row when >30 days stale or never paid after 30+ days tracked)
+- [x] Suggest canceling expensive subscriptions (UX hint, not actual cancel) (💡 rows for subs costing ≥5% of monthly income, priciest first; mentions "no recent activity" when also unused)
 
 ---
 

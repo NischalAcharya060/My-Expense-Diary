@@ -3,11 +3,12 @@
 import { useSyncExternalStore, useState, useEffect, useRef, Suspense } from "react";
 import {
   Plus, Trash2, Edit2, Calendar,
-  CheckCircle2, AlertCircle, Clock, History
+  CheckCircle2, AlertCircle, Clock, History,
+  Activity, AlertTriangle, X
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { useExpenses, useRecurringPayments } from "@/lib/store";
+import { useExpenses, useRecurringPayments, useIncome } from "@/lib/store";
 import { formatCurrency, getToday, getCurrentMonth } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { useRequireAuth } from "@/lib/useRequireAuth";
@@ -41,12 +42,17 @@ function BillsPageInner() {
   const [deletingExpense, setDeletingExpense] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState<RecurringPayment | null>(null);
   const [variablePayTarget, setVariablePayTarget] = useState<{ payment: RecurringPayment; dueDateStr: string } | null>(null);
+  const [payConfirmTarget, setPayConfirmTarget] = useState<{ payment: RecurringPayment; dueDateStr: string; amountOverride?: number } | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [paySuccess, setPaySuccess] = useState<{ name: string; amount: number } | null>(null);
+  const paySuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
   const [celebrate, setCelebrate] = useState(false);
   const prevAllPaid = useRef<boolean | null>(null);
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+  const { getMonthIncome } = useIncome();
 
   // Open the add modal from URL (?add=true) — used by the command palette.
   useEffect(() => {
@@ -54,6 +60,10 @@ function BillsPageInner() {
       requireAuth(() => { setEditingPayment(null); setBillPreset(null); setShowAddModal(true); });
     }
   }, [searchParams, requireAuth]);
+
+  useEffect(() => () => {
+    if (paySuccessTimer.current) clearTimeout(paySuccessTimer.current);
+  }, []);
 
   const todayStr = getToday();
   const today = new Date(todayStr);
@@ -118,7 +128,8 @@ function BillsPageInner() {
     );
   }
 
-  const dueBills = unpaidBills.filter((p) => p.dueDate <= today);
+  const dueBills = unpaidBills.filter((p) => p.dueDateStr < todayStr);
+  const dueTodayBills = unpaidBills.filter((p) => p.dueDateStr === todayStr);
   const upcomingBills = unpaidBills.filter((p) => p.dueDate > today);
 
   const estimatedMonthlyTotal = activePayments.reduce((s, p) => s + (p.is_variable ? 0 : p.amount), 0);
@@ -126,9 +137,54 @@ function BillsPageInner() {
 
   const nextUpcoming = upcomingBills.length > 0 
     ? [...upcomingBills].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0]
-    : dueBills.length > 0
-    ? [...dueBills].sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())[0]
+    : dueBills.length > 0 || dueTodayBills.length > 0
+    ? [...dueBills, ...dueTodayBills].sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())[0]
     : null;
+
+  // --- Subscription health (monthly-normalized spend, usage staleness, cancel hints) ---
+  const FREQ_MONTHLY_FACTOR: Record<RecurringPayment["frequency"], number> = {
+    Daily: 30.44,
+    Weekly: 52 / 12,
+    Monthly: 1,
+    Quarterly: 1 / 3,
+    Yearly: 1 / 12,
+  };
+  const toMonthlyCost = (p: RecurringPayment) =>
+    p.is_variable ? 0 : p.amount * FREQ_MONTHLY_FACTOR[p.frequency];
+
+  const subscriptions = activePayments.filter((p) => p.category === "Subscription");
+  const subMonthlyTotal = subscriptions.reduce((s, p) => s + toMonthlyCost(p), 0);
+  const monthIncomeTotal = getMonthIncome(year, month);
+  const incomeSharePct =
+    monthIncomeTotal > 0 && subMonthlyTotal > 0
+      ? Math.round((subMonthlyTotal / monthIncomeTotal) * 100)
+      : 0;
+
+  const lastActivityByPayment = new Map<string, string>();
+  for (const e of billExpenses) {
+    if (!e.recurring_payment_id) continue;
+    const cur = lastActivityByPayment.get(e.recurring_payment_id);
+    if (!cur || e.date > cur) lastActivityByPayment.set(e.recurring_payment_id, e.date);
+  }
+  const UNUSED_SUB_DAYS = 30;
+  const unusedSubscriptions = subscriptions.filter((p) => {
+    const reference = lastActivityByPayment.get(p.id) ?? p.last_paid ?? p.start_date;
+    return differenceInDays(today, new Date(reference)) > UNUSED_SUB_DAYS;
+  }).map((p) => {
+    const reference = lastActivityByPayment.get(p.id) ?? p.last_paid;
+    return {
+      payment: p,
+      daysSince: differenceInDays(today, new Date(reference ?? p.start_date)),
+      everLogged: !!reference,
+    };
+  });
+
+  const cancelSuggestions = monthIncomeTotal > 0
+    ? subscriptions
+        .map((p) => ({ payment: p, monthlyCost: toMonthlyCost(p) }))
+        .filter(({ monthlyCost }) => monthlyCost > 0 && monthlyCost / monthIncomeTotal >= 0.05)
+        .sort((a, b) => b.monthlyCost - a.monthlyCost)
+    : [];
 
   const historyMonthKeys = Array.from(new Set(billExpenses.map((e) => e.date.substring(0, 7))))
     .sort((a, b) => b.localeCompare(a));
@@ -155,17 +211,28 @@ function BillsPageInner() {
       });
 
       toast(`Successfully paid ${p.name}`);
+      setPaySuccess({ name: p.name, amount: amountToPay });
+      if (paySuccessTimer.current) clearTimeout(paySuccessTimer.current);
+      paySuccessTimer.current = setTimeout(() => setPaySuccess(null), 2400);
     } catch (err) {
       console.error(err);
       toast("Failed to log payment", "error");
     }
   };
 
+  const confirmPayNow = async () => {
+    if (!payConfirmTarget || paying) return;
+    setPaying(true);
+    await executePayNow(payConfirmTarget.payment, payConfirmTarget.dueDateStr, payConfirmTarget.amountOverride);
+    setPaying(false);
+    setPayConfirmTarget(null);
+  };
+
   const handlePayNow = (p: RecurringPayment, dueDateStr: string) => {
     if (p.is_variable) {
       setVariablePayTarget({ payment: p, dueDateStr });
     } else {
-      executePayNow(p, dueDateStr);
+      setPayConfirmTarget({ payment: p, dueDateStr });
     }
   };
 
@@ -260,6 +327,79 @@ function BillsPageInner() {
           </div>
         </div>
 
+        {/* Subscription Health */}
+        {subscriptions.length > 0 && (
+          <div className="paper-card p-4 mb-6 border-l-4 border-l-accent-blue">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <h3 className="font-handwritten text-xl text-ink-dark flex items-center gap-1.5">
+                <Activity size={18} className="text-accent-blue" /> Subscription Health
+              </h3>
+              <span className="text-[10px] text-ink-light">Monthly-normalized · excludes variable</span>
+            </div>
+
+            <p className="text-sm text-ink-dark leading-relaxed">
+              You spend <strong className="amount text-accent-warm font-bold">{formatCurrency(subMonthlyTotal)}</strong>/month
+              on subscriptions
+              {monthIncomeTotal > 0 ? (
+                subMonthlyTotal > 0 && (
+                  <>
+                    {" "}—{" "}
+                    <strong className={`amount font-bold ${incomeSharePct > 25 ? "text-accent-red" : incomeSharePct > 10 ? "text-accent-warm" : "text-accent-green"}`}>
+                      {incomeSharePct}%
+                    </strong>{" "}
+                    of your monthly income ({formatCurrency(monthIncomeTotal)})
+                  </>
+                )
+              ) : (
+                <span className="text-xs text-ink-light"> · Log your income to see how this compares.</span>
+              )}
+            </p>
+
+            {monthIncomeTotal > 0 && subMonthlyTotal > 0 && (
+              <div
+                className="mt-2 h-2 bg-paper-dark rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuenow={incomeSharePct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Subscriptions as a percentage of monthly income"
+              >
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${incomeSharePct > 25 ? "bg-accent-red" : incomeSharePct > 10 ? "bg-accent-warm" : "bg-accent-green"}`}
+                  style={{ width: `${Math.min(incomeSharePct, 100)}%` }}
+                />
+              </div>
+            )}
+
+            {(unusedSubscriptions.length > 0 || cancelSuggestions.length > 0) && (
+              <ul className="mt-3 space-y-1.5 border-t border-[rgba(0,0,0,0.05)] pt-3">
+                {unusedSubscriptions.map(({ payment, daysSince, everLogged }) => (
+                  <li key={`unused-${payment.id}`} className="flex items-start gap-1.5 text-xs text-accent-warm">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>
+                      <strong>{payment.name}</strong>:{" "}
+                      {everLogged
+                        ? <>no payment logged in {daysSince} days — haven&apos;t used it lately?</>
+                        : <>tracked for {daysSince} days but never paid — still using it?</>}
+                    </span>
+                  </li>
+                ))}
+                {cancelSuggestions.map(({ payment, monthlyCost }) => (
+                  <li key={`cancel-${payment.id}`} className="flex items-start gap-1.5 text-xs text-accent-red">
+                    <span aria-hidden="true">💡</span>
+                    <span>
+                      Consider canceling <strong>{payment.name}</strong> — it costs{" "}
+                      {formatCurrency(monthlyCost)}/month (
+                      {Math.round((monthlyCost / monthIncomeTotal) * 100)}% of your income)
+                      {unusedSubscriptions.some((u) => u.payment.id === payment.id) && " and shows no recent activity"}.
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {/* Monthly bill payment progress */}
         {activePayments.length > 0 && (
           <div className="paper-card p-4 mb-6">
@@ -329,71 +469,91 @@ function BillsPageInner() {
         {activeTab === "list" ? (
           <div className="space-y-6">
             
-            {/* Overdue / Due section */}
-            {dueBills.length > 0 && (
+            {/* Overdue / Due today section */}
+            {(dueBills.length > 0 || dueTodayBills.length > 0) && (
               <div>
                 <h3 className="font-handwritten text-xl text-accent-red flex items-center gap-1.5 mb-3">
-                  <AlertCircle size={18} /> Action Required / Due
+                  <AlertCircle size={18} /> Action Required
+                  {dueTodayBills.length > 0 && dueBills.length === 0 && (
+                    <span className="text-sm text-accent-warm font-sans font-semibold ml-1">· Due Today</span>
+                  )}
                 </h3>
                 <div className="space-y-3">
-                  {dueBills.map(({ payment: p, dueDateStr }) => (
-                    <div key={p.id} className="paper-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-accent-red">
-                      <div className="flex items-start gap-3">
-                        <div className="text-2xl mt-0.5">
-                          {p.category === "Subscription" ? "📺" : "💡"}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm text-ink-dark">{p.name}</span>
-                            <span className="text-[10px] bg-paper-dark border border-[rgba(0,0,0,0.08)] text-ink-medium px-2 py-0.5 rounded-full uppercase">
-                              {p.frequency}
-                            </span>
-                            {p.auto_pay && (
-                              <span className="text-[10px] bg-accent-green/10 text-accent-green border border-accent-green/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-                                ⏰ Auto-Pay
-                              </span>
-                            )}
+                  {[...dueBills, ...dueTodayBills].map(({ payment: p, dueDateStr }) => {
+                    const isOverdue = dueDateStr < todayStr;
+                    return (
+                      <div key={p.id} className={`paper-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 ${isOverdue ? "border-l-accent-red" : "border-l-accent-warm"}`}>
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl mt-0.5">
+                            {p.category === "Subscription" ? "📺" : "💡"}
                           </div>
-                          <p className="text-xs text-accent-red font-medium mt-1">
-                            Due Day: {p.due_day} · Overdue since {format(new Date(dueDateStr), "MMM d, yyyy")}
-                          </p>
-                          <p className="text-[10px] text-ink-light mt-0.5">
-                            Method: {p.payment_method || "Card"}
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm text-ink-dark">{p.name}</span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold flex items-center gap-1 border ${
+                                  isOverdue
+                                    ? "bg-accent-red/10 text-accent-red border-accent-red/25"
+                                    : "bg-accent-warm/10 text-accent-warm border-accent-warm/25"
+                                }`}
+                              >
+                                {isOverdue && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current pulse-dot shrink-0" aria-hidden="true" />
+                                )}
+                                {isOverdue ? "Overdue" : "Due Today"}
+                              </span>
+                              <span className="text-[10px] bg-paper-dark border border-[rgba(0,0,0,0.08)] text-ink-medium px-2 py-0.5 rounded-full uppercase">
+                                {p.frequency}
+                              </span>
+                              {p.auto_pay && (
+                                <span className="text-[10px] bg-accent-green/10 text-accent-green border border-accent-green/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                  ⏰ Auto-Pay
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-xs font-medium mt-1 ${isOverdue ? "text-accent-red" : "text-accent-warm"}`}>
+                              {isOverdue
+                                ? <>Overdue since {format(new Date(dueDateStr), "MMM d, yyyy")}</>
+                                : <>Due today ({format(new Date(dueDateStr), "MMM d, yyyy")})</>}
+                            </p>
+                            <p className="text-[10px] text-ink-light mt-0.5">
+                              Method: {p.payment_method || "Card"}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-[rgba(0,0,0,0.04)]">
+                          <div className="text-left sm:text-right">
+                            <span className={`text-base font-bold amount block ${isOverdue ? "text-accent-red" : "text-accent-warm"}`}>
+                              {p.is_variable ? "Variable" : formatCurrency(p.amount)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handlePayNow(p, dueDateStr)}
+                              className="px-3 py-1.5 bg-accent-green hover:opacity-90 text-white rounded text-xs font-semibold shadow-sm flex items-center gap-1 cursor-pointer"
+                            >
+                              Pay Now
+                            </button>
+                            <button
+                              onClick={() => { setEditingPayment(p); setShowAddModal(true); }}
+                              className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
+                              aria-label="Edit bill"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeactivateTarget(p)}
+                              className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
+                              aria-label="Deactivate bill"
+                            >
+                              <Clock size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-[rgba(0,0,0,0.04)]">
-                        <div className="text-left sm:text-right">
-                          <span className="text-base font-bold text-accent-red amount block">
-                            {p.is_variable ? "Variable" : formatCurrency(p.amount)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handlePayNow(p, dueDateStr)}
-                            className="px-3 py-1.5 bg-accent-green hover:opacity-90 text-white rounded text-xs font-semibold shadow-sm flex items-center gap-1 cursor-pointer"
-                          >
-                            Pay Now
-                          </button>
-                          <button
-                            onClick={() => { setEditingPayment(p); setShowAddModal(true); }}
-                            className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            aria-label="Edit bill"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => setDeactivateTarget(p)}
-                            className="p-2 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-colors cursor-pointer"
-                            aria-label="Deactivate bill"
-                          >
-                            <Clock size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -737,6 +897,96 @@ function BillsPageInner() {
         message={`This will pause automatic tracking for ${deactivateTarget?.name ?? ""}. You can reactivate it later.`}
         confirmLabel="Deactivate"
       />
+      {paySuccess && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none" aria-live="polite">
+          <div className="paper-card px-8 py-6 text-center shadow-xl page-enter">
+            <CheckCircle2 size={44} className="text-accent-green check-pop mx-auto" />
+            <p className="font-handwritten text-xl text-ink-dark mt-2">{paySuccess.name} paid!</p>
+            <p className="text-xs text-accent-green font-semibold amount mt-0.5">
+              {formatCurrency(paySuccess.amount)}
+            </p>
+          </div>
+        </div>
+      )}
+      {payConfirmTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm payment"
+        >
+          <div className="fixed inset-0 bg-black/40" onClick={() => !paying && setPayConfirmTarget(null)} />
+          <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform">
+            {!paying && (
+              <button
+                onClick={() => setPayConfirmTarget(null)}
+                className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark cursor-pointer"
+                aria-label="Close dialog"
+              >
+                <X size={16} />
+              </button>
+            )}
+            <div className="text-center mb-4">
+              <div className="w-12 h-12 mx-auto mb-3 bg-accent-green/10 rounded-full flex items-center justify-center">
+                <CheckCircle2 size={22} className="text-accent-green" />
+              </div>
+              <h3 className="font-handwritten text-xl text-ink-dark">Confirm Payment</h3>
+              <p className="text-xs text-ink-light mt-0.5">Review the details before logging this payment.</p>
+            </div>
+            <dl className="rounded-lg border border-[rgba(0,0,0,0.06)] bg-paper-dark/20 divide-y divide-[rgba(0,0,0,0.05)] text-sm mb-5">
+              {[
+                ["Name", payConfirmTarget.payment.name],
+                [
+                  "Amount",
+                  formatCurrency(payConfirmTarget.amountOverride ?? payConfirmTarget.payment.amount),
+                ],
+                [
+                  "Date",
+                  format(
+                    new Date(
+                      payConfirmTarget.dueDateStr <= todayStr ? payConfirmTarget.dueDateStr : todayStr
+                    ),
+                    "MMM d, yyyy"
+                  ),
+                ],
+                ["Method", payConfirmTarget.payment.payment_method || "Card"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-4 px-3 py-2">
+                  <dt className="text-xs text-ink-light uppercase tracking-wide font-semibold">{label}</dt>
+                  <dd className={`font-medium text-right ${label === "Amount" ? "text-accent-green amount font-bold" : "text-ink-dark"} min-w-0`}>
+                    <span className="truncate block">{value}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setPayConfirmTarget(null)}
+                disabled={paying}
+                className="px-4 py-2 border border-[rgba(0,0,0,0.1)] rounded text-xs font-medium text-ink-medium hover:bg-paper-dark transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPayNow}
+                disabled={paying}
+                className="px-4 py-2 bg-accent-green text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+              >
+                {paying ? (
+                  <>
+                    <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" />
+                    Logging...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={13} /> Confirm &amp; Log Payment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <VariableAmountModal
         open={!!variablePayTarget}
         onClose={() => setVariablePayTarget(null)}
@@ -744,8 +994,9 @@ function BillsPageInner() {
         label="Enter paid amount"
         onConfirm={(amount) => {
           if (variablePayTarget) {
-            executePayNow(variablePayTarget.payment, variablePayTarget.dueDateStr, amount);
+            const target = variablePayTarget;
             setVariablePayTarget(null);
+            setPayConfirmTarget({ payment: target.payment, dueDateStr: target.dueDateStr, amountOverride: amount });
           }
         }}
       />

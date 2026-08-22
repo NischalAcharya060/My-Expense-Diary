@@ -447,3 +447,15 @@ body {
 .check-pop {
   animation: checkPop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Pulsing attention dot for overdue bill badges.
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.45); opacity: 0.55; }
+  }
+  .pulse-dot {
+    animation: pulseDot 1.5s ease-in-out infinite;
+  }
+}
