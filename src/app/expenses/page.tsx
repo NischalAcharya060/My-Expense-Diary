@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, memo, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { Plus, Trash2, Search, Edit2, CalendarDays, X } from "lucide-react";
+import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { hapticFeedback } from "@/lib/utils";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
@@ -18,21 +20,60 @@ const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { 
 const EditExpenseModal = dynamic(() => import("@/components/EditExpenseModal"), { ssr: false });
 
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 300;
+const MAX_RECENT_SEARCHES = 5;
+const RECENT_SEARCHES_KEY = "recent_searches_v1";
+
+type SortMode = "newest" | "oldest" | "highest" | "lowest";
+
+const SORT_LABELS: Record<SortMode, string> = {
+  newest: "Newest first",
+  oldest: "Oldest first",
+  highest: "Highest amount",
+  lowest: "Lowest amount",
+};
+
+/** Human-friendly day header: Today / Yesterday, otherwise "Monday, Aug 18". */
+function getDateLabel(dateStr: string, todayStr: string): string {
+  const yesterdayStr = format(subDays(new Date(`${todayStr}T00:00:00`), 1), "yyyy-MM-dd");
+  if (dateStr === todayStr) return "Today";
+  if (dateStr === yesterdayStr) return "Yesterday";
+  return format(new Date(`${dateStr}T00:00:00`), "EEEE, MMMM d");
+}
+
+function loadRecentSearches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((s): s is string => typeof s === "string").slice(0, MAX_RECENT_SEARCHES)
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 function ExpensesPageInner() {
-  const { expenses, loaded, deleteExpense } = useExpenses();
+  const { expenses, loaded, deleteExpense, addExpense, updateExpense } = useExpenses();
   const { categories, getCategoryByName } = useCategories();
   const [showAdd, setShowAdd] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState(""); // debounced committed query used by filters
+  const [recentSearches, setRecentSearches] = useState<string[]>(loadRecentSearches);
+  const [recentsOpen, setRecentsOpen] = useState(false);
+  const [filterBarHeight, setFilterBarHeight] = useState(0);
   const [filterCategory, setFilterCategory] = useState("All");
   const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
   const [quickFilter, setQuickFilter] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<SortMode>("newest");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [exitingId, setExitingId] = useState<string | null>(null);
   const [pagination, setPagination] = useState<{ key: string; days: number }>({ key: "", days: PAGE_SIZE });
   const searchParams = useSearchParams();
+  const filterBarRef = useRef<HTMLDivElement>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -44,9 +85,38 @@ function ExpensesPageInner() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const q = searchParams.get("q");
-    if (q !== null) setSearch(q);
+    if (q !== null) setSearchInput(q);
   }, [searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Debounce the committed search term + remember successful queries.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const q = searchInput.trim();
+      setSearch(q);
+      if (!q) return;
+      setRecentSearches((prev) => {
+        if (prev[0]?.toLowerCase() === q.toLowerCase()) return prev;
+        const next = [q, ...prev.filter((s) => s.toLowerCase() !== q.toLowerCase())].slice(0, MAX_RECENT_SEARCHES);
+        try {
+          localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+        } catch {
+          // storage unavailable or full — recent-search writes are best-effort
+        }
+        return next;
+      });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Track the sticky filter bar height so day headers stick right beneath it.
+  useEffect(() => {
+    const el = filterBarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setFilterBarHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Ctrl/Cmd+K toggles focus on the search bar from anywhere.
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +138,7 @@ function ExpensesPageInner() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const filterKey = `${search}|${filterCategory}|${dateRange?.start ?? ""}|${dateRange?.end ?? ""}`;
+  const filterKey = `${search}|${filterCategory}|${dateRange?.start ?? ""}|${dateRange?.end ?? ""}|${sortBy}`;
   const visibleDays = pagination.key === filterKey ? pagination.days : PAGE_SIZE;
 
   const filtered = useMemo(
@@ -83,8 +153,19 @@ function ExpensesPageInner() {
           }
           return matchSearch && matchCategory && matchDate;
         })
-        .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)),
-    [expenses, search, filterCategory, dateRange]
+        .sort((a, b) => {
+          switch (sortBy) {
+            case "oldest":
+              return a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at);
+            case "highest":
+              return b.amount - a.amount || b.date.localeCompare(a.date);
+            case "lowest":
+              return a.amount - b.amount || b.date.localeCompare(a.date);
+            default:
+              return b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at);
+          }
+        }),
+    [expenses, search, filterCategory, dateRange, sortBy]
   );
 
   const grouped = useMemo(() => {
@@ -96,6 +177,18 @@ function ExpensesPageInner() {
     return g;
   }, [filtered]);
 
+  // For amount sorts the day groups are ordered by their daily total (ties: newer first).
+  const groupEntries = useMemo(() => {
+    const entries = Object.entries(grouped);
+    if (sortBy !== "highest" && sortBy !== "lowest") return entries;
+    const dir = sortBy === "highest" ? -1 : 1;
+    return [...entries].sort(([dateA, dayA], [dateB, dayB]) => {
+      const totalA = dayA.reduce((s, e) => s + e.amount, 0);
+      const totalB = dayB.reduce((s, e) => s + e.amount, 0);
+      return dir * (totalA - totalB) || dateB.localeCompare(dateA);
+    });
+  }, [grouped, sortBy]);
+
   const handleDelete = useCallback((id: string) => {
     setDeleteId(id);
   }, []);
@@ -105,6 +198,47 @@ function ExpensesPageInner() {
       requireAuth(() => setEditingExpense(expense));
     },
     [requireAuth]
+  );
+
+  const handleDuplicate = useCallback(
+    (expense: Expense) => {
+      requireAuth(async () => {
+        try {
+          await addExpense({
+            name: expense.name,
+            amount: expense.amount,
+            category: expense.category,
+            date: expense.date,
+            payment_method: expense.payment_method,
+            note: expense.note,
+            receipt_url: expense.receipt_url,
+            // recurring_payment_id is intentionally dropped: the copy is a
+            // standalone purchase, not part of the auto-pay schedule.
+            expense_type: expense.expense_type,
+          });
+          toast(`Duplicated "${expense.name}"`);
+        } catch (err) {
+          console.error(err);
+          toast("Failed to duplicate expense", "error");
+        }
+      });
+    },
+    [addExpense, requireAuth, toast]
+  );
+
+  const handleQuickAmount = useCallback(
+    (expense: Expense, amount: number) => {
+      requireAuth(async () => {
+        try {
+          await updateExpense(expense.id, { amount });
+          toast("Amount updated");
+        } catch (err) {
+          console.error(err);
+          toast("Failed to update amount", "error");
+        }
+      });
+    },
+    [requireAuth, updateExpense, toast]
   );
 
   if (!loaded) {
@@ -173,15 +307,19 @@ function ExpensesPageInner() {
     }
   }
 
-  const groupEntries = Object.entries(grouped);
   const visibleEntries = groupEntries.slice(0, visibleDays);
   const hiddenDays = groupEntries.length - visibleEntries.length;
 
+  const activeFilterCount =
+    (search.trim() ? 1 : 0) + (filterCategory !== "All" ? 1 : 0) + (dateRange ? 1 : 0);
+
   const clearFilters = () => {
+    setSearchInput("");
     setSearch("");
     setFilterCategory("All");
     setDateRange(null);
     setQuickFilter("All");
+    searchInputRef.current?.focus();
   };
 
   return (
@@ -205,28 +343,103 @@ function ExpensesPageInner() {
           </button>
         </div>
 
-        {/* Search & Filter bar */}
-        <div className="mb-6 bg-paper-dark/30 p-3 rounded-lg border border-[rgba(0,0,0,0.04)]">
+        {/* Search & Filter bar (sticky on scroll) */}
+        <div
+          ref={filterBarRef}
+          className="sticky top-2 z-40 mb-6 p-3 rounded-lg bg-paper-bg border border-[rgba(0,0,0,0.06)] shadow-sm"
+        >
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />
+            <div
+              className="relative flex-1"
+              onFocus={() => setRecentsOpen(true)}
+              onBlur={(e) => {
+                if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+                  setRecentsOpen(false);
+                }
+              }}
+            >
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search by keyword..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 sm:pr-16 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setRecentsOpen(false);
+                    e.currentTarget.blur();
+                  }
+                }}
+                aria-label="Search expenses"
+                autoComplete="off"
+                className="w-full pl-9 pr-9 sm:pr-16 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
               />
-              <button
-                type="button"
-                onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.select(); }}
-                className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 items-center text-[10px] text-ink-light bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded px-1.5 py-0.5 font-sans hover:text-accent-warm hover:border-accent-warm/40 transition-colors cursor-pointer"
-                aria-label="Focus search (Ctrl+K)"
-                title="Press Ctrl+K to jump to search from anywhere"
-              >
-                Ctrl K
-              </button>
+              {/* Clear button — replaces the Ctrl K hint while typing */}
+              {searchInput.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ink-light hover:text-accent-red hover:bg-paper-dark transition-colors cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.select(); }}
+                  className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 items-center text-[10px] text-ink-light bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded px-1.5 py-0.5 font-sans hover:text-accent-warm hover:border-accent-warm/40 transition-colors cursor-pointer"
+                  aria-label="Focus search (Ctrl+K)"
+                  title="Press Ctrl+K to jump to search from anywhere"
+                >
+                  Ctrl K
+                </button>
+              )}
+
+              {/* Recent searches dropdown */}
+              {recentsOpen && recentSearches.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 paper-card shadow-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-paper-dark/50 border-b border-[rgba(0,0,0,0.05)]">
+                    <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-light">Recent searches</span>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setRecentSearches([]);
+                        try {
+                          localStorage.removeItem(RECENT_SEARCHES_KEY);
+                        } catch {
+                          // ignore storage errors — list is already cleared in state
+                        }
+                      }}
+                      className="text-[10px] text-ink-light hover:text-accent-red transition-colors cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {recentSearches.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSearchInput(q);
+                        setSearch(q);
+                        setRecentsOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left text-ink-dark hover:bg-paper-dark transition-colors cursor-pointer"
+                    >
+                      <Clock size={12} className="text-ink-light shrink-0" />
+                      <span className="truncate">{q}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <select
               value={filterCategory}
@@ -238,6 +451,21 @@ function ExpensesPageInner() {
                 <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
               ))}
             </select>
+            {/* Sort toggle */}
+            <div className="relative">
+              <ArrowDownUp size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortMode)}
+                aria-label="Sort expenses"
+                title={`Sorted by ${SORT_LABELS[sortBy].toLowerCase()}`}
+                className="pl-8 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
+              >
+                {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+                  <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>
+                ))}
+              </select>
+            </div>
           </div>
           {/* Date range quick filters */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -294,8 +522,36 @@ function ExpensesPageInner() {
                 <X size={14} />
               </button>
             )}
+            {/* Active filter count + clear-all */}
+            {activeFilterCount > 0 && (
+              <div className="ml-auto flex items-center gap-1.5">
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-warm/15 text-accent-warm border border-accent-warm/30 whitespace-nowrap"
+                  title={`${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active`}
+                >
+                  {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"} active
+                </span>
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-accent-red hover:bg-accent-red/10 transition-colors cursor-pointer whitespace-nowrap"
+                  aria-label="Clear all filters"
+                >
+                  <X size={11} /> Clear all filters
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Result count */}
+        {groupEntries.length > 0 && (
+          <p className="-mt-2 mb-3 text-[11px] text-ink-light" role="status" aria-live="polite">
+            Found {filtered.length} expense{filtered.length === 1 ? "" : "s"}
+            {search.trim() ? (
+              <> matching “<span className="text-ink-dark font-medium">{search.trim()}</span>”</>
+            ) : null}
+          </p>
+        )}
 
         {/* Expenses List */}
         {groupEntries.length === 0 ? (
@@ -351,14 +607,25 @@ function ExpensesPageInner() {
           <>
             {visibleEntries.map(([date, dayExpenses]) => {
               const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
+              const dateLabel = getDateLabel(date, todayStr);
               return (
                 <div key={date} className="mb-6">
-                  <div className="flex items-center gap-3 mb-2 px-1">
-                    <h3 className="font-handwritten text-xl text-ink-dark font-semibold">
-                      {format(new Date(date + "T00:00:00"), "EEEE, MMMM d")}
+                  {/* Sticky day header — stays visible while scrolling through this day's entries,
+                      parked right below the sticky filter bar */}
+                  <div
+                    className="sticky z-30 flex items-center gap-3 mb-2 -mx-1 px-2 py-1.5 bg-paper-bg rounded-md shadow-sm border border-[rgba(0,0,0,0.05)]"
+                    style={{ top: filterBarHeight ? filterBarHeight + 18 : 8 }}
+                  >
+                    <h3 className="font-handwritten text-xl text-ink-dark font-semibold whitespace-nowrap">
+                      {dateLabel}
                     </h3>
+                    {(dateLabel === "Today" || dateLabel === "Yesterday") && (
+                      <span className="text-[10px] text-ink-light whitespace-nowrap hidden sm:inline">
+                        {format(new Date(date + "T00:00:00"), "EEEE, MMMM d")}
+                      </span>
+                    )}
                     <span className="dots" />
-                    <span className="font-handwritten text-xl text-accent-warm amount font-bold">{formatCurrency(dayTotal)}</span>
+                    <span className="font-handwritten text-xl text-accent-warm amount font-bold whitespace-nowrap">{formatCurrency(dayTotal)}</span>
                   </div>
 
                   <div className="space-y-2">
@@ -369,8 +636,11 @@ function ExpensesPageInner() {
                         color={getCategoryByName(expense.category)?.color || "#6B7280"}
                         icon={getCategoryByName(expense.category)?.icon || "🏷️"}
                         exiting={exitingId === expense.id}
+                        highlight={search}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onDuplicate={handleDuplicate}
+                        onQuickAmount={handleQuickAmount}
                       />
                     ))}
                   </div>
@@ -444,38 +714,236 @@ interface ExpenseRowProps {
   color: string;
   icon: string;
   exiting?: boolean;
+  highlight?: string;
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (expense: Expense) => void;
+  onQuickAmount: (expense: Expense, amount: number) => void;
+}
+
+/** Renders text with the first case-insensitive occurrence of query highlighted. */
+function HighlightMatch({ text, query }: { text: string; query?: string }) {
+  const q = query?.trim();
+  if (!q) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-accent-warm/30 text-ink-dark rounded-[2px]">{text.slice(idx, idx + q.length)}</mark>
+      {text.slice(idx + q.length)}
+    </>
+  );
 }
 
 const SWIPE_THRESHOLD = -64;
 const SWIPE_MAX = -96;
+/** How long a finger must stay still before the context menu opens. */
+const LONG_PRESS_MS = 500;
+/** Movement (px) beyond which a press is treated as a scroll/swipe instead of a tap. */
+const TAP_SLOP = 10;
+/** Max gap between two taps to count as a double-tap / double-click. */
+const DOUBLE_TAP_MS = 300;
 
-const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, exiting, onEdit, onDelete }: ExpenseRowProps) {
+interface MenuPosition {
+  x: number;
+  y: number;
+}
+
+const ExpenseRow = memo(function ExpenseRow({
+  expense,
+  color,
+  icon,
+  exiting,
+  highlight,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onQuickAmount,
+}: ExpenseRowProps) {
+  const { toast } = useToast();
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [menu, setMenu] = useState<MenuPosition | null>(null);
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [amountDraft, setAmountDraft] = useState("");
+
   const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const gestureMoved = useRef(false);
+  const longPressFired = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef(false);
+  const lastTapAt = useRef(0);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimer.current !== null) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // Close the context menu on outside interaction.
+  useEffect(() => {
+    if (!menu) return;
+    const handlePointer = (e: Event) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      setMenu(null);
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("mousedown", handlePointer, true);
+    document.addEventListener("touchstart", handlePointer, true);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer, true);
+      document.removeEventListener("touchstart", handlePointer, true);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [menu]);
+
+  // Focus the inline amount input as soon as quick-edit opens.
+  useEffect(() => {
+    if (editingAmount) amountInputRef.current?.select();
+  }, [editingAmount]);
+
+  useEffect(
+    () => () => {
+      clearLongPressTimer();
+      if (singleTapTimer.current !== null) clearTimeout(singleTapTimer.current);
+    },
+    []
+  );
+
+  const openContextMenu = useCallback((x: number, y: number) => {
+    const MENU_W = 176;
+    const MENU_H = 168;
+    setMenu({
+      x: Math.min(Math.max(8, x), window.innerWidth - MENU_W - 8),
+      y: Math.min(Math.max(8, y), window.innerHeight - MENU_H - 8),
+    });
+    hapticFeedback();
+  }, []);
+
+  const startAmountEdit = useCallback(() => {
+    setExpanded(false);
+    setAmountDraft(String(expense.amount));
+    setEditingAmount(true);
+  }, [expense.amount]);
+
+  const commitAmountEdit = useCallback(() => {
+    setEditingAmount(false);
+    const parsed = parseFloat(amountDraft);
+    if (!isNaN(parsed) && parsed > 0 && parsed !== expense.amount) {
+      onQuickAmount(expense, parsed);
+    } else if (!isNaN(parsed) && parsed <= 0) {
+      toast("Amount must be greater than zero", "error");
+    }
+  }, [amountDraft, expense, onQuickAmount, toast]);
+
+  const cancelAmountEdit = useCallback(() => {
+    setEditingAmount(false);
+  }, []);
+
+  /* ---------- touch: swipe-to-delete + long-press context menu ---------- */
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0].clientX;
+    const touch = e.touches[0];
+    startX.current = touch.clientX;
+    startY.current = touch.clientY;
+    gestureMoved.current = false;
+    longPressFired.current = false;
+    suppressClick.current = false;
     setDragging(true);
+    const { clientX, clientY } = touch;
+    clearLongPressTimer();
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      longPressFired.current = true;
+      openContextMenu(clientX, clientY);
+    }, LONG_PRESS_MS);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (startX.current === null) return;
-    const delta = e.touches[0].clientX - startX.current;
-    setDx(Math.max(Math.min(0, delta), SWIPE_MAX));
+    if (startX.current === null || startY.current === null) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - startX.current;
+    const deltaY = touch.clientY - startY.current;
+
+    // Any real movement cancels a pending long press; vertical movement is a scroll.
+    if (Math.abs(deltaX) > TAP_SLOP || Math.abs(deltaY) > TAP_SLOP) clearLongPressTimer();
+    if (Math.abs(deltaX) > TAP_SLOP && Math.abs(deltaX) > Math.abs(deltaY)) {
+      gestureMoved.current = true;
+      setDx(Math.max(Math.min(0, deltaX), SWIPE_MAX));
+    }
   };
 
   const handleTouchEnd = () => {
     setDragging(false);
-    if (dx < SWIPE_THRESHOLD) {
-      setDx(0);
+    clearLongPressTimer();
+    const wasSwipe = dx < SWIPE_THRESHOLD;
+    if (gestureMoved.current || longPressFired.current) suppressClick.current = true;
+    if (wasSwipe) {
       onDelete(expense.id);
-    } else {
-      setDx(0);
     }
+    setDx(0);
     startX.current = null;
+    startY.current = null;
+  };
+
+  /* ---------- click: single tap expands, double tap quick-edits the amount ---------- */
+
+  const handleRowClick = () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    if (editingAmount) {
+      // The input's blur handler commits and suppresses the follow-up click.
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapAt.current < DOUBLE_TAP_MS) {
+      // Second tap of a double-tap → cancel the pending expand, quick-edit instead.
+      if (singleTapTimer.current !== null) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      lastTapAt.current = 0;
+      hapticFeedback();
+      startAmountEdit();
+    } else {
+      lastTapAt.current = now;
+      if (singleTapTimer.current !== null) clearTimeout(singleTapTimer.current);
+      singleTapTimer.current = setTimeout(() => {
+        singleTapTimer.current = null;
+        setMenu(null);
+        setExpanded((v) => !v);
+      }, DOUBLE_TAP_MS);
+    }
+  };
+
+  const menuAction = (action: "edit" | "delete" | "duplicate" | "details") => {
+    setMenu(null);
+    switch (action) {
+      case "edit":
+        onEdit(expense);
+        break;
+      case "delete":
+        onDelete(expense.id);
+        break;
+      case "duplicate":
+        onDuplicate(expense);
+        break;
+      case "details":
+        setExpanded(true);
+        break;
+    }
   };
 
   return (
@@ -490,45 +958,256 @@ const ExpenseRow = memo(function ExpenseRow({ expense, color, icon, exiting, onE
         <span className="text-[10px] font-semibold">Delete</span>
       </button>
       <div
-        className="paper-card px-4 py-3 flex items-center gap-3 group hover:shadow-md transition-all border-l-4 swipe-row"
+        className={`paper-card px-4 py-3 group hover:shadow-md transition-all border-l-4 swipe-row cursor-pointer ${
+          expanded ? "rounded-b-none" : ""
+        }`}
         style={{
           borderLeftColor: color,
           transform: `translateX(${dx}px)`,
           transition: dragging ? "none" : "transform 0.25s ease",
         }}
+        onClick={handleRowClick}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          openContextMenu(e.clientX, e.clientY);
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => {
+          handleTouchEnd();
+        }}
+        title="Tap for details · Double-tap to edit amount · Long-press for actions"
       >
-        <span className="text-xl shrink-0">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-ink-dark font-semibold truncate">{expense.name}</p>
-          <p className="text-[10px] text-ink-light mt-0.5">
-            {expense.category} · {expense.payment_method}
-          </p>
-        </div>
-        <span className="text-sm font-bold amount shrink-0 ml-2" style={{ color }}>
-          {formatCurrency(expense.amount)}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xl shrink-0">{icon}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-ink-dark font-semibold truncate">
+              <HighlightMatch text={expense.name} query={highlight} />
+            </p>
+            <p className="text-[10px] text-ink-light mt-0.5">
+              {expense.category} · {expense.payment_method}
+            </p>
+          </div>
 
-        {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
-        <div className="flex items-center gap-0.5 shrink-0 ml-2">
-          <button
-            onClick={() => onEdit(expense)}
-            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-            aria-label="Edit"
-          >
-            <Edit2 size={13} />
-          </button>
-          <button
-            onClick={() => onDelete(expense.id)}
-            className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-            aria-label="Delete"
-          >
-            <Trash2 size={13} />
-          </button>
+          {/* Amount — becomes an inline input during quick edit */}
+          {editingAmount ? (
+            <form
+              className="flex items-center gap-1 shrink-0 ml-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                commitAmountEdit();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                ref={amountInputRef}
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={amountDraft}
+                onChange={(e) => setAmountDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitAmountEdit();
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    cancelAmountEdit();
+                  }
+                }}
+                onBlur={() => {
+                  // Committing on blur also swallows the click that follows,
+                  // so dismissing by clicking elsewhere doesn't re-toggle expand.
+                  suppressClick.current = true;
+                  commitAmountEdit();
+                }}
+                className="w-20 px-1.5 py-1 bg-paper-bg border border-accent-warm rounded text-sm font-bold amount text-right focus:outline-none"
+                style={{ color }}
+                aria-label="Quick edit amount"
+              />
+              <button
+                type="submit"
+                className="p-1 rounded bg-accent-green/15 text-accent-green hover:bg-accent-green/25 transition-colors cursor-pointer"
+                aria-label="Save amount"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={cancelAmountEdit}
+                className="p-1 rounded bg-paper-dark text-ink-light hover:text-accent-red transition-colors cursor-pointer"
+                aria-label="Cancel amount edit"
+              >
+                <X size={13} />
+              </button>
+            </form>
+          ) : (
+            <span
+              className="text-sm font-bold amount shrink-0 ml-2 transition-transform duration-150 group-hover:scale-[1.04]"
+              style={{ color }}
+            >
+              {formatCurrency(expense.amount)}
+            </span>
+          )}
+
+          {/* Expand chevron */}
+          {!editingAmount && (
+            <ChevronDown
+              size={14}
+              className={`shrink-0 text-ink-light opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 ${
+                expanded ? "sm:opacity-60 rotate-180" : ""
+              }`}
+            />
+          )}
+
+          {/* Edit and Delete buttons (always semi-opaque on touch devices, hover opaque on hover) */}
+          {!editingAmount && (
+            <div className="flex items-center gap-0.5 shrink-0 ml-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(expense);
+                }}
+                className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                aria-label="Edit"
+              >
+                <Edit2 size={13} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(expense.id);
+                }}
+                className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                aria-label="Delete"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Expanded details panel */}
+        {expanded && (
+          <div
+            className="mt-3 pt-3 border-t border-dashed border-[rgba(0,0,0,0.12)] space-y-2.5 cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-full text-[11px] font-medium text-white"
+                style={{ backgroundColor: color }}
+              >
+                <span>{icon}</span> {expense.category}
+              </span>
+              {expense.expense_type !== "Daily purchase" && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-paper-dark text-ink-medium border border-[rgba(0,0,0,0.06)]">
+                  {expense.expense_type}
+                </span>
+              )}
+              <span className="text-[10px] text-ink-light">
+                Paid with {expense.payment_method}
+              </span>
+            </div>
+
+            {expense.note && (
+              <div>
+                <p className="text-[9px] uppercase tracking-wide text-ink-light mb-0.5">Note</p>
+                <p className="font-handwritten text-lg leading-snug text-ink-dark whitespace-pre-wrap break-words">
+                  “{expense.note}”
+                </p>
+              </div>
+            )}
+
+            {expense.receipt_url && (
+              <a
+                href={expense.receipt_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-fit group/receipt"
+                title="Open receipt in a new tab"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={expense.receipt_url}
+                  alt={`Receipt for ${expense.name}`}
+                  loading="lazy"
+                  className="max-h-36 max-w-full rounded border border-[rgba(0,0,0,0.1)] shadow-sm group-hover/receipt:shadow-md transition-shadow"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = "none";
+                    if (target.nextElementSibling instanceof HTMLElement) {
+                      target.nextElementSibling.style.display = "inline-flex";
+                    }
+                  }}
+                />
+                <span className="hidden items-center gap-1 text-[11px] text-accent-blue hover:underline">
+                  <ReceiptText size={12} /> View receipt
+                </span>
+              </a>
+            )}
+
+            <p className="text-[10px] text-ink-light flex items-center gap-1">
+              <Clock size={11} /> Added {format(new Date(expense.created_at), "MMM d, yyyy 'at' h:mm a")}
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Context menu (long-press / right-click): Edit · Duplicate · Details · Delete */}
+      {menu &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label="Expense actions"
+            className="fixed z-[80] w-44 paper-card shadow-xl border border-[rgba(0,0,0,0.08)] overflow-hidden menu-pop"
+            style={{ left: menu.x, top: menu.y }}
+          >
+            <button
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                menuAction("edit");
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-ink-dark hover:bg-paper-dark transition-colors cursor-pointer"
+            >
+              <Edit2 size={14} className="text-ink-light" /> Edit
+            </button>
+            <button
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                menuAction("duplicate");
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-ink-dark hover:bg-paper-dark transition-colors cursor-pointer"
+            >
+              <Copy size={14} className="text-ink-light" /> Duplicate
+            </button>
+            <button
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                menuAction("details");
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-ink-dark hover:bg-paper-dark transition-colors cursor-pointer"
+            >
+              <Eye size={14} className="text-ink-light" /> View details
+            </button>
+            <div className="h-px bg-[rgba(0,0,0,0.06)]" />
+            <button
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                menuAction("delete");
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-accent-red hover:bg-accent-red/10 transition-colors cursor-pointer"
+            >
+              <Trash2 size={14} /> Delete
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 });

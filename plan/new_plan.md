@@ -280,30 +280,30 @@
 ## Phase 19: Expense List UX Improvements
 
 ### 19.1 Grouping & Sorting
-- [ ] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18") (grouped by date with day headers already; headers not sticky, no Today/Yesterday labels)
+- [x] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18") (day headers now sticky (top-2, paper tab w/ shadow) while their group is in view; Today/Yesterday labels with full date subtitle)
 - [x] Show daily subtotals in the date header ("Total: X" under each day header)
-- [ ] Sort options: Newest first, Oldest first, Highest amount, Lowest amount
-- [ ] Sort toggle button in the filter bar
+- [x] Sort options: Newest first, Oldest first, Highest amount, Lowest amount (amount sorts order day groups by daily total; ties newer-first)
+- [x] Sort toggle button in the filter bar (icon dropdown select next to category filter)
 
 ### 19.2 Inline Actions
 - [x] Swipe to delete on mobile (done in Phase 11 via `ExpenseRow`)
-- [ ] Long press for context menu (Edit, Delete, Duplicate, View details)
-- [ ] Tap on expense → expand to show full details (note, receipt, category color)
-- [ ] Double-tap on expense → quick edit amount inline
+- [x] Long press for context menu (Edit, Delete, Duplicate, View details) (500ms hold opens portal menu at press point; right-click opens it on desktop; outside tap/scroll/Esc closes)
+- [x] Tap on expense → expand to show full details (note, receipt, category color) (tap toggles detail panel: colored category chip, type badge, note in handwritten style, receipt thumbnail/link, added timestamp)
+- [x] Double-tap on expense → quick edit amount inline (300ms double-tap/double-click opens number input in the row; Enter/✓/blur saves via `updateExpense`, Esc/✕ cancels)
 
 ### 19.3 Search UX
-- [ ] Search bar with magnifying glass icon and clear button (icon exists; no clear button)
-- [ ] Search as you type (debounced 300ms) (search is instant, un-debounced)
-- [ ] Show result count: "Found 12 expenses"
-- [ ] Highlight matching text in results
-- [ ] Recent searches dropdown when search is focused
+- [x] Search bar with magnifying glass icon and clear button (✕ button replaces the Ctrl K hint while typing; clears input + committed term and refocuses)
+- [x] Search as you type (debounced 300ms) (`searchInput` raw vs `search` debounced/trimmed committed value used by filters)
+- [x] Show result count: "Found 12 expenses" (with "matching …" when searching; aria-live polite)
+- [x] Highlight matching text in results (`HighlightMatch` wraps first case-insensitive occurrence in accent `<mark>` inside expense names)
+- [x] Recent searches dropdown when search is focused (max 5, localStorage `recent_searches_v1`, dedupe case-insensitive; header with Clear-all; rows fill the query)
 - [x] Empty search state: "No expenses match your search" ("Nothing matches your current search or filters." + Clear filters button)
 
 ### 19.4 Filter UX
 - [x] Filter chips with visual feedback (colored borders when active) (active chips get solid accent background + white text)
-- [ ] Active filter count badge: "3 filters active"
-- [ ] "Clear all filters" button when any filter is active (only shown in the empty state, not in the filter bar)
-- [ ] Filter bar should be sticky on scroll
+- [x] Active filter count badge: "3 filters active" (counts search + category + date range; warm pill in quick-filter row)
+- [x] "Clear all filters" button when any filter is active (now shown in the filter bar next to the badge, not just the empty state)
+- [x] Filter bar should be sticky on scroll (sticky top-2 opaque paper card z-40; day headers park below it via measured bar height w/ ResizeObserver)
 
 ---
 
