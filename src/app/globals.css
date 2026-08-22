@@ -331,6 +331,16 @@ body {
   background: rgba(0,0,0,0.25);
 }
 
+/* Hidden scrollbar for horizontally-scrolling filter strips */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Transitions */
 .transition-page {
   transition: all 0.2s ease;
@@ -354,6 +364,19 @@ body {
 }
 .toast-enter {
   animation: toast-in 0.25s ease-out;
+}
+
+/* Popover / menu entrance — anchored below its trigger (search recents, context menus).
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes menuIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .menu-in {
+    animation: menuIn 0.16s ease-out both;
+    transform-origin: top;
+  }
 }
 
 /* Skeleton shimmer (sweeping highlight over paper-dark base) */

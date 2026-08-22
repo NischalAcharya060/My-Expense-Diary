@@ -305,6 +305,19 @@
 - [x] "Clear all filters" button when any filter is active (now shown in the filter bar next to the badge, not just the empty state)
 - [x] Filter bar should be sticky on scroll (sticky top-2 opaque paper card z-40; day headers park below it via measured bar height w/ ResizeObserver)
 
+### 19.5 Search & Filter Polish (mobile-first refinement)
+- [x] Slim sticky mode: bar collapses when stuck (sentinel + IntersectionObserver hides the date-chip row and tightens padding; ResizeObserver keeps day-header offsets in sync); floating count bubble appears when stuck w/ active filters — tap scrolls back to full bar
+- [x] Mobile layout: category + sort selects sit side-by-side (grid-cols-2) instead of stacked full-width; search field taller tap target (py-2.5) with focus ring
+- [x] Date chips: horizontally scrollable strip (no-scrollbar utility + right-edge fade affordance) instead of multi-row wrap; pill-shaped chips with bigger tap targets; badge/Reset labels shorten on small screens
+- [x] Result count now includes day span ("Found 12 expenses across 5 days"); row edit/delete buttons get larger touch targets on mobile
+
+### 19.6 Search & Filter Redesign (UI/UX Pro Max audit fixes)
+- [x] Unified control scale: shared CONTROL_CLS — all controls h-11 (mobile) / h-10 (desktop), rounded-lg, visible focus-visible ring (accent-warm border + ring-accent-warm/25); selects use appearance-none + custom ChevronDown for consistent styling across browsers
+- [x] Recents popover rebuilt: menu-in entrance animation (reduced-motion aware, also reused by ExpenseRow context menu, replacing nonexistent .menu-pop class), rounded-xl + shadow-xl elevation, 384px desktop panel, per-row ✕ remove buttons (writes through to localStorage), Clear all in header, hover/keyboard highlight sync (↑/↓ to navigate, Enter picks, Esc closes popover first then blurs field)
+- [x] Date chips: 36px-tall pill buttons via CHIP_BASE_CLS with aria-pressed state, active chips keep identical height (border-transparent instead of removed border), active:scale-95 press feedback; custom range date inputs restyled to matching h-9 scale; clear-date button is a proper 36px hit area
+- [x] Badge/Reset: taller badge (h-7), Reset button promoted to a 36px target with press feedback and red focus ring
+- [x] Mobile Filters toggle: category/sort selects + date-chip strip collapse behind a "Filters" button (sm:hidden) beside the search field; button shows active-filter count badge, fills warm when expanded, and panels animate in via menu-in; desktop unaffected (sm:flex / sm:contents keep everything visible)
+
 ---
 
 ## Phase 20: Bills & Subscriptions UX

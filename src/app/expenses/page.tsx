@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, memo, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText } from "lucide-react";
+import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useExpenses, useCategories } from "@/lib/store";
@@ -32,6 +32,19 @@ const SORT_LABELS: Record<SortMode, string> = {
   highest: "Highest amount",
   lowest: "Lowest amount",
 };
+
+/* Shared styling for every filter-bar control — one height scale, radius scale,
+   and visible focus ring so the bar reads as a single component (44px touch
+   targets on mobile, compact 40px on desktop). */
+const CONTROL_CLS =
+  "bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-lg text-sm text-ink-dark placeholder:text-ink-light/40 transition-colors cursor-pointer focus:outline-none focus-visible:border-accent-warm focus-visible:ring-2 focus-visible:ring-accent-warm/25";
+
+const CHIP_BASE_CLS =
+  "shrink-0 whitespace-nowrap inline-flex items-center justify-center h-9 px-4 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-warm/40";
+
+const CHIP_ACTIVE_CLS = "bg-accent-warm text-white shadow-sm border border-transparent";
+const CHIP_IDLE_CLS =
+  "bg-paper-bg text-ink-medium hover:text-ink-dark hover:border-accent-warm/50 border border-[rgba(0,0,0,0.07)]";
 
 /** Human-friendly day header: Today / Yesterday, otherwise "Monday, Aug 18". */
 function getDateLabel(dateStr: string, todayStr: string): string {
@@ -63,6 +76,7 @@ function ExpensesPageInner() {
   const [search, setSearch] = useState(""); // debounced committed query used by filters
   const [recentSearches, setRecentSearches] = useState<string[]>(loadRecentSearches);
   const [recentsOpen, setRecentsOpen] = useState(false);
+  const [activeRecent, setActiveRecent] = useState(-1);
   const [filterBarHeight, setFilterBarHeight] = useState(0);
   const [filterCategory, setFilterCategory] = useState("All");
   const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
@@ -74,6 +88,7 @@ function ExpensesPageInner() {
   const [pagination, setPagination] = useState<{ key: string; days: number }>({ key: "", days: PAGE_SIZE });
   const searchParams = useSearchParams();
   const filterBarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
 
@@ -118,8 +133,64 @@ function ExpensesPageInner() {
     return () => ro.disconnect();
   }, []);
 
+  // Detect when the sticky filter bar is stuck so it can collapse to a slim bar.
+  const filterSentinelRef = useRef<HTMLDivElement>(null);
+  const [filterStuck, setFilterStuck] = useState(false);
+  // On small screens the filter controls collapse behind a "Filters" toggle button.
+  // Desktop ignores this state (sm:flex forces the panels visible).
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  useEffect(() => {
+    const el = filterSentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setFilterStuck(!entry.isIntersecting));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  /* ---------- recent searches helpers ---------- */
+
+  const persistRecents = useCallback((next: string[]) => {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+    } catch {
+      // storage unavailable or full — recent-search writes are best-effort
+    }
+  }, []);
+
+  const selectRecent = useCallback(
+    (q: string) => {
+      setSearchInput(q);
+      setSearch(q);
+      setActiveRecent(-1);
+      setRecentsOpen(false);
+      searchInputRef.current?.focus();
+    },
+    []
+  );
+
+  const removeRecent = useCallback(
+    (q: string) => {
+      setRecentSearches((prev) => {
+        const next = prev.filter((s) => s !== q);
+        persistRecents(next);
+        return next;
+      });
+      setActiveRecent(-1);
+    },
+    [persistRecents]
+  );
+
+  const clearAllRecents = useCallback(() => {
+    setRecentSearches([]);
+    setActiveRecent(-1);
+    try {
+      localStorage.removeItem(RECENT_SEARCHES_KEY);
+    } catch {
+      // ignore storage errors — list is already cleared in state
+    }
+  }, []);
+
   // Ctrl/Cmd+K toggles focus on the search bar from anywhere.
-  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -325,7 +396,7 @@ function ExpensesPageInner() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
           <div className="flex items-center gap-1">
@@ -343,22 +414,34 @@ function ExpensesPageInner() {
           </button>
         </div>
 
-        {/* Search & Filter bar (sticky on scroll) */}
+        {/* Sticky sentinel — lets us know when the filter bar is stuck */}
+        <div ref={filterSentinelRef} aria-hidden className="h-px -mb-px" />
+
+        {/* Search & Filter bar (sticky on scroll; collapses to a slim bar while stuck) */}
         <div
           ref={filterBarRef}
-          className="sticky top-2 z-40 mb-6 p-3 rounded-lg bg-paper-bg border border-[rgba(0,0,0,0.06)] shadow-sm"
+          className={`sticky top-2 z-40 mb-6 rounded-lg bg-paper-bg border border-[rgba(0,0,0,0.06)] transition-all duration-200 ${
+            filterStuck ? "px-3 py-1.5 shadow-md" : "p-3 shadow-sm"
+          }`}
         >
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div
-              className="relative flex-1"
-              onFocus={() => setRecentsOpen(true)}
-              onBlur={(e) => {
-                if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
-                  setRecentsOpen(false);
-                }
-              }}
-            >
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {/* Search + mobile Filters toggle — sm:contents lets the search field rejoin
+                the desktop flex row while the toggle disappears */}
+            <div className="flex items-stretch gap-2 sm:contents">
+              <div
+                className="relative flex-1 min-w-0"
+                onFocus={() => {
+                  setRecentsOpen(true);
+                  setActiveRecent(-1);
+                }}
+                onBlur={(e) => {
+                  if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+                    setRecentsOpen(false);
+                    setActiveRecent(-1);
+                  }
+                }}
+              >
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -366,14 +449,35 @@ function ExpensesPageInner() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => {
+                  const recentsVisible = recentsOpen && !searchInput.trim() && recentSearches.length > 0;
                   if (e.key === "Escape") {
-                    setRecentsOpen(false);
-                    e.currentTarget.blur();
+                    // First Esc closes the recents popover, second leaves the field.
+                    if (recentsVisible) {
+                      setRecentsOpen(false);
+                    } else {
+                      e.currentTarget.blur();
+                    }
+                    return;
+                  }
+                  if (!recentsVisible) {
+                    if (e.key === "Enter") setSearch(searchInput.trim());
+                    return;
+                  }
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveRecent((i) => Math.min(i + 1, recentSearches.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveRecent((i) => Math.max(i - 1, -1));
+                  } else if (e.key === "Enter" && activeRecent >= 0) {
+                    e.preventDefault();
+                    selectRecent(recentSearches[activeRecent]);
                   }
                 }}
                 aria-label="Search expenses"
                 autoComplete="off"
-                className="w-full pl-9 pr-9 sm:pr-16 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
+                enterKeyHint="search"
+                className={`${CONTROL_CLS} w-full h-11 sm:h-10 pl-10 pr-10 sm:pr-16`}
               />
               {/* Clear button — replaces the Ctrl K hint while typing */}
               {searchInput.trim() ? (
@@ -382,18 +486,19 @@ function ExpensesPageInner() {
                   onClick={() => {
                     setSearchInput("");
                     setSearch("");
+                    setActiveRecent(-1);
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ink-light hover:text-accent-red hover:bg-paper-dark transition-colors cursor-pointer"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 grid place-items-center w-8 h-8 rounded-full text-ink-light hover:text-accent-red hover:bg-paper-dark active:scale-90 transition-all cursor-pointer"
                   aria-label="Clear search"
                 >
-                  <X size={14} />
+                  <X size={15} />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.select(); }}
-                  className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 items-center text-[10px] text-ink-light bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded px-1.5 py-0.5 font-sans hover:text-accent-warm hover:border-accent-warm/40 transition-colors cursor-pointer"
+                  className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 h-6 items-center text-[10px] text-ink-light bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded px-1.5 font-sans hover:text-accent-warm hover:border-accent-warm/40 transition-colors cursor-pointer"
                   aria-label="Focus search (Ctrl+K)"
                   title="Press Ctrl+K to jump to search from anywhere"
                 >
@@ -401,152 +506,234 @@ function ExpensesPageInner() {
                 </button>
               )}
 
-              {/* Recent searches dropdown */}
-              {recentsOpen && recentSearches.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 paper-card shadow-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-paper-dark/50 border-b border-[rgba(0,0,0,0.05)]">
-                    <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-light">Recent searches</span>
+              {/* Recent searches popover — full-width sheet on mobile, compact 384px panel on desktop.
+                  Only shown on an empty input so it never sprawls over live results.
+                  Keyboard: ↑/↓ to highlight, Enter to pick, Esc to dismiss. */}
+              {recentsOpen && !searchInput.trim() && recentSearches.length > 0 && (
+                <div className="menu-in absolute left-0 top-full mt-2 w-full sm:w-96 z-50 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-xl shadow-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-paper-dark/60 border-b border-[rgba(0,0,0,0.05)]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-light">Recent searches</span>
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setRecentSearches([]);
-                        try {
-                          localStorage.removeItem(RECENT_SEARCHES_KEY);
-                        } catch {
-                          // ignore storage errors — list is already cleared in state
-                        }
-                      }}
-                      className="text-[10px] text-ink-light hover:text-accent-red transition-colors cursor-pointer"
+                      onClick={clearAllRecents}
+                      className="text-[11px] font-medium text-ink-light hover:text-accent-red px-2 py-1 rounded-md hover:bg-accent-red/10 transition-colors cursor-pointer"
                     >
-                      Clear
+                      Clear all
                     </button>
                   </div>
-                  {recentSearches.map((q) => (
+                  <div className="max-h-[264px] overflow-y-auto py-1">
+                    {recentSearches.map((q, i) => (
+                      <div
+                        key={q}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectRecent(q)}
+                        onMouseEnter={() => setActiveRecent(i)}
+                        className={`w-full flex items-center gap-3 pl-4 pr-2.5 py-1 cursor-pointer transition-colors ${
+                          i === activeRecent ? "bg-paper-dark" : ""
+                        }`}
+                      >
+                        <Clock size={14} className="text-ink-light shrink-0" />
+                        <span className={`flex-1 truncate text-sm py-2 ${i === activeRecent ? "text-ink-dark font-medium" : "text-ink-dark"}`}>
+                          {q}
+                        </span>
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          aria-label={`Remove “${q}” from recent searches`}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeRecent(q);
+                          }}
+                          className="grid place-items-center w-8 h-8 rounded-full text-ink-light/70 hover:text-accent-red hover:bg-accent-red/10 active:scale-90 transition-all cursor-pointer shrink-0"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              </div>
+
+              {/* Mobile-only Filters toggle — collapses the selects + date-chip panels.
+                  Shows the active-filter count so hidden filters stay discoverable. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFiltersExpanded((v) => !v);
+                  hapticFeedback();
+                }}
+                aria-expanded={filtersExpanded}
+                aria-controls="expenses-filter-panel"
+                title={filtersExpanded ? "Hide filters" : "Show filters"}
+                className={`sm:hidden shrink-0 inline-flex items-center justify-center gap-1.5 h-11 px-3.5 rounded-lg text-sm font-medium cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-warm/40 transition-all duration-150 active:scale-95 ${
+                  filtersExpanded
+                    ? "bg-accent-warm text-white border border-transparent shadow-sm"
+                    : "bg-paper-bg text-ink-dark border border-[rgba(0,0,0,0.08)] hover:border-accent-warm/50"
+                }`}
+              >
+                <SlidersHorizontal size={15} />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span
+                    className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ${
+                      filtersExpanded ? "bg-white text-accent-warm" : "bg-accent-warm text-white"
+                    }`}
+                  >
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
+            {/* Category + Sort — side by side on small screens instead of stacked.
+                Collapsed behind the Filters toggle on mobile; always visible on desktop. */}
+            <div
+              id="expenses-filter-panel"
+              className={`menu-in ${filtersExpanded ? "grid" : "hidden"} sm:flex grid-cols-2 gap-2 sm:gap-3`}
+            >
+              <div className="relative min-w-0">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  aria-label="Filter by category"
+                  className={`${CONTROL_CLS} w-full sm:w-auto sm:flex-none h-11 sm:h-10 pl-3.5 pr-9 appearance-none truncate`}
+                >
+                  <option value="All">All Categories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-light" />
+              </div>
+              {/* Sort toggle */}
+              <div className="relative min-w-0">
+                <ArrowDownUp size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortMode)}
+                  aria-label="Sort expenses"
+                  title={`Sorted by ${SORT_LABELS[sortBy].toLowerCase()}`}
+                  className={`${CONTROL_CLS} w-full sm:w-auto h-11 sm:h-10 pl-9 pr-9 appearance-none truncate`}
+                >
+                  {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+                    <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-light" />
+              </div>
+            </div>
+          </div>
+          {/* Date range quick filters — horizontally scrollable strip, hidden while the bar is stuck.
+              Also collapsed behind the Filters toggle on mobile. */}
+          {!filterStuck && (
+            <div className={`menu-in ${filtersExpanded ? "flex" : "hidden"} sm:flex items-center gap-2 mt-2.5`}>
+              <CalendarDays size={14} className="text-ink-light shrink-0" />
+              <div className="relative flex-1 min-w-0">
+                <div
+                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-0.5 py-0.5"
+                  aria-label="Quick date filters"
+                >
+                  {["All", "Today", "This Week", "This Month", "Last 30 Days"].map((f) => (
                     <button
-                      key={q}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setSearchInput(q);
-                        setSearch(q);
-                        setRecentsOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left text-ink-dark hover:bg-paper-dark transition-colors cursor-pointer"
+                      key={f}
+                      onClick={() => applyQuickFilter(f)}
+                      aria-pressed={quickFilter === f}
+                      className={`${CHIP_BASE_CLS} ${quickFilter === f ? CHIP_ACTIVE_CLS : CHIP_IDLE_CLS}`}
                     >
-                      <Clock size={12} className="text-ink-light shrink-0" />
-                      <span className="truncate">{q}</span>
+                      {f}
                     </button>
                   ))}
+                  <button
+                    onClick={() => {
+                      setQuickFilter("Custom");
+                      if (!dateRange) setDateRange({ start: format(subDays(today, 30), "yyyy-MM-dd"), end: todayStr });
+                    }}
+                    aria-pressed={quickFilter === "Custom"}
+                    className={`${CHIP_BASE_CLS} ${quickFilter === "Custom" ? CHIP_ACTIVE_CLS : CHIP_IDLE_CLS}`}
+                  >
+                    Custom
+                  </button>
+                  {quickFilter === "Custom" && (
+                    <>
+                      <input
+                        type="date"
+                        value={dateRange?.start || ""}
+                        onChange={(e) => setDateRange((prev) => ({ start: e.target.value, end: prev?.end || todayStr }))}
+                        aria-label="Custom range start date"
+                        className={`shrink-0 h-9 px-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-lg text-xs text-ink-dark focus:outline-none focus-visible:border-accent-warm focus-visible:ring-2 focus-visible:ring-accent-warm/25 transition-colors w-[132px]`}
+                      />
+                      <span className="shrink-0 text-[10px] text-ink-light">to</span>
+                      <input
+                        type="date"
+                        value={dateRange?.end || ""}
+                        onChange={(e) => setDateRange((prev) => ({ start: prev?.start || todayStr, end: e.target.value }))}
+                        aria-label="Custom range end date"
+                        className={`shrink-0 h-9 px-2.5 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-lg text-xs text-ink-dark focus:outline-none focus-visible:border-accent-warm focus-visible:ring-2 focus-visible:ring-accent-warm/25 transition-colors w-[132px]`}
+                      />
+                    </>
+                  )}
+                  {dateRange && (
+                    <button
+                      onClick={() => { setDateRange(null); setQuickFilter("All"); }}
+                      className="shrink-0 grid place-items-center w-9 h-9 rounded-full hover:bg-paper-dark text-ink-light hover:text-accent-red active:scale-90 transition-all cursor-pointer"
+                      aria-label="Clear date filter"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                {/* Scroll affordance fade on the right edge */}
+                <div
+                  className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-paper-bg/90 to-transparent rounded-r-md"
+                  aria-hidden="true"
+                />
+              </div>
+              {/* Active filter count + clear-all */}
+              {activeFilterCount > 0 && (
+                <div className="shrink-0 flex items-center gap-2 pl-0.5">
+                  <span
+                    className="inline-flex items-center h-7 px-2.5 rounded-full text-[11px] font-semibold bg-accent-warm/15 text-accent-warm border border-accent-warm/30 whitespace-nowrap"
+                    title={`${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active`}
+                  >
+                    {activeFilterCount}
+                    {" "}
+                    <span className="hidden sm:inline">filter{activeFilterCount === 1 ? "" : "s"} active</span>
+                    <span className="sm:hidden">active</span>
+                  </span>
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 h-9 px-3.5 rounded-full text-xs font-medium text-accent-red hover:bg-accent-red/10 active:scale-95 transition-all cursor-pointer whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-red/40"
+                    aria-label="Clear all filters"
+                  >
+                    <X size={13} />
+                    <span className="hidden sm:inline">Clear all filters</span>
+                    <span className="sm:hidden">Reset</span>
+                  </button>
                 </div>
               )}
             </div>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
-            >
-              <option value="All">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.name}>{c.icon} {c.name}</option>
-              ))}
-            </select>
-            {/* Sort toggle */}
-            <div className="relative">
-              <ArrowDownUp size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-light pointer-events-none" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortMode)}
-                aria-label="Sort expenses"
-                title={`Sorted by ${SORT_LABELS[sortBy].toLowerCase()}`}
-                className="pl-8 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark focus:outline-none focus:border-accent-warm transition-colors cursor-pointer"
-              >
-                {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
-                  <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {/* Date range quick filters */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <CalendarDays size={14} className="text-ink-light shrink-0" />
-            {["All", "Today", "This Week", "This Month", "Last 30 Days"].map((f) => (
-              <button
-                key={f}
-                onClick={() => applyQuickFilter(f)}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
-                  quickFilter === f
-                    ? "bg-accent-warm text-white"
-                    : "bg-paper-bg text-ink-medium hover:text-ink-dark border border-[rgba(0,0,0,0.06)]"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-            {quickFilter === "Custom" && (
-              <>
-                <input
-                  type="date"
-                  value={dateRange?.start || ""}
-                  onChange={(e) => setDateRange((prev) => ({ start: e.target.value, end: prev?.end || todayStr }))}
-                  className="px-2 py-1 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-[11px] text-ink-dark focus:outline-none focus:border-accent-warm"
-                />
-                <span className="text-[10px] text-ink-light">to</span>
-                <input
-                  type="date"
-                  value={dateRange?.end || ""}
-                  onChange={(e) => setDateRange((prev) => ({ start: prev?.start || todayStr, end: e.target.value }))}
-                  className="px-2 py-1 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded text-[11px] text-ink-dark focus:outline-none focus:border-accent-warm"
-                />
-              </>
-            )}
+          )}
+
+          {/* Compact active-filter indicator while the bar is stuck — tap to jump back to full filters */}
+          {filterStuck && activeFilterCount > 0 && (
             <button
-              onClick={() => {
-                setQuickFilter("Custom");
-                if (!dateRange) setDateRange({ start: format(subDays(today, 30), "yyyy-MM-dd"), end: todayStr });
-              }}
-              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
-                quickFilter === "Custom"
-                  ? "bg-accent-warm text-white"
-                  : "bg-paper-bg text-ink-medium hover:text-ink-dark border border-[rgba(0,0,0,0.06)]"
-              }`}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-accent-warm text-white text-[10px] font-bold shadow-md flex items-center justify-center cursor-pointer"
+              title={`${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active — tap to edit`}
+              aria-label={`${activeFilterCount} filters active, scroll to top to edit`}
             >
-              Custom
+              {activeFilterCount}
             </button>
-            {dateRange && (
-              <button
-                onClick={() => { setDateRange(null); setQuickFilter("All"); }}
-                className="p-1 rounded hover:bg-paper-dark text-ink-light hover:text-accent-red cursor-pointer"
-                aria-label="Clear date filter"
-              >
-                <X size={14} />
-              </button>
-            )}
-            {/* Active filter count + clear-all */}
-            {activeFilterCount > 0 && (
-              <div className="ml-auto flex items-center gap-1.5">
-                <span
-                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-warm/15 text-accent-warm border border-accent-warm/30 whitespace-nowrap"
-                  title={`${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active`}
-                >
-                  {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"} active
-                </span>
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-accent-red hover:bg-accent-red/10 transition-colors cursor-pointer whitespace-nowrap"
-                  aria-label="Clear all filters"
-                >
-                  <X size={11} /> Clear all filters
-                </button>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Result count */}
         {groupEntries.length > 0 && (
           <p className="-mt-2 mb-3 text-[11px] text-ink-light" role="status" aria-live="polite">
             Found {filtered.length} expense{filtered.length === 1 ? "" : "s"}
+            {" "}across {groupEntries.length} day{groupEntries.length === 1 ? "" : "s"}
             {search.trim() ? (
               <> matching “<span className="text-ink-dark font-medium">{search.trim()}</span>”</>
             ) : null}
@@ -1068,7 +1255,7 @@ const ExpenseRow = memo(function ExpenseRow({
                   e.stopPropagation();
                   onEdit(expense);
                 }}
-                className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                className="p-2 sm:p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                 aria-label="Edit"
               >
                 <Edit2 size={13} />
@@ -1078,7 +1265,7 @@ const ExpenseRow = memo(function ExpenseRow({
                   e.stopPropagation();
                   onDelete(expense.id);
                 }}
-                className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                className="p-2 sm:p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all opacity-60 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                 aria-label="Delete"
               >
                 <Trash2 size={13} />
@@ -1161,7 +1348,7 @@ const ExpenseRow = memo(function ExpenseRow({
             ref={menuRef}
             role="menu"
             aria-label="Expense actions"
-            className="fixed z-[80] w-44 paper-card shadow-xl border border-[rgba(0,0,0,0.08)] overflow-hidden menu-pop"
+            className="fixed z-[80] w-44 paper-card shadow-xl border border-[rgba(0,0,0,0.08)] overflow-hidden menu-in"
             style={{ left: menu.x, top: menu.y }}
           >
             <button
