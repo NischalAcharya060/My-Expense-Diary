@@ -280,8 +280,8 @@
 ## Phase 19: Expense List UX Improvements
 
 ### 19.1 Grouping & Sorting
-- [ ] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18")
-- [ ] Show daily subtotals in the date header
+- [ ] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18") (grouped by date with day headers already; headers not sticky, no Today/Yesterday labels)
+- [x] Show daily subtotals in the date header ("Total: X" under each day header)
 - [ ] Sort options: Newest first, Oldest first, Highest amount, Lowest amount
 - [ ] Sort toggle button in the filter bar
 
@@ -292,17 +292,17 @@
 - [ ] Double-tap on expense → quick edit amount inline
 
 ### 19.3 Search UX
-- [ ] Search bar with magnifying glass icon and clear button
-- [ ] Search as you type (debounced 300ms)
+- [ ] Search bar with magnifying glass icon and clear button (icon exists; no clear button)
+- [ ] Search as you type (debounced 300ms) (search is instant, un-debounced)
 - [ ] Show result count: "Found 12 expenses"
 - [ ] Highlight matching text in results
 - [ ] Recent searches dropdown when search is focused
-- [ ] Empty search state: "No expenses match your search"
+- [x] Empty search state: "No expenses match your search" ("Nothing matches your current search or filters." + Clear filters button)
 
 ### 19.4 Filter UX
-- [ ] Filter chips with visual feedback (colored borders when active)
+- [x] Filter chips with visual feedback (colored borders when active) (active chips get solid accent background + white text)
 - [ ] Active filter count badge: "3 filters active"
-- [ ] "Clear all filters" button when any filter is active
+- [ ] "Clear all filters" button when any filter is active (only shown in the empty state, not in the filter bar)
 - [ ] Filter bar should be sticky on scroll
 
 ---
@@ -310,19 +310,19 @@
 ## Phase 20: Bills & Subscriptions UX
 
 ### 20.1 Visual Status Cards
-- [ ] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge
+- [ ] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge (red border + red "Overdue since ..." text exist; no pulsing dot or badge)
 - [ ] Due today: Orange left border + "DUE TODAY" badge
-- [ ] Upcoming: Blue left border + countdown badge
-- [ ] Paid: Green left border + checkmark + strikethrough name
+- [x] Upcoming: Blue left border + countdown badge (blue border + "(X days left)" inline countdown)
+- [x] Paid: Green left border + checkmark + strikethrough name (green border, strikethrough name, green "Paid" pill; CheckCircle2 on section header)
 
 ### 20.2 Pay Flow
-- [ ] "Pay Now" button opens a confirmation modal (not instant)
+- [ ] "Pay Now" button opens a confirmation modal (not instant) (fixed-amount bills pay instantly; variable bills open the amount modal)
 - [ ] Show payment summary before confirming: Name, Amount, Date, Method
-- [ ] After payment: Green checkmark animation + toast
-- [ ] Show "All bills paid! 🎉" celebration when all monthly bills are settled
+- [ ] After payment: Green checkmark animation + toast (toast exists, no animation)
+- [x] Show "All bills paid! 🎉" celebration when all monthly bills are settled (Confetti component + green banner + toast)
 
 ### 20.3 Subscription Health
-- [ ] Show monthly subscription total prominently
+- [x] Show monthly subscription total prominently ("Monthly Total" overview stat card)
 - [ ] Show "You spend $X/month on subscriptions" with comparison to income
 - [ ] Flag unused subscriptions: "Haven't used in 30 days" warning
 - [ ] Suggest canceling expensive subscriptions (UX hint, not actual cancel)
@@ -332,15 +332,15 @@
 ## Phase 21: Notes & Journal UX
 
 ### 21.1 Rich Note Creation
-- [ ] Drag-and-drop color picker for sticky notes (instead of dropdown)
-- [ ] Pin note to top with visual "pin" animation
+- [ ] Drag-and-drop color picker for sticky notes (instead of dropdown) (color swatches exist, not drag-and-drop)
+- [x] Pin note to top with visual "pin" animation (Pin/PinOff toggle buttons + pinned indicator; pinned sorted first)
 - [ ] Notes should auto-resize as content grows
 - [ ] Show character count / word count at bottom of note
 
 ### 21.2 Note Organization
-- [ ] Pinned notes always at top with a subtle "📌" indicator
-- [ ] Sort by: Last edited, Created date, Color
-- [ ] Grid layout on desktop, list on mobile
+- [x] Pinned notes always at top with a subtle "📌" indicator (pinned-first sort + indicator on card)
+- [ ] Sort by: Last edited, Created date, Color (fixed: pinned first then last-edited; no user-facing sort options)
+- [x] Grid layout on desktop, list on mobile (`grid-cols-1 sm:grid-cols-2`)
 - [ ] Masonry layout option for notes (Pinterest-style)
 
 ### 21.3 Note-to-Expense Link
@@ -353,13 +353,13 @@
 ## Phase 22: Calendar UX Improvements
 
 ### 22.1 Day Detail Panel
-- [ ] Tapping a day opens a slide-in panel from right (not a new page)
-- [ ] Panel shows: Date, total, list of expenses, "Add Expense" button for that date
+- [ ] Tapping a day opens a slide-in panel from right (not a new page) (tap shows an inline detail card below the grid instead of a slide-in panel)
+- [x] Panel shows: Date, total, list of expenses, "Add Expense" button for that date (inline card shows date, expense list with delete, daily total)
 - [ ] Swipe panel left/right to navigate to previous/next day
 
 ### 22.2 Visual Indicators
 - [x] Days with expenses: Show dot indicator with color matching top category (implemented as category icons per day)
-- [ ] Days with high spending: Show red dot
+- [ ] Days with high spending: Show red dot (all expense days show red amount text; not threshold-based)
 - [x] Today: Highlight with ring/border (already implemented)
 - [ ] Days with no expenses: Subtle gray dot or no indicator
 
@@ -373,19 +373,19 @@
 ## Phase 23: Settings & Profile UX
 
 ### 23.1 Settings Organization
-- [ ] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account"
+- [x] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account" (already separate paper-cards: Appearance, Country & Currency, Budget, Data Overview, Export Data, Danger Zone)
 - [ ] Each section collapsible
 - [ ] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active")
 
 ### 23.2 Profile Improvements
-- [ ] Avatar picker with preview (current implementation is basic)
+- [x] Avatar picker with preview (current avatar preview + selection grid with ring highlight; Google/custom options)
 - [ ] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked"
 - [ ] Account deletion option (with strong confirmation)
 
 ### 23.3 Data Management
 - [x] Export as CSV with date range picker (done in Phase 6.3)
-- [ ] Export as PDF report with charts
-- [ ] Import preview: Show what will be imported before confirming
+- [ ] Export as PDF report with charts (jsPDF table export exists; no charts included)
+- [ ] Import preview: Show what will be imported before confirming (JSON import applies directly without preview)
 - [ ] "Clear all data" requires typing "DELETE ALL" to confirm
 
 ---
@@ -402,7 +402,7 @@
 ## Phase 25: Insights & Analytics UX
 
 ### 25.1 Interactive Charts
-- [ ] Tap on pie chart segment → filter expense list to that category
+- [ ] Tap on pie chart segment → filter expense list to that category (hover tooltips exist via recharts CustomTooltip; no tap interactions)
 - [ ] Tap on bar chart bar → navigate to that month's expenses
 - [ ] Long press on chart → show tooltip with exact values
 - [ ] Pinch to zoom on area chart
@@ -413,7 +413,7 @@
 - [ ] Charts should animate when range changes
 
 ### 25.3 Comparison Views
-- [ ] Month-over-month comparison: "You spent 15% less than last month"
+- [ ] Month-over-month comparison: "You spent 15% less than last month" (6-month MonthlyComparisonBar chart exists; no textual comparisons)
 - [ ] Category comparison: "Food spending increased by 20%"
 - [ ] Show trend arrows and percentages on all comparison cards
 
@@ -476,7 +476,7 @@ Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE
 Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility) — DONE
 Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add)
 Week 4:   Phase 6 (Income + Categories + CSV + Date Filter) — DONE
-Week 5:   Phase 16 (Micro-interactions) + Phase 17 (Navigation)
+Week 5:   Phase 16 (Micro-interactions) + Phase 17 (Navigation) — DONE
 Week 6:   Phase 19 (Expense List UX)
 Week 7:   Phase 20 (Bills UX) + Phase 21 (Notes UX) + Phase 22 (Calendar UX)
 Week 8:   Phase 23 (Settings UX) + Phase 24 (Mobile UX)
@@ -527,8 +527,8 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 
 | File | Changes | Status |
 |---|---|---|
-| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | |
-| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | |
+| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | PARTIAL (income display + empty-state CTA done; dashboard charts not) |
+| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | DONE (Phase 6.3/15) |
 | `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | DONE |
 | ~~`src/app/recurring/page.tsx`~~ | Page removed (replaced by /bills) | REMOVED |
 | `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE |
@@ -540,7 +540,7 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/app/login/page.tsx` | Dark mode Google button fix | DONE |
 | `src/app/layout.tsx` | Skip-to-content link | DONE |
 | `src/components/Sidebar.tsx` | Add Income + Categories links | DONE |
-| `src/components/ConfirmDialog.tsx` | Add loading spinner animation | |
+| `src/components/ConfirmDialog.tsx` | Add loading spinner animation | PARTIAL (loading state disables buttons + "Deleting..." text; no spinner icon) |
 | `src/components/Toast.tsx` | Fix position conflict with ThemeToggle | DONE |
 | `src/components/ThemeToggle.tsx` | Fix position conflict with Toast | DONE |
 | `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure | DONE |
