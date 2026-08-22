@@ -5,10 +5,11 @@ import { createPortal } from "react-dom";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useExpenses, useCategories } from "@/lib/store";
+import { useExpenses, useCategories, useNotes } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
-import type { Expense } from "@/types";
+import type { Expense, Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { hapticFeedback } from "@/lib/utils";
 import AuthPrompt from "@/components/AuthPrompt";
@@ -70,6 +71,7 @@ function loadRecentSearches(): string[] {
 function ExpensesPageInner() {
   const { expenses, loaded, deleteExpense, addExpense, updateExpense } = useExpenses();
   const { categories, getCategoryByName } = useCategories();
+  const { notes } = useNotes();
   const [showAdd, setShowAdd] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -259,6 +261,17 @@ function ExpensesPageInner() {
       return dir * (totalA - totalB) || dateB.localeCompare(dateA);
     });
   }, [grouped, sortBy]);
+
+  const notesByExpense = useMemo(() => {
+    const map = new Map<string, Note[]>();
+    notes.forEach((n) => {
+      if (!n.expense_id) return;
+      const list = map.get(n.expense_id);
+      if (list) list.push(n);
+      else map.set(n.expense_id, [n]);
+    });
+    return map;
+  }, [notes]);
 
   const handleDelete = useCallback((id: string) => {
     setDeleteId(id);
@@ -824,6 +837,7 @@ function ExpensesPageInner() {
                         icon={getCategoryByName(expense.category)?.icon || "🏷️"}
                         exiting={exitingId === expense.id}
                         highlight={search}
+                        linkedNotes={notesByExpense.get(expense.id)}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
@@ -902,6 +916,7 @@ interface ExpenseRowProps {
   icon: string;
   exiting?: boolean;
   highlight?: string;
+  linkedNotes?: Note[];
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
   onDuplicate: (expense: Expense) => void;
@@ -943,6 +958,7 @@ const ExpenseRow = memo(function ExpenseRow({
   icon,
   exiting,
   highlight,
+  linkedNotes,
   onEdit,
   onDelete,
   onDuplicate,
@@ -1332,6 +1348,32 @@ const ExpenseRow = memo(function ExpenseRow({
                   <ReceiptText size={12} /> View receipt
                 </span>
               </a>
+            )}
+
+            {linkedNotes && linkedNotes.length > 0 && (
+              <div>
+                <p className="text-[9px] uppercase tracking-wide text-ink-light mb-1">
+                  Linked note{linkedNotes.length === 1 ? "" : "s"}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {linkedNotes.map((n) => (
+                    <Link
+                      key={n.id}
+                      href="/notes"
+                      className="note-card block rounded px-2.5 py-1.5 border border-black/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                      style={{ backgroundColor: n.color }}
+                      title="Open in Notes"
+                    >
+                      <span className="block text-[11px] font-semibold text-[#2C2C2C] truncate">
+                        {n.pinned ? "📌 " : ""}{n.title || "Untitled note"}
+                      </span>
+                      {n.content && (
+                        <span className="block text-[10px] text-[#333333]/80 line-clamp-1">{n.content}</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             )}
 
             <p className="text-[10px] text-ink-light flex items-center gap-1">

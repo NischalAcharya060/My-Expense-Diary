@@ -262,7 +262,7 @@
 
 ### 17.1 Smart Sidebar
 - [x] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist (red count bubble via `getUpcomingBills` overdue filter; mini bubble in collapsed mode)
-- [x] Show today's expense count on "Expenses" sidebar link (red count bubble, hidden when zero)
+- [x] ~~Show today's expense count on "Expenses" sidebar link~~ — implemented then removed per user preference (only the overdue-bills badge remains)
 - [x] Highlight current page with animated underline (not just color change) (scale-x underline under the active label, origin-left 300ms ease-out)
 - [x] Show "New" badge on sidebar links for features user hasn't tried yet (visited pages tracked in `visited_pages_v1`; green NEW pill until first visit)
 
@@ -345,21 +345,21 @@
 ## Phase 21: Notes & Journal UX
 
 ### 21.1 Rich Note Creation
-- [ ] Drag-and-drop color picker for sticky notes (instead of dropdown) (color swatches exist, not drag-and-drop)
+- [x] Drag-and-drop color picker for sticky notes (instead of dropdown) (editor swatches are draggable + click-selectable; drop onto any note card or the editor itself to recolor with accent ring highlight + "Drop the color…" hint while dragging)
 - [x] Pin note to top with visual "pin" animation (Pin/PinOff toggle buttons + pinned indicator; pinned sorted first)
-- [ ] Notes should auto-resize as content grows
-- [ ] Show character count / word count at bottom of note
+- [x] Notes should auto-resize as content grows (`AutoResizeTextarea` grows/shrinks with content via scrollHeight, overflow hidden)
+- [x] Show character count / word count at bottom of note ("X words · Y characters" live counter in editor footer; per-note word/char count in card footers next to Updated date)
 
 ### 21.2 Note Organization
 - [x] Pinned notes always at top with a subtle "📌" indicator (pinned-first sort + indicator on card)
-- [ ] Sort by: Last edited, Created date, Color (fixed: pinned first then last-edited; no user-facing sort options)
+- [x] Sort by: Last edited, Created date, Color (sort select in toolbar above grid — pinned always first; color groups by NOTE_COLORS order w/ recency tiebreak; choice persisted to `notes_sort_v1`)
 - [x] Grid layout on desktop, list on mobile (`grid-cols-1 sm:grid-cols-2`)
-- [ ] Masonry layout option for notes (Pinterest-style)
+- [x] Masonry layout option for notes (Pinterest-style) (Grid/Masonry toggle (LayoutGrid/Columns3 icons); masonry = CSS columns with break-inside-avoid + full unclamped content so cards size naturally; persisted to `notes_layout_v1`)
 
 ### 21.3 Note-to-Expense Link
-- [ ] Allow linking a note to an expense (e.g., "Grocery list" note linked to grocery expense)
-- [ ] Show linked notes on expense detail view
-- [ ] Show linked expenses on note view
+- [x] Allow linking a note to an expense (e.g., "Grocery list" note linked to grocery expense) (`notes.expense_id` FK column (ON DELETE SET NULL) + migration; "+ Link to an expense…" picker in the note editor listing 50 most recent expenses with name/amount/date, removable chip when linked)
+- [x] Show linked notes on expense detail view (expanded row panel lists pinned indicator, title + content snippet as sticky chips in the note's color; click opens Notes)
+- [x] Show linked expenses on note view (note cards show a category-icon/name/amount chip that deep-links to `/expenses?q=<name>`; editor shows the same link chip)
 
 ---
 

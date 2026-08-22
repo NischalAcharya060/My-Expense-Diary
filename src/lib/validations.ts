@@ -87,6 +87,7 @@ export const noteSchema = z
       .optional()
       .default("#FEF9C3"),
     pinned: z.boolean().optional().default(false),
+    expense_id: z.string().uuid("Invalid expense link").nullable().optional(),
   })
   .strict();
 

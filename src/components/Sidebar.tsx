@@ -86,10 +86,6 @@ export default function Sidebar() {
 
   // Smart badges
   const todayStr = getToday();
-  const todayExpenseCount = useMemo(
-    () => expenses.filter((e) => e.date === todayStr).length,
-    [expenses, todayStr]
-  );
   const overdueBillCount = useMemo(
     () => getUpcomingBills(payments, expenses, todayStr).filter((b) => b.daysUntil < 0).length,
     [payments, expenses, todayStr]
@@ -114,7 +110,6 @@ export default function Sidebar() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const badgeCountFor = (href: string): number | null => {
-    if (href === "/expenses") return todayExpenseCount || null;
     if (href === "/bills") return overdueBillCount || null;
     return null;
   };
@@ -260,7 +255,7 @@ export default function Sidebar() {
                         {!collapsed && badgeCount !== null && (
                           <span
                             className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-red text-white text-[10px] font-bold flex items-center justify-center"
-                            title={item.href === "/bills" ? "Overdue bills" : "Logged today"}
+                            title="Overdue bills"
                           >
                             {badgeCount}
                           </span>

@@ -97,6 +97,7 @@ CREATE TABLE notes (
   content TEXT NOT NULL DEFAULT '',
   color TEXT DEFAULT '#FEF9C3',
   pinned BOOLEAN DEFAULT FALSE,
+  expense_id UUID REFERENCES expenses(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -110,6 +111,7 @@ CREATE INDEX idx_recurring_payments_user_due ON recurring_payments(user_id, due_
 CREATE INDEX idx_categories_user ON categories(user_id);
 CREATE INDEX idx_budgets_user_month ON budgets(user_id, month, year);
 CREATE INDEX idx_notes_user ON notes(user_id, pinned DESC, updated_at DESC);
+CREATE INDEX idx_notes_expense ON notes(expense_id);
 
 -- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

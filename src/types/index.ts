@@ -115,6 +115,7 @@ export interface Note {
   content: string;
   color: string;
   pinned: boolean;
+  expense_id?: string | null;
   created_at: string;
   updated_at: string;
 }
