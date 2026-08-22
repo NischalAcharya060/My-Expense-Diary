@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading, isConfigured, completeOnboarding } = useAuth();
   const { expenses, loaded, getTodayTotal, getMonthTotal } = useExpenses();
   const { payments } = useRecurringPayments();
-  const { budgets, getBudget } = useBudgets();
+  const { getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
   const { getMonthIncome } = useIncome();
   const today = new Date();
@@ -181,9 +181,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Monthly budget & savings */}
-        {(budgetAmount > 0 || monthIncome > 0) && (
-          <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
+        {/* Monthly budget & savings — only shown as an alert at ≥90% budget usage */}
+        {budgetAmount > 0 && budgetPct >= 90 && (
+          <div className="paper-card p-6 mb-8 relative rotate-[0.5deg] border-l-4 border-l-accent-warm">
             <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
               <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Budget &amp; Savings</h2>
               <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">

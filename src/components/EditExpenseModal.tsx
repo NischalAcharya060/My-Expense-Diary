@@ -5,6 +5,7 @@ import { X, Check, Plus } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { useToast } from "@/components/Toast";
 import ExpenseForm, { type ExpenseFormData } from "@/components/ExpenseForm";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 import type { Expense, PaymentMethod, ExpenseType } from "@/types";
 
 interface Props {
@@ -58,6 +59,7 @@ export default function EditExpenseModal({ open, onClose, expense }: Props) {
   }, [open, expense]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const swipe = useSwipeDownDismiss(onClose, open && !!expense);
   if (!open || !expense) return null;
 
   const handleAddCategory = async () => {
@@ -103,7 +105,7 @@ export default function EditExpenseModal({ open, onClose, expense }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
+      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter will-change-transform" {...swipe.handlers} style={swipe.style}>
         <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
           <h2 className="font-handwritten text-2xl text-ink-dark">Edit Expense</h2>
           <button onClick={onClose} className="p-1 hover:bg-paper-dark rounded transition-colors" aria-label="Close">

@@ -8,6 +8,7 @@ import type { Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 
 const NOTE_COLORS = [
@@ -101,9 +102,12 @@ function NotesContent() {
         
         {/* Header */}
         <div className="flex items-center justify-between mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
-          <div>
-            <h1 className="font-handwritten text-4xl text-ink-dark font-semibold">Expense Diary Notes</h1>
-            <p className="text-xs text-ink-light mt-0.5">Jot down grocery lists, dynamic budgeting ideas, or reminders.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark font-semibold">Expense Diary Notes</h1>
+              <p className="text-xs text-ink-light mt-0.5">Jot down grocery lists, dynamic budgeting ideas, or reminders.</p>
+            </div>
           </div>
           <button
             onClick={() => requireAuth(() => { resetForm(); setShowEditor(true); })}

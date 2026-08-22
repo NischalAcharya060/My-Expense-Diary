@@ -10,6 +10,7 @@ import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
 import BudgetBar from "@/components/BudgetBar";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 
 export default function MonthlySummaryPage() {
@@ -145,7 +146,10 @@ export default function MonthlySummaryPage() {
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         <div className="flex items-center justify-between mb-6 header-gradient">
-          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>
+          </div>
           {monthExpenses.length > 0 && (
             <div className="flex items-center gap-1.5">
               <button

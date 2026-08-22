@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { X } from "lucide-react";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 
 interface Props {
   open: boolean;
@@ -21,15 +22,17 @@ export default function VariableAmountModal({
   const [amount, setAmount] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!open) return null;
-
-  const parsed = parseFloat(amount);
-  const valid = !isNaN(parsed) && parsed > 0;
-
   const handleClose = () => {
     setAmount("");
     onClose();
   };
+
+  const { handlers, style } = useSwipeDownDismiss(handleClose, open);
+
+  if (!open) return null;
+
+  const parsed = parseFloat(amount);
+  const valid = !isNaN(parsed) && parsed > 0;
 
   const handleSubmit = () => {
     if (valid) {
@@ -42,7 +45,7 @@ export default function VariableAmountModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/40" onClick={handleClose} />
-      <div className="relative paper-card p-6 max-w-sm w-full page-enter">
+      <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform" {...handlers} style={style}>
         <button
           onClick={handleClose}
           className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark cursor-pointer"

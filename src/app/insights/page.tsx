@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import BackButton from "@/components/BackButton";
 
 function ChartSkeleton({ className }: { className: string }) {
   return <div className={`animate-pulse bg-paper-dark rounded ${className}`} />;
@@ -100,8 +101,13 @@ export default function InsightsPage() {
         
         {/* Header */}
         <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
-          <h1 className="font-handwritten text-4xl text-ink-dark">Spending Insights</h1>
-          <p className="text-xs text-ink-light mt-0.5">Statistical breakdown of your cash outflows.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Spending Insights</h1>
+              <p className="text-xs text-ink-light mt-0.5">Statistical breakdown of your cash outflows.</p>
+            </div>
+          </div>
         </div>
 
         {/* Month Navigation */}

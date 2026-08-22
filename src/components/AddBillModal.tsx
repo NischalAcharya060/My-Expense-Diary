@@ -5,6 +5,7 @@ import { X, Check, Sparkles } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, FREQUENCIES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 import type { RecurringPayment, PaymentMethod, RecurringFrequency } from "@/types";
 
 interface Props {
@@ -101,6 +102,7 @@ export default function AddBillModal({ open, onClose, editingPayment, preset }: 
   }, [open, editingPayment, preset]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const swipe = useSwipeDownDismiss(onClose, open);
   if (!open) return null;
 
   const handleApplyPreset = (preset: Preset) => {
@@ -152,7 +154,7 @@ export default function AddBillModal({ open, onClose, editingPayment, preset }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
+      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter will-change-transform" {...swipe.handlers} style={swipe.style}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
           <h2 className="font-handwritten text-2xl text-ink-dark">

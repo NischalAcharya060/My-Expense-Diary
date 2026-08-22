@@ -11,6 +11,7 @@ import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
@@ -38,6 +39,34 @@ function ExpensesPageInner() {
   useEffect(() => {
     if (searchParams.get("add") === "true") requireAuth(() => setShowAdd(true));
   }, [searchParams, requireAuth]);
+
+  // Pre-fill search from URL (?q=) — used by the command palette.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q !== null) setSearch(q);
+  }, [searchParams]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Ctrl/Cmd+K toggles focus on the search bar from anywhere.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const el = searchInputRef.current;
+        if (!el) return;
+        if (document.activeElement === el) {
+          el.blur();
+        } else {
+          el.focus();
+          el.select();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const filterKey = `${search}|${filterCategory}|${dateRange?.start ?? ""}|${dateRange?.end ?? ""}`;
   const visibleDays = pagination.key === filterKey ? pagination.days : PAGE_SIZE;
@@ -161,9 +190,12 @@ function ExpensesPageInner() {
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
-          <div>
-            <h1 className="font-handwritten text-4xl text-ink-dark">Daily Expenses</h1>
-            <p className="text-xs text-ink-light mt-0.5">Your financial journal logs sorted chronologically.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Daily Expenses</h1>
+              <p className="text-xs text-ink-light mt-0.5">Your financial journal logs sorted chronologically.</p>
+            </div>
           </div>
           <button
             onClick={() => requireAuth(() => setShowAdd(true))}
@@ -179,12 +211,22 @@ function ExpensesPageInner() {
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search by keyword..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
+                className="w-full pl-9 pr-3 sm:pr-16 py-2 bg-paper-bg border border-[rgba(0,0,0,0.08)] rounded-md text-sm text-ink-dark placeholder:text-ink-light/40 focus:outline-none focus:border-accent-warm transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => { searchInputRef.current?.focus(); searchInputRef.current?.select(); }}
+                className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 items-center text-[10px] text-ink-light bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded px-1.5 py-0.5 font-sans hover:text-accent-warm hover:border-accent-warm/40 transition-colors cursor-pointer"
+                aria-label="Focus search (Ctrl+K)"
+                title="Press Ctrl+K to jump to search from anywhere"
+              >
+                Ctrl K
+              </button>
             </div>
             <select
               value={filterCategory}

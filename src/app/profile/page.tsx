@@ -4,6 +4,8 @@ import { useState, useEffect, useSyncExternalStore } from "react";
 import { User, Eye, EyeOff, ShieldCheck, Link2, Check } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/components/AuthProvider";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 import { createClient } from "@/lib/supabase/client";
 
@@ -162,7 +164,11 @@ function ProfileContent() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Profile</h1>
+        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Profile" }]} />
+        <div className="flex items-center gap-1 mb-6">
+          <BackButton />
+          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Profile</h1>
+        </div>
 
         {/* Profile Picture Selection */}
         <div className="paper-card p-6 mb-6">

@@ -6,6 +6,7 @@ import { useCategories, useExpenses } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 import type { CategoryItem } from "@/types";
 
@@ -114,9 +115,12 @@ export default function CategoriesPage() {
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         <div className="flex items-center justify-between mb-6 header-gradient">
-          <div>
-            <h1 className="font-handwritten text-4xl text-ink-dark">Categories</h1>
-            <p className="text-xs text-ink-light mt-0.5">Organize your expenses with custom categories.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Categories</h1>
+              <p className="text-xs text-ink-light mt-0.5">Organize your expenses with custom categories.</p>
+            </div>
           </div>
           <button
             onClick={() => requireAuth(() => { resetForm(); setShowForm(true); })}

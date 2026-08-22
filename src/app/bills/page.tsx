@@ -1,17 +1,19 @@
 "use client";
 
-import { useSyncExternalStore, useState, useEffect, useRef } from "react";
+import { useSyncExternalStore, useState, useEffect, useRef, Suspense } from "react";
 import {
   Plus, Trash2, Edit2, Calendar,
   CheckCircle2, AlertCircle, Clock, History
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useExpenses, useRecurringPayments } from "@/lib/store";
 import { formatCurrency, getToday, getCurrentMonth } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
@@ -21,7 +23,7 @@ const Confetti = dynamic(() => import("@/components/Confetti"), { ssr: false });
 
 const HISTORY_PAGE_SIZE = 3;
 
-export default function BillsPage() {
+function BillsPageInner() {
   const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
   const { payments, loaded: paymentsLoaded, deletePayment, updatePayment } = useRecurringPayments();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -42,8 +44,16 @@ export default function BillsPage() {
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
   const [celebrate, setCelebrate] = useState(false);
   const prevAllPaid = useRef<boolean | null>(null);
+  const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+
+  // Open the add modal from URL (?add=true) — used by the command palette.
+  useEffect(() => {
+    if (searchParams.get("add") === "true") {
+      requireAuth(() => { setEditingPayment(null); setBillPreset(null); setShowAddModal(true); });
+    }
+  }, [searchParams, requireAuth]);
 
   const todayStr = getToday();
   const today = new Date(todayStr);
@@ -192,9 +202,12 @@ export default function BillsPage() {
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 header-gradient">
-          <div>
-            <h1 className="font-handwritten text-4xl text-ink-dark">Bills & Subscriptions</h1>
-            <p className="text-xs text-ink-light mt-1">Manage scheduled bills, active subscriptions, and automatic payments.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Bills &amp; Subscriptions</h1>
+              <p className="text-xs text-ink-light mt-1">Manage scheduled bills, active subscriptions, and automatic payments.</p>
+            </div>
           </div>
           <button 
             onClick={() => requireAuth(() => { setEditingPayment(null); setShowAddModal(true); })}
@@ -737,5 +750,19 @@ export default function BillsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function BillsPage() {
+  return (
+    <Suspense fallback={
+      <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-64 bg-paper-dark rounded" />
+        </div>
+      </div>
+    }>
+      <BillsPageInner />
+    </Suspense>
   );
 }

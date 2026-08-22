@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { LogIn, X } from "lucide-react";
 import Link from "next/link";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 
 interface Props {
   open: boolean;
@@ -12,13 +13,14 @@ interface Props {
 
 export default function AuthPrompt({ open, onClose, feature = "this feature" }: Props) {
   const { isConfigured } = useAuth();
+  const { handlers, style } = useSwipeDownDismiss(onClose, open && isConfigured);
 
   if (!isConfigured || !open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative paper-card p-6 max-w-sm w-full page-enter">
+      <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform" {...handlers} style={style}>
         <button
           onClick={onClose}
           className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark"

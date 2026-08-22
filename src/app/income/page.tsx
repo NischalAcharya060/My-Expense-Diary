@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 
 const INCOME_SOURCES = ["Salary", "Freelance", "Business", "Investment", "Gift", "Other"] as const;
@@ -126,9 +127,12 @@ export default function IncomePage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
-          <div>
-            <h1 className="font-handwritten text-4xl text-ink-dark">Income</h1>
-            <p className="text-xs text-ink-light mt-0.5">Track your earnings and income sources.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Income</h1>
+              <p className="text-xs text-ink-light mt-0.5">Track your earnings and income sources.</p>
+            </div>
           </div>
           <button
             onClick={() => requireAuth(() => { resetForm(); setShowForm(true); })}

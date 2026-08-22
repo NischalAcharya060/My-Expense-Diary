@@ -15,6 +15,8 @@ import AuthGuard from "@/components/AuthGuard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 
 const MONTH_NAMES = [
@@ -322,7 +324,11 @@ function SettingsContent() {
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark mb-6">Settings</h1>
+        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Settings" }]} />
+        <div className="flex items-center gap-1 mb-6">
+          <BackButton />
+          <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Settings</h1>
+        </div>
 
         {/* Theme */}
         <div className="paper-card p-6 mb-6 card-hover">

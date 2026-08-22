@@ -17,6 +17,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import AuthGuard from "@/components/AuthGuard";
+import BackButton from "@/components/BackButton";
 
 export default function CalendarPage() {
   const { expenses, loaded } = useExpenses();
@@ -74,8 +75,13 @@ export default function CalendarPage() {
         
         {/* Header */}
         <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
-          <h1 className="font-handwritten text-4xl text-ink-dark">Expense Calendar</h1>
-          <p className="text-xs text-ink-light mt-0.5">Visualize your cash flow calendar month by month.</p>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <div>
+              <h1 className="font-handwritten text-4xl text-ink-dark">Expense Calendar</h1>
+              <p className="text-xs text-ink-light mt-0.5">Visualize your cash flow calendar month by month.</p>
+            </div>
+          </div>
         </div>
 
         {/* Month navigation card */}

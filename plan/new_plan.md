@@ -261,21 +261,19 @@
 ## Phase 17: Navigation & Wayfinding
 
 ### 17.1 Smart Sidebar
-- [ ] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist
-- [ ] Show today's expense count on "Expenses" sidebar link
-- [ ] Highlight current page with animated underline (not just color change)
-- [ ] Show "New" badge on sidebar links for features user hasn't tried yet
+- [x] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist (red count bubble via `getUpcomingBills` overdue filter; mini bubble in collapsed mode)
+- [x] Show today's expense count on "Expenses" sidebar link (red count bubble, hidden when zero)
+- [x] Highlight current page with animated underline (not just color change) (scale-x underline under the active label, origin-left 300ms ease-out)
+- [x] Show "New" badge on sidebar links for features user hasn't tried yet (visited pages tracked in `visited_pages_v1`; green NEW pill until first visit)
 
 ### 17.2 Breadcrumbs & Back Navigation
-- [ ] Add breadcrumbs on settings sub-pages
-- [ ] On mobile: Show back arrow in page header for easy navigation
-- [ ] On modals: Swipe down to dismiss (mobile)
+- [x] Add breadcrumbs on settings sub-pages (`Breadcrumbs` component; Home / Settings on settings page and Home / Profile on profile page)
+- [x] On mobile: Show back arrow in page header for easy navigation (`BackButton` on expenses, bills, calendar, monthly, income, insights, categories, notes, settings, profile; history.back with "/" fallback)
+- [x] On modals: Swipe down to dismiss (mobile) (`useSwipeDownDismiss` hook applied to ConfirmDialog, AuthPrompt, VariableAmountModal, AddExpenseModal, EditExpenseModal, AddBillModal — rubber-band drag, closes past 90px)
 
 ### 17.3 Quick Jump
-- [ ] Add `Ctrl+K` / `Cmd+K` keyboard shortcut to open command palette
-- [ ] Command palette: Search expenses, jump to pages, quick actions (add expense, add bill)
-- [ ] Show recent actions in command palette
-- [ ] Show on desktop only, with spotlight-style UI
+- [x] Add `Ctrl+K` / `Cmd+K` keyboard shortcut to toggle focus on the Expenses page search bar from anywhere (press again to blur; "Ctrl K" hint chip inside the search input)
+- [ ] ~~Command palette~~ — implemented then removed per user preference (shortcut now focuses the expenses search bar instead)
 
 ---
 
