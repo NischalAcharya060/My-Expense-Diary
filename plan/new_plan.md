@@ -387,19 +387,19 @@
 
 ### 23.1 Settings Organization
 - [x] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account" (already separate paper-cards: Appearance, Country & Currency, Budget, Data Overview, Export Data, Danger Zone)
-- [ ] Each section collapsible
-- [ ] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active")
+- [x] Each section collapsible (shared `CollapsibleSection` component; animated expand/collapse via grid-template-rows trick; every section starts collapsed by default and expands when the user taps its header)
+- [x] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active") (each header shows live state: theme mode, country · currency symbol, budgets saved + this month's amount, total records stored, export formats, cache size, record count at risk)
 
 ### 23.2 Profile Improvements
 - [x] Avatar picker with preview (current avatar preview + selection grid with ring highlight; Google/custom options)
-- [ ] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked"
-- [ ] Account deletion option (with strong confirmation)
+- [x] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked" ("Your Journey" card on profile; member since from `user.created_at`, bills counted as active recurring payments)
+- [x] Account deletion option (with strong confirmation) (Danger Zone card → dialog requiring typed "DELETE"; calls new `delete_own_account` security-definer RPC (supabase-migrations/20260823_120000_phase23_delete_own_account.sql), signs out, hard-navigates home)
 
 ### 23.3 Data Management
 - [x] Export as CSV with date range picker (done in Phase 6.3)
-- [ ] Export as PDF report with charts (jsPDF table export exists; no charts included)
-- [ ] Import preview: Show what will be imported before confirming (JSON import applies directly without preview)
-- [ ] "Clear all data" requires typing "DELETE ALL" to confirm
+- [x] Export as PDF report with charts (jsPDF report now draws a last-6-months spending bar chart + top-categories horizontal breakdown bars with amounts/percentages before the table)
+- [x] Import preview: Show what will be imported before confirming (JSON import opens a preview modal with per-type counts, first expense entries sample, and an explicit Import/Cancel choice; nothing applied until confirmed)
+- [x] "Clear all data" requires typing "DELETE ALL" to confirm (custom dialog with typed confirmation input, Enter-to-confirm, button stays disabled until exact match)
 
 ---
 
@@ -525,6 +525,8 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/BudgetBar.tsx` | Gradient budget progress bar (green/yellow/red) | DONE |
 | `src/components/ProgressRing.tsx` | Circular progress ring (savings rate) | DONE |
 | `src/components/DayDetailDrawer.tsx` | Calendar day slide-in drawer (Phase 22) | DONE |
+| `src/components/CollapsibleSection.tsx` | Collapsible settings section w/ value subtitles (Phase 23) | DONE |
+| `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
 | `src/app/expenses/error.tsx` | Expenses error boundary | DONE |

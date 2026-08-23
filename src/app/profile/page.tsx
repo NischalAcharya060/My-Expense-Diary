@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
-import { User, Eye, EyeOff, ShieldCheck, Link2, Check } from "lucide-react";
+import { User, Eye, EyeOff, ShieldCheck, Link2, Check, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/components/AuthProvider";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
 import { createClient } from "@/lib/supabase/client";
+import { useExpenses, useRecurringPayments } from "@/lib/store";
 
 const AVATARS = Array.from({ length: 11 }, (_, i) => ({
   id: `av-${i + 1}`,
@@ -26,6 +28,8 @@ export default function ProfilePage() {
 function ProfileContent() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { expenses, loaded: expensesLoaded } = useExpenses();
+  const { payments, loaded: paymentsLoaded } = useRecurringPayments();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,6 +43,11 @@ function ProfileContent() {
   );
   const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.user_metadata?.avatar_id || "");
   const [avatarLoading, setAvatarLoading] = useState(false);
+
+  // Account deletion (Danger Zone)
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const identities = user?.identities || [];
   const hasGoogle = identities.some((id) => id.provider === "google");
@@ -150,6 +159,40 @@ function ProfileContent() {
     }
   };
 
+  // Permanently deletes the auth.users row via a security-definer RPC.
+  // All app tables cascade on user deletion, so data goes with it.
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim() !== "DELETE") return;
+    setDeletingAccount(true);
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
+      toast("Supabase client failed to load", "error");
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc("delete_own_account");
+      if (error) throw error;
+      toast("Account deleted");
+      await supabase.auth.signOut();
+      // Hard navigation clears every bit of cached client state
+      // (in-memory stores + module-level singletons) after deletion.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- deliberate full page reset
+      window.location.href = "/";
+    } catch (err: unknown) {
+      console.error(err);
+      toast(
+        (err as Error).message ||
+          "Failed to delete account — make sure the delete_own_account migration has been applied",
+        "error"
+      );
+      setDeletingAccount(false);
+    }
+  };
+
   if (!mounted) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
@@ -168,6 +211,31 @@ function ProfileContent() {
         <div className="flex items-center gap-1 mb-6">
           <BackButton />
           <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Profile</h1>
+        </div>
+
+        {/* Account stats */}
+        <div className="paper-card p-6 mb-6">
+          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Your Journey</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="text-center p-4 bg-paper-dark/60 rounded-lg">
+              <p className="text-xl font-handwritten text-accent-warm font-semibold">
+                {user?.created_at ? format(new Date(user.created_at), "MMMM yyyy") : "—"}
+              </p>
+              <p className="text-xs text-ink-light mt-0.5">Member since</p>
+            </div>
+            <div className="text-center p-4 bg-paper-dark/60 rounded-lg">
+              <p className="text-xl font-handwritten text-ink-dark font-semibold">
+                {expensesLoaded ? expenses.length : "…"}
+              </p>
+              <p className="text-xs text-ink-light mt-0.5">Expenses logged</p>
+            </div>
+            <div className="text-center p-4 bg-paper-dark/60 rounded-lg">
+              <p className="text-xl font-handwritten text-ink-dark font-semibold">
+                {paymentsLoaded ? payments.filter((p) => p.is_active).length : "…"}
+              </p>
+              <p className="text-xs text-ink-light mt-0.5">Bills tracked</p>
+            </div>
+          </div>
         </div>
 
         {/* Profile Picture Selection */}
@@ -324,7 +392,77 @@ function ProfileContent() {
             </button>
           </form>
         </div>
+
+        {/* Danger Zone — account deletion */}
+        <div className="paper-card p-6 border-l-2 border-accent-red">
+          <h3 className="font-handwritten text-xl text-accent-red mb-2 flex items-center gap-2">
+            <AlertTriangle size={18} /> Danger Zone
+          </h3>
+          <p className="text-xs text-ink-light mb-4">
+            Permanently delete your account along with every expense, bill, budget, and note in it. This action cannot be undone.
+          </p>
+          <button
+            onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); }}
+            disabled={deletingAccount}
+            className="flex items-center gap-2 px-4 py-2 border border-accent-red text-accent-red rounded text-sm font-medium hover:bg-accent-red hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <AlertTriangle size={16} /> Delete Account
+          </button>
+        </div>
       </div>
+
+      {/* Delete account dialog with typed confirmation */}
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Delete account confirmation">
+          <div className="absolute inset-0 bg-black/40 fade-in" onClick={() => !deletingAccount && setShowDeleteAccount(false)} />
+          <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-3 bg-accent-red/10 rounded-full flex items-center justify-center">
+                <AlertTriangle size={22} className="text-accent-red" />
+              </div>
+              <h3 className="font-handwritten text-xl text-ink-dark mb-1">Delete your account?</h3>
+              <p className="text-sm text-ink-medium mb-4">
+                Your account and all of your data — expenses, bills, budgets, and notes — will be permanently deleted. This cannot be undone.
+              </p>
+            </div>
+            <label htmlFor="delete-account-confirm-input" className="block text-[10px] font-bold uppercase tracking-wide text-ink-light mb-1.5">
+              Type DELETE to confirm
+            </label>
+            <input
+              id="delete-account-confirm-input"
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && deleteConfirmText.trim() === "DELETE") handleDeleteAccount();
+              }}
+              placeholder="DELETE"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={deletingAccount}
+              className={`w-full px-3 py-2 bg-paper-bg border rounded text-sm text-ink-dark focus:outline-none mb-4 transition-colors ${
+                deleteConfirmText.trim() === "DELETE" ? "border-accent-green" : "border-accent-red/50 focus:border-accent-red"
+              }`}
+            />
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowDeleteAccount(false)}
+                disabled={deletingAccount}
+                className="px-4 py-2 border border-[rgba(0,0,0,0.1)] rounded text-xs font-medium text-ink-medium hover:bg-paper-dark transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || deleteConfirmText.trim() !== "DELETE"}
+                className="px-4 py-2 bg-accent-red text-white rounded text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deletingAccount ? "Deleting..." : "Delete Forever"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useState, useEffect, useRef } from "react";
-import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet, FileText, Info, RefreshCw } from "lucide-react";
+import { Moon, Sun, Trash2, Download, Upload, DollarSign, Edit2, X, Check, FileSpreadsheet, FileText, Info, RefreshCw, Palette, Globe, Database, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -15,9 +15,11 @@ import AuthGuard from "@/components/AuthGuard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import CollapsibleSection from "@/components/CollapsibleSection";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BackButton from "@/components/BackButton";
 import { useToast } from "@/components/Toast";
+import type { Expense, RecurringPayment, Note } from "@/types";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -40,6 +42,43 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+type ImportableExpense = Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">;
+type ImportablePayment = Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">;
+type ImportableNote = Omit<Note, "id" | "user_id" | "created_at" | "updated_at">;
+
+// Backup rows carry DB metadata fields that must be stripped before
+// re-inserting; they are declared so destructuring stays type-safe.
+type WithMeta = {
+  id?: unknown;
+  user_id?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+interface BackupData {
+  expenses?: (ImportableExpense & WithMeta)[];
+  recurring?: (ImportablePayment & WithMeta)[];
+  budgets?: { year: number; month: number; amount: number; category?: string | null }[];
+  notes?: (ImportableNote & WithMeta)[];
+}
+
+/** Loose structural check so garbage files never open the preview. */
+function parseBackup(raw: string): BackupData | null {
+  try {
+    const data = JSON.parse(raw) as BackupData;
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    const keys = ["expenses", "recurring", "budgets", "notes"] as const;
+    const hasAny = keys.some((k) => Array.isArray(data[k]));
+    if (!hasAny) return null;
+    for (const k of keys) {
+      if (data[k] !== undefined && !Array.isArray(data[k])) return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export default function SettingsPage() {
@@ -67,7 +106,12 @@ function SettingsContent() {
     () => false,
   );
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
   const [deletingData, setDeletingData] = useState(false);
+  // Parsed JSON waiting for user confirmation in the import preview.
+  const [pendingImport, setPendingImport] = useState<BackupData | null>(null);
+  const [importFileName, setImportFileName] = useState("");
+  const [importing, setImporting] = useState(false);
   const [showCacheConfirm, setShowCacheConfirm] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheSize, setCacheSize] = useState<number | null>(null);
@@ -221,16 +265,108 @@ function SettingsContent() {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
+    const WARM_RGB: [number, number, number] = [212, 133, 74];
+    const GRAY_RGB: [number, number, number] = [120, 120, 120];
+
     doc.setFontSize(18);
     doc.text("My Expense Diary — Expense Report", 14, 22);
     doc.setFontSize(10);
-    doc.setTextColor(120);
+    doc.setTextColor(...GRAY_RGB);
     doc.text(`Generated on ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, 14, 30);
     doc.text(`Total entries: ${expenses.length}`, 14, 36);
     doc.text(`Total amount: ${formatCurrency(expenses.reduce((s, e) => s + e.amount, 0))}`, 14, 42);
 
+    let tableStartY = 50;
+
+    if (expenses.length > 0) {
+      // --- Chart 1: monthly spending bars (last 6 months) ---
+      const months: { label: string; total: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        months.push({
+          label: d.toLocaleDateString("en", { month: "short" }),
+          total: expenses
+            .filter((e) => e.date.startsWith(prefix))
+            .reduce((s, e) => s + e.amount, 0),
+        });
+      }
+      const maxMonth = Math.max(...months.map((m) => m.total), 1);
+
+      doc.setTextColor(40);
+      doc.setFontSize(11);
+      doc.text("Monthly Spending — Last 6 Months", 14, 56);
+
+      const chartBaseY = 100;
+      const plotLeft = 16;
+      const plotWidth = 178;
+      const gap = 10;
+      const barW = (plotWidth - gap * (months.length - 1)) / months.length;
+      const maxBarH = 32;
+
+      doc.setFontSize(7);
+      months.forEach((m, i) => {
+        const barH = m.total > 0 ? Math.max((m.total / maxMonth) * maxBarH, 2) : 0;
+        const x = plotLeft + i * (barW + gap);
+        // Value above the bar
+        doc.setTextColor(60);
+        if (m.total > 0) {
+          doc.text(formatCurrency(m.total), x + barW / 2, chartBaseY - barH - 3, { align: "center" });
+        }
+        // Bar
+        doc.setFillColor(...WARM_RGB);
+        if (barH > 0) doc.rect(x, chartBaseY - barH, barW, barH, "F");
+        else {
+          doc.setDrawColor(200);
+          doc.line(x, chartBaseY - 1, x + barW, chartBaseY - 1);
+        }
+        // Month label below baseline
+        doc.setTextColor(...GRAY_RGB);
+        doc.text(m.label, x + barW / 2, chartBaseY + 6, { align: "center" });
+      });
+
+      // Baseline
+      doc.setDrawColor(150);
+      doc.line(plotLeft, chartBaseY, plotLeft + plotWidth, chartBaseY);
+
+      // --- Chart 2: category breakdown horizontal bars ---
+      const catTotals = new Map<string, number>();
+      for (const e of expenses) {
+        catTotals.set(e.category, (catTotals.get(e.category) ?? 0) + e.amount);
+      }
+      const grandTotal = [...catTotals.values()].reduce((s, v) => s + v, 0);
+      const topCats = [...catTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+      doc.setFontSize(11);
+      doc.setTextColor(40);
+      const catTitleY = chartBaseY + 20;
+      doc.text("Spending by Category", 14, catTitleY);
+
+      doc.setFontSize(7);
+      const barRowH = 9;
+      const nameX = 14;
+      const barX = 70;
+      const barMaxW = 80;
+      topCats.forEach(([name, total], i) => {
+        const y = catTitleY + 6 + i * barRowH;
+        doc.setTextColor(60);
+        doc.text(name.length > 22 ? name.slice(0, 21) + "…" : name, nameX, y + 3);
+        const w = Math.max((total / grandTotal) * barMaxW, 1);
+        doc.setFillColor(...WARM_RGB);
+        doc.rect(barX, y, w, 4, "F");
+        const pct = Math.round((total / grandTotal) * 100);
+        doc.setTextColor(...GRAY_RGB);
+        const label = `${formatCurrency(total)} · ${pct}%`;
+        doc.text(label, barX + w + 2, y + 3);
+      });
+
+      tableStartY = catTitleY + 10 + topCats.length * barRowH + 8;
+    }
+
     autoTable(doc, {
-      startY: 50,
+      startY: tableStartY,
       head: [["Date", "Name", "Amount", "Category", "Payment", "Type", "Note"]],
       body: expenses.map((e) => [
         e.date,
@@ -247,48 +383,62 @@ function SettingsContent() {
     });
 
     doc.save(`expense-diary-${new Date().toISOString().split("T")[0]}.pdf`);
-    toast("PDF exported");
+    toast("PDF exported with charts");
   };
 
-  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.expenses) {
-          for (const exp of data.expenses) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, created_at, updated_at, ...rest } = exp;
-            await addExpense(rest);
-          }
-        }
-        if (data.recurring) {
-          for (const rec of data.recurring) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, created_at, updated_at, ...rest } = rec;
-            await addPayment(rest);
-          }
-        }
-        if (data.budgets) {
-          for (const b of data.budgets) {
-            await setBudget(b.year, b.month, b.amount, b.category);
-          }
-        }
-        if (data.notes) {
-          for (const n of data.notes) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { id, created_at, updated_at, ...rest } = n;
-            await addNote(rest);
-          }
-        }
-        toast("Data imported");
-      } catch {
+    reader.onload = (event) => {
+      const data = parseBackup(event.target?.result as string);
+      if (!data) {
         toast("Invalid backup file", "error");
+        return;
       }
+      setImportFileName(file.name);
+      setPendingImport(data);
     };
     reader.readAsText(file);
+  };
+
+  const applyImport = async (data: BackupData) => {
+    setImporting(true);
+    try {
+      if (data.expenses) {
+        for (const exp of data.expenses) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, user_id, created_at, updated_at, ...rest } = exp;
+          await addExpense(rest);
+        }
+      }
+      if (data.recurring) {
+        for (const rec of data.recurring) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, user_id, created_at, updated_at, ...rest } = rec;
+          await addPayment(rest);
+        }
+      }
+      if (data.budgets) {
+        for (const b of data.budgets) {
+          await setBudget(b.year, b.month, b.amount, b.category ?? undefined);
+        }
+      }
+      if (data.notes) {
+        for (const n of data.notes) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, user_id, created_at, updated_at, ...rest } = n;
+          await addNote(rest);
+        }
+      }
+      toast("Data imported");
+      setPendingImport(null);
+    } catch {
+      toast("Failed to import data", "error");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleClearAll = async () => {
@@ -300,6 +450,7 @@ function SettingsContent() {
       for (const n of notes) await deleteNote(n.id);
       toast("All data cleared");
       setShowClearDataConfirm(false);
+      setClearConfirmText("");
     } catch (err) {
       console.error("Failed to clear data:", err);
       toast("Failed to clear data", "error");
@@ -321,6 +472,14 @@ function SettingsContent() {
     setShowCacheConfirm(false);
   };
 
+  const totalRecords = expenses.length + payments.length + budgets.length + notes.length;
+  const currentMonthBudget = budgets.find((b) => b.year === year && b.month === month && !b.category);
+  const budgetSubtitle = currentMonthBudget
+    ? `${budgets.length} saved · this month ${formatCurrency(currentMonthBudget.amount)}`
+    : budgets.length > 0
+      ? `${budgets.length} saved · none for this month`
+      : "No budgets yet";
+
   return (
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
@@ -331,8 +490,11 @@ function SettingsContent() {
         </div>
 
         {/* Theme */}
-        <div className="paper-card p-6 mb-6 card-hover">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Appearance</h3>
+        <CollapsibleSection
+          title="Appearance"
+          icon={<Palette size={18} />}
+          subtitle={theme === "light" ? "Light mode active" : "Dark mode active"}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-ink-dark">Theme</p>
@@ -346,11 +508,15 @@ function SettingsContent() {
               {theme === "light" ? "Dark Mode" : "Light Mode"}
             </button>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Country & Currency */}
-        <div className="paper-card p-6 mb-6 card-hover relative z-10">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Country & Currency</h3>
+        <CollapsibleSection
+          title="Country & Currency"
+          icon={<Globe size={18} />}
+          subtitle={`${country.name} · ${getCurrencySymbol()} ${country.currency}`}
+          className="relative z-10"
+        >
           <p className="text-xs text-ink-light mb-3">Select your country to set the currency symbol</p>
           <div ref={countryRef} className="relative">
             <button
@@ -400,13 +566,15 @@ function SettingsContent() {
               </div>
             )}
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Monthly Budget */}
-        <div ref={budgetRef} className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
-            <DollarSign size={18} /> Monthly Budget
-          </h3>
+        <div ref={budgetRef}>
+          <CollapsibleSection
+            title="Monthly Budget"
+            icon={<DollarSign size={18} />}
+            subtitle={budgetSubtitle}
+          >
 
           {/* Add new budget form */}
           <div className="p-4 bg-paper-dark/50 rounded-lg mb-4">
@@ -525,11 +693,15 @@ function SettingsContent() {
               ))}
             </div>
           )}
+          </CollapsibleSection>
         </div>
 
         {/* Data Stats */}
-        <div className="paper-card p-6 mb-6 card-hover">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Data Overview</h3>
+        <CollapsibleSection
+          title="Data Overview"
+          icon={<Database size={18} />}
+          subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"} stored`}
+        >
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="text-center p-3 bg-paper-dark rounded">
               <p className="text-2xl font-handwritten text-ink-dark">{expenses.length}</p>
@@ -548,11 +720,14 @@ function SettingsContent() {
               <p className="text-xs text-ink-light">Notes</p>
             </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Import/Export */}
-        <div className="paper-card p-6 mb-6">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4">Export Data</h3>
+        <CollapsibleSection
+          title="Export Data"
+          icon={<Download size={18} />}
+          subtitle="JSON · CSV · Excel · PDF"
+        >
           <p className="text-xs text-ink-light mb-4">Download your expense data in different formats. All exports include all your expenses.</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
@@ -613,7 +788,7 @@ function SettingsContent() {
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-[10px] font-bold text-[#E84040] mt-0.5 shrink-0">PDF</span>
-                    <p className="text-[10px] text-ink-medium leading-relaxed">Printable report with header, summary stats, and formatted table. Ideal for sharing or archiving.</p>
+                    <p className="text-[10px] text-ink-medium leading-relaxed">Printable report with header, summary stats, spending charts (monthly bars + category breakdown), and formatted table.</p>
                   </div>
                 </div>
               </div>
@@ -635,19 +810,20 @@ function SettingsContent() {
 
           {/* Import button */}
           <div className="mt-4 pt-4 border-t border-[rgba(0,0,0,0.06)]">
-            <p className="text-[10px] text-ink-light mb-2">Import from JSON backup:</p>
+            <p className="text-[10px] text-ink-light mb-2">Import from JSON backup (with preview):</p>
             <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-paper-dark rounded text-sm text-ink-dark hover:bg-accent-blue hover:text-white transition-colors border border-[rgba(0,0,0,0.06)] cursor-pointer w-fit">
               <Upload size={16} /> Import JSON
-              <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+              <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
             </label>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Performance / Cache */}
-        <div className="paper-card p-6 mb-6 card-hover">
-          <h3 className="font-handwritten text-xl text-ink-dark mb-4 flex items-center gap-2">
-            <RefreshCw size={18} /> Performance
-          </h3>
+        <CollapsibleSection
+          title="Performance"
+          icon={<RefreshCw size={18} />}
+          subtitle={cacheSize === null ? "Local cache" : `Using ${formatBytes(cacheSize)} of local cache`}
+        >
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm text-ink-dark">Clear local cache</p>
@@ -666,24 +842,26 @@ function SettingsContent() {
               {clearingCache ? "Clearing..." : "Clear Cache"}
             </button>
           </div>
-        </div>
+        </CollapsibleSection>
 
-        {/* Danger zone */}
-        <div className="paper-card p-6 border-l-2 border-accent-red">
-          <h3 className="font-handwritten text-xl text-accent-red mb-2 flex items-center gap-2">
-            <Trash2 size={18} /> Danger Zone
-          </h3>
+        {/* Danger zone — collapsed by default, requires typing DELETE ALL */}
+        <CollapsibleSection
+          title="Danger Zone"
+          icon={<AlertTriangle size={18} />}
+          subtitle={`${totalRecords} record${totalRecords === 1 ? "" : "s"} will be permanently deleted`}
+          danger
+        >
           <p className="text-xs text-ink-light mb-4">
             Permanently delete all expenses, recurring payments, budgets, and notes from your account. This action cannot be undone.
           </p>
           <button
-            onClick={() => setShowClearDataConfirm(true)}
+            onClick={() => { setShowClearDataConfirm(true); setClearConfirmText(""); }}
             disabled={deletingData}
             className="flex items-center gap-2 px-4 py-2 border border-accent-red text-accent-red rounded text-sm font-medium hover:bg-accent-red hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Trash2 size={16} /> Clear All Data
           </button>
-        </div>
+        </CollapsibleSection>
       </div>
 
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="budget management" />
@@ -696,16 +874,151 @@ function SettingsContent() {
         message="This removes temporarily stored data on this device and re-downloads fresh data from the server. Your expenses, bills, and settings will not be deleted."
         confirmLabel="Clear Cache"
       />
-      <ConfirmDialog
-        open={showClearDataConfirm}
-        onClose={() => setShowClearDataConfirm(false)}
-        onConfirm={handleClearAll}
-        loading={deletingData}
-        title="Clear all data?"
-        message="This will permanently delete all expenses, recurring payments, budgets, and notes from your account. This action cannot be undone."
-        confirmLabel="Yes, Delete All"
-      />
+
+      {/* Clear-all-data dialog with typed confirmation */}
+      {showClearDataConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Delete all data confirmation">
+          <div className="absolute inset-0 bg-black/40 fade-in" onClick={() => !deletingData && setShowClearDataConfirm(false)} />
+          <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-3 bg-accent-red/10 rounded-full flex items-center justify-center">
+                <AlertTriangle size={22} className="text-accent-red" />
+              </div>
+              <h3 className="font-handwritten text-xl text-ink-dark mb-1">Delete ALL data?</h3>
+              <p className="text-sm text-ink-medium mb-4">
+                All {totalRecords} records (expenses, recurring payments, budgets, notes) will be permanently deleted. This cannot be undone.
+              </p>
+            </div>
+            <label htmlFor="delete-all-confirm-input" className="block text-[10px] font-bold uppercase tracking-wide text-ink-light mb-1.5">
+              Type DELETE ALL to confirm
+            </label>
+            <input
+              id="delete-all-confirm-input"
+              type="text"
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && clearConfirmText.trim() === "DELETE ALL") handleClearAll();
+              }}
+              placeholder="DELETE ALL"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={deletingData}
+              className={`w-full px-3 py-2 bg-paper-bg border rounded text-sm text-ink-dark focus:outline-none mb-4 transition-colors ${
+                clearConfirmText.trim() === "DELETE ALL" ? "border-accent-green" : "border-accent-red/50 focus:border-accent-red"
+              }`}
+            />
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowClearDataConfirm(false)}
+                disabled={deletingData}
+                className="px-4 py-2 border border-[rgba(0,0,0,0.1)] rounded text-xs font-medium text-ink-medium hover:bg-paper-dark transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={deletingData || clearConfirmText.trim() !== "DELETE ALL"}
+                className="px-4 py-2 bg-accent-red text-white rounded text-xs font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deletingData ? "Deleting..." : "Delete Everything"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import preview modal — shows what will be imported before applying */}
+      {pendingImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Import preview">
+          <div className="absolute inset-0 bg-black/40 fade-in" onClick={() => !importing && setPendingImport(null)} />
+          <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setPendingImport(null)}
+              disabled={importing}
+              className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark cursor-pointer disabled:opacity-50"
+              aria-label="Close import preview"
+            >
+              <X size={16} />
+            </button>
+            <h3 className="font-handwritten text-xl text-ink-dark mb-1">Preview Import</h3>
+            <p className="text-[10px] text-ink-light mb-4 truncate">{importFileName}</p>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="p-3 bg-paper-dark/60 rounded text-center">
+                <p className="text-xl font-handwritten text-ink-dark">{pendingImport.expenses?.length ?? 0}</p>
+                <p className="text-[10px] text-ink-light uppercase tracking-wide">Expenses</p>
+              </div>
+              <div className="p-3 bg-paper-dark/60 rounded text-center">
+                <p className="text-xl font-handwritten text-ink-dark">{pendingImport.recurring?.length ?? 0}</p>
+                <p className="text-[10px] text-ink-light uppercase tracking-wide">Recurring</p>
+              </div>
+              <div className="p-3 bg-paper-dark/60 rounded text-center">
+                <p className="text-xl font-handwritten text-ink-dark">{pendingImport.budgets?.length ?? 0}</p>
+                <p className="text-[10px] text-ink-light uppercase tracking-wide">Budgets</p>
+              </div>
+              <div className="p-3 bg-paper-dark/60 rounded text-center">
+                <p className="text-xl font-handwritten text-ink-dark">{pendingImport.notes?.length ?? 0}</p>
+                <p className="text-[10px] text-ink-light uppercase tracking-wide">Notes</p>
+              </div>
+            </div>
+
+            {/* Sample of what's inside the backup */}
+            {pendingImport.expenses && pendingImport.expenses.length > 0 && (
+              <div className="mb-4 p-3 bg-paper-dark/40 rounded-lg">
+                <p className="text-[10px] font-semibold text-ink-dark uppercase tracking-wider mb-2">First entries</p>
+                <ul className="space-y-1">
+                  {(pendingImport.expenses as Array<{ name?: unknown; amount?: unknown; date?: unknown }>)
+                    .slice(0, 3)
+                    .map((exp, i) => (
+                      <li key={i} className="text-[11px] text-ink-medium flex justify-between gap-2">
+                        <span className="truncate">{String(exp.name ?? "Unnamed")}</span>
+                        <span className="shrink-0 text-ink-light">{String(exp.date ?? "")}</span>
+                      </li>
+                    ))}
+                </ul>
+                {pendingImport.expenses.length > 3 && (
+                  <p className="text-[10px] text-ink-light mt-1.5 italic">
+                    + {pendingImport.expenses.length - 3} more…
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p className="text-[11px] text-ink-medium bg-accent-blue/5 border border-accent-blue/20 rounded px-3 py-2 mb-4 leading-relaxed">
+              These entries will be <strong>added</strong> to your account. Existing data is not removed or overwritten.
+            </p>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setPendingImport(null)}
+                disabled={importing}
+                className="px-4 py-2 border border-[rgba(0,0,0,0.1)] rounded text-xs font-medium text-ink-medium hover:bg-paper-dark transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => applyImport(pendingImport)}
+                disabled={importing || totalItemsIn(pendingImport) === 0}
+                className="px-4 py-2 bg-accent-warm text-white rounded text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                <Upload size={13} />
+                {importing ? "Importing..." : `Import ${totalItemsIn(pendingImport)} item${totalItemsIn(pendingImport) === 1 ? "" : "s"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function totalItemsIn(data: BackupData): number {
+  return (
+    (data.expenses?.length ?? 0) +
+    (data.recurring?.length ?? 0) +
+    (data.budgets?.length ?? 0) +
+    (data.notes?.length ?? 0)
   );
 }
 
