@@ -440,21 +440,21 @@
 ## Phase 26: Offline-First UX (PWA)
 
 ### 26.1 Service Worker
-- [ ] Configure `next-pwa` for offline support
-- [ ] Cache all static assets (fonts, icons, CSS, JS)
-- [ ] Cache API responses with stale-while-revalidate strategy
-- [ ] Show offline indicator banner when network is unavailable
+- [x] Configure `next-pwa` for offline support (deviation: hand-rolled vanilla `public/sw.js` instead — next-pwa requires webpack but Next 16 builds with Turbopack; registered production-only in PwaLayer)
+- [x] Cache all static assets (fonts, icons, CSS, JS) (`/_next/static/` + font/image extensions cache-first into `static-v1`)
+- [x] Cache API responses with stale-while-revalidate strategy (Supabase `/rest/v1/*` GETs served from `data-v1` while revalidating in background; navigations network-first with `/offline` fallback)
+- [x] Show offline indicator banner when network is unavailable (PwaLayer fixed bottom WifiOff banner driven by online/offline events)
 
 ### 26.2 Offline Expense Entry
-- [ ] Allow adding expenses when offline (save to IndexedDB)
-- [ ] Show "Syncing..." indicator on expenses added offline
-- [ ] Auto-sync when connection is restored
-- [ ] Show conflict resolution if same expense was edited on another device
+- [x] Allow adding expenses when offline (save to IndexedDB) (`src/lib/offlineQueue.ts` outbox in db `expense-diary-offline`; addExpense queues when `!navigator.onLine` or on network-type errors and returns the optimistic row instead of throwing)
+- [x] Show "Syncing..." indicator on expenses added offline (CloudUpload chip on rows with `pendingSync`, persisted via localStorage cache)
+- [x] Auto-sync when connection is restored (flushPendingExpenses on `online` event + 60s interval + mount; re-inserts via addExpenseAction and swaps temp→real row)
+- [x] Show conflict resolution if same expense was edited on another device (duplicate detection: name+date+category+amount match against fresh fetchExpenses merges to the server row instead of double-inserting; orphans re-enqueued)
 
 ### 26.3 Install Prompt
-- [ ] Show "Add to Home Screen" banner after 3rd visit
-- [ ] Custom install modal explaining PWA benefits
-- [ ] Track installation status
+- [x] Show "Add to Home Screen" banner after 3rd visit (custom modal after visit #3 with 14-day dismiss cooldown; beforeinstallprompt captured at module scope pre-hydration)
+- [x] Custom install modal explaining PWA benefits (cozy paper-card modal, benefits list, install button enabled only when browser offers installation)
+- [x] Track installation status (localStorage `pwa_installed`/`pwa_visit_count`/`pwa_install_dismissed_at`; standalone detection marks installed; appinstalled listener)
 
 ---
 
@@ -533,6 +533,10 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/insights/InteractiveChart.tsx` | Touch chart shell: long-press pinned values, pinch-zoom/pan/double-tap reset (Phase 25.1) | DONE |
 | `src/lib/healthScore.ts` | Financial health score components + tips (Phase 25.4) | DONE |
 | `src/components/HealthScoreCard.tsx` | Dashboard gauge card with score, tier, tips (Phase 25.4) | DONE |
+| `public/sw.js` | Hand-rolled service worker: static cache-first, Supabase SWR data cache, offline nav fallback (Phase 26.1) | DONE |
+| `src/app/offline/page.tsx` | Static prerendered offline fallback page (Phase 26.1) | DONE |
+| `src/lib/offlineQueue.ts` | IndexedDB outbox for offline expense entry + network-error heuristic (Phase 26.2) | DONE |
+| `src/components/PwaLayer.tsx` | SW registration, offline banner, install prompt modal (Phase 26) | DONE |
 | `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
@@ -561,7 +565,7 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/app/settings/page.tsx` | CSV export, date range export, replace alert() | DONE |
 | `src/app/profile/page.tsx` | Name editing, password strength | DONE |
 | `src/app/login/page.tsx` | Dark mode Google button fix | DONE |
-| `src/app/layout.tsx` | Skip-to-content link | DONE |
+| `src/app/layout.tsx` | Skip-to-content link | DONE (+ Phase 26: mounts PwaLayer) |
 | `src/components/Sidebar.tsx` | Add Income + Categories links | DONE |
 | `src/components/ConfirmDialog.tsx` | Add loading spinner animation | PARTIAL (loading state disables buttons + "Deleting..." text; no spinner icon) |
 | `src/components/Toast.tsx` | Fix position conflict with ThemeToggle | DONE |
@@ -571,11 +575,11 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE |
 | `src/components/AddBillModal.tsx` | Add payment method from DB | DONE |
 | `src/components/AuthProvider.tsx` | Handle session expiry gracefully | DONE |
-| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization | DONE (Phase 2) |
+| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization | DONE (Phase 2; + Phase 26: offline-aware add/delete, IndexedDB flush + auto-sync) |
 | `src/lib/utils.ts` | Consolidate categories, add CSV utils | DONE |
 | `src/lib/supabase/client.ts` | Replace null returns with thrown errors | DONE |
 | `src/lib/supabase/server.ts` | Replace null returns with thrown errors | DONE |
-| `src/types/index.ts` | Add Income type, consolidate categories | DONE |
+| `src/types/index.ts` | Add Income type, consolidate categories | DONE (+ Phase 26: `pendingSync` flag on Expense) |
 | `src/app/actions/expenses.ts` | Add Zod validation | DONE |
 | `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay | DONE |
 | `src/app/actions/budgets.ts` | Add Zod validation | DONE |

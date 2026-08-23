@@ -75,6 +75,8 @@ export interface Expense {
   recurring_payment_id?: string;
   created_at: string;
   updated_at: string;
+  /** True while an entry added offline is still waiting to be synced. */
+  pendingSync?: boolean;
 }
 
 export interface RecurringPayment {

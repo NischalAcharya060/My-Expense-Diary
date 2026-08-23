@@ -47,6 +47,13 @@ import {
 } from "@/app/actions/income";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  enqueuePendingExpense,
+  listPendingExpenses,
+  removePendingExpense,
+  isNetworkError,
+  toPendingData,
+} from "@/lib/offlineQueue";
 
 
 const INITIAL_CATEGORIES: CategoryItem[] = DEFAULT_CATEGORY_DATA.map((c) => ({
@@ -176,6 +183,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [income, setIncome] = useState<Income[]>([]);
   const [incomeLoaded, setIncomeLoaded] = useState(false);
   const [incomeError, setIncomeError] = useState<string | null>(null);
+
+  // Latest expenses for callbacks that must read current rows without
+  // re-creating on every render (delete + offline sync reconciliation).
+  const expensesRef = useRef<Expense[]>([]);
+  useEffect(() => {
+    expensesRef.current = expenses;
+  }, [expenses]);
+  const syncFlushRef = useRef(false);
 
   // Budgets are fetched lazily but never latched on failure: the flag only
   // sticks after a successful fetch, so a failed attempt (e.g. auth not ready
@@ -390,13 +405,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [refetchExpenses, refetchPayments, refetchNotes, refetchCategories, refetchIncome, refetchBudgets]);
 
   const addExpense = useCallback(async (data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">) => {
-    const tempId = `temp-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const uuid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const tempId = `temp-${uuid}`;
+    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
     const optimisticExpense: Expense = {
       ...data,
       id: tempId,
       user_id: "",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: nowIso,
+      updated_at: nowIso,
+      ...(isOffline ? { pendingSync: true } : {}),
     };
 
     setExpenses((prev) => {
@@ -404,6 +426,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       writeCache("cache_expenses", next);
       return next;
     });
+
+    if (isOffline) {
+      await enqueuePendingExpense({ key: tempId, data, createdAt: nowIso });
+      return optimisticExpense;
+    }
 
     try {
       const realExpense = await addExpenseAction(data);
@@ -414,6 +441,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       return realExpense;
     } catch (err) {
+      // A dropped connection keeps the entry visible and queues it for an
+      // automatic retry; genuine server/validation errors roll back as before.
+      if (isNetworkError(err)) {
+        await enqueuePendingExpense({ key: tempId, data, createdAt: nowIso });
+        setExpenses((prev) => {
+          const next = prev.map((e) => (e.id === tempId ? { ...e, pendingSync: true } : e));
+          writeCache("cache_expenses", next);
+          return next;
+        });
+        return optimisticExpense;
+      }
       setExpenses((prev) => {
         const next = prev.filter((e) => e.id !== tempId);
         writeCache("cache_expenses", next);
@@ -442,6 +480,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteExpense = useCallback(async (id: string) => {
+    const target = expensesRef.current.find((e) => e.id === id);
+    const isPendingLocal = !!target && (target.pendingSync || target.id.startsWith("temp-"));
     let originalExpenses: Expense[] = [];
     setExpenses((prev) => {
       originalExpenses = prev;
@@ -451,13 +491,103 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await deleteExpenseAction(id);
+      if (isPendingLocal) {
+        // The row only exists locally — drop it from the offline outbox too.
+        await removePendingExpense(id);
+      } else {
+        await deleteExpenseAction(id);
+      }
     } catch (err) {
       setExpenses(originalExpenses);
       writeCache("cache_expenses", originalExpenses);
       throw err;
     }
   }, []);
+
+  /* ---------- offline outbox sync ---------- */
+
+  const flushPendingExpenses = useCallback(async () => {
+    if (!isConfigured || !userId) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (syncFlushRef.current) return;
+    syncFlushRef.current = true;
+    try {
+      // Re-enqueue any local pending rows that lost their outbox entry
+      // (e.g. IndexedDB cleared between sessions) so nothing is orphaned.
+      for (const row of expensesRef.current) {
+        if (!(row.pendingSync || row.id.startsWith("temp-"))) continue;
+        await enqueuePendingExpense({ key: row.id, data: toPendingData(row), createdAt: row.created_at });
+      }
+      const pending = await listPendingExpenses();
+      if (pending.length === 0) return;
+
+      toast(`Syncing ${pending.length} offline ${pending.length === 1 ? "entry" : "entries"}…`, "info");
+
+      // Server snapshot powers duplicate detection: an entry with the same
+      // name/date/category/amount already on the server means it was created
+      // from another device (or a previous retry landed) — merge instead of
+      // double-inserting.
+      let server: Expense[] | null = null;
+      try {
+        server = await fetchExpenses();
+      } catch {
+        server = null;
+      }
+
+      let synced = 0;
+      let merged = 0;
+      let failed = 0;
+      for (const item of pending) {
+        try {
+          const dup = server?.find(
+            (e) =>
+              !e.id.startsWith("temp-") &&
+              e.name === item.data.name &&
+              e.date === item.data.date &&
+              e.category === item.data.category &&
+              Math.abs(e.amount - item.data.amount) < 0.001
+          );
+          const real = dup ?? (await addExpenseAction(item.data));
+          if (!dup) synced++;
+          else merged++;
+          await removePendingExpense(item.key);
+          setExpenses((prev) => {
+            const next = prev.map((e) =>
+              e.id === item.key ? { ...real, pendingSync: undefined } : e
+            );
+            writeCache("cache_expenses", next);
+            return next;
+          });
+        } catch {
+          failed++;
+        }
+      }
+
+      if (synced + merged > 0 && failed === 0) {
+        toast(
+          `Synced ${synced + merged} offline ${synced + merged === 1 ? "entry" : "entries"}${
+            merged > 0 ? ` (${merged} matched existing)` : ""
+          }`,
+          "success"
+        );
+      } else if (failed > 0 && synced + merged === 0) {
+        toast("Offline entries will retry when the connection is stable", "error");
+      }
+    } finally {
+      syncFlushRef.current = false;
+    }
+  }, [isConfigured, userId, toast]);
+
+  useEffect(() => {
+    void flushPendingExpenses();
+    const handleOnline = () => void flushPendingExpenses();
+    window.addEventListener("online", handleOnline);
+    const interval = window.setInterval(handleOnline, 60_000);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.clearInterval(interval);
+    };
+  }, [flushPendingExpenses]);
 
   const getExpensesByDate = useCallback((date: string) =>
     expenses.filter((e) => e.date === date).sort((a, b) => b.created_at.localeCompare(a.created_at)),

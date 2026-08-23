@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, memo, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText, SlidersHorizontal } from "lucide-react";
+import { Plus, Trash2, Search, Edit2, CalendarDays, X, ArrowDownUp, Copy, Eye, Check, ChevronDown, Clock, ReceiptText, SlidersHorizontal, CloudUpload } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -1245,6 +1245,14 @@ const ExpenseRow = memo(function ExpenseRow({
             <p className="text-[10px] text-ink-light mt-0.5">
               {expense.category} · {expense.payment_method}
             </p>
+            {expense.pendingSync && (
+              <span
+                className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-accent-warm/10 border border-accent-warm/25 text-[9px] font-bold uppercase tracking-wide text-accent-warm"
+                title="Saved on this device — will sync when back online"
+              >
+                <CloudUpload size={10} aria-hidden="true" /> Syncing…
+              </span>
+            )}
           </div>
 
           {/* Amount — becomes an inline input during quick edit */}
