@@ -113,6 +113,28 @@ export function saveQuickAddPrefs(prefs: QuickAddPrefs): void {
   }
 }
 
+const CATEGORY_ORDER_KEY = "category_order_v1";
+
+/** Saved manual order of category ids (drag-to-reorder on the Categories page). */
+export function getCategoryOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CATEGORY_ORDER_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCategoryOrder(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(ids));
+  } catch {
+    // best-effort preference write
+  }
+}
+
 /** Short vibration tick on supported devices (mobile expense saved). */
 export function hapticFeedback(): void {
   if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {

@@ -118,14 +118,14 @@
 ### 6.2 Category Management
 - [x] Create `src/app/categories/page.tsx` — dedicated page to view, edit, reorder, delete categories
 - [x] Add `updateCategory` server action to `actions/categories.ts`
-- [x] Add edit icon and reorder drag handles to category list
+- [x] Add edit icon and reorder drag handles to category list (GripVertical drag-and-drop + ChevronUp/Down buttons; order persisted in localStorage `category_order_v1`, applied centrally via store `applyCategoryOrder` — no DB migration needed since default categories are shared rows)
 - [x] Show expense count per category
-- [x] Prevent deletion of categories with existing expenses (or offer to reassign)
+- [x] Prevent deletion of categories with existing expenses (or offer to reassign) (used categories open a "Move & Delete" dialog with replacement picker; unused → plain confirm; defaults can't be deleted; last-category guard blocks orphaning)
 
 ### 6.3 CSV Export
 - [x] Add CSV export option alongside JSON in `settings/page.tsx`
 - [x] Format: Date, Name, Amount, Category, Payment Method, Expense Type, Note
-- [x] Add date range selector for export
+- [x] Add date range selector for export (From/To inputs in Export Data section; applies to CSV & Excel, JSON/PDF stay full)
 - [x] Add CSV export to monthly summary page
 
 ### 6.4 Date Range Filter on Expenses

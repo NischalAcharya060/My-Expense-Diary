@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Edit2, X } from "lucide-react";
+import { Plus, Trash2, Edit2, X, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { useCategories, useExpenses } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { useTapScrollTop } from "@/lib/useTapScrollTop";
@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
+import { hapticFeedback } from "@/lib/utils";
 import type { CategoryItem } from "@/types";
 
 const CATEGORY_ICONS = [
@@ -28,8 +29,8 @@ const QUICK_COLORS = [
 ];
 
 export default function CategoriesPage() {
-  const { categories, loaded, refetch: refetchCategories, addCategory, updateCategory, deleteCategory } = useCategories();
-  const { expenses, refetch: refetchExpenses } = useExpenses();
+  const { categories, loaded, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, applyCategoryOrder } = useCategories();
+  const { expenses, refetch: refetchExpenses, updateExpense } = useExpenses();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
   const tapTop = useTapScrollTop();
@@ -42,6 +43,9 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [reassignTo, setReassignTo] = useState("");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   if (!loaded) {
     return (
@@ -98,14 +102,73 @@ export default function CategoriesPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
+      // Used category: move its expenses to the chosen replacement first.
+      const used = expenses.filter((e) => e.category === deleteTarget.name);
+      let moved = 0;
+      for (const e of used) {
+        await updateExpense(e.id, { category: reassignTo });
+        moved++;
+      }
       await deleteCategory(deleteTarget.id);
-      toast("Category deleted");
+      toast(
+        moved > 0
+          ? `Moved ${moved} ${moved === 1 ? "expense" : "expenses"} to ${reassignTo}`
+          : "Category deleted"
+      );
     } catch (err) {
       console.error(err);
       toast("Failed to delete category", "error");
     }
     setDeleting(false);
     setDeleteTarget(null);
+  };
+
+  const requestDelete = (cat: CategoryItem) => {
+    requireAuth(() => {
+      if (cat.id.startsWith("default-")) {
+        toast("Default categories can't be deleted", "error");
+        return;
+      }
+      const usedCount = getExpenseCount(cat.name);
+      if (usedCount > 0 && categories.filter((c) => c.id !== cat.id).length === 0) {
+        toast(`Can't delete — ${usedCount} ${usedCount === 1 ? "expense uses" : "expenses use"} this category. Add another one first.`, "error");
+        return;
+      }
+      setReassignTo(categories.find((c) => c.id !== cat.id)?.name ?? "");
+      setDeleteTarget(cat);
+    });
+  };
+
+  /* ---------- manual ordering ---------- */
+
+  const moveCategory = (id: string, dir: -1 | 1) => {
+    const ids = categories.map((c) => c.id);
+    const from = ids.indexOf(id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    applyCategoryOrder(ids);
+    hapticFeedback();
+  };
+
+  const dropCategory = (targetId: string) => {
+    setDragOverId(null);
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      return;
+    }
+    const ids = categories.map((c) => c.id);
+    const from = ids.indexOf(dragId);
+    const to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) {
+      setDragId(null);
+      return;
+    }
+    ids.splice(from, 1);
+    ids.splice(to, 0, dragId);
+    applyCategoryOrder(ids);
+    hapticFeedback();
+    setDragId(null);
   };
 
   const getExpenseCount = (catName: string) =>
@@ -277,15 +340,45 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {categories.map((cat) => {
+            {categories.map((cat, idx) => {
               const count = getExpenseCount(cat.name);
               const total = getTotalSpent(cat.name);
               return (
                 <div
                   key={cat.id}
-                  className="paper-card px-4 py-3 flex items-center gap-3 border-l-4 group hover:shadow-md transition-all"
+                  draggable={dragId === cat.id}
+                  onDragStart={(e) => {
+                    setDragId(cat.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dragId !== cat.id) setDragOverId(cat.id);
+                  }}
+                  onDragLeave={() => setDragOverId((v) => (v === cat.id ? null : v))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropCategory(cat.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
+                  className={`paper-card px-4 py-3 flex items-center gap-2 border-l-4 group hover:shadow-md transition-all ${
+                    dragOverId === cat.id && dragId && dragId !== cat.id ? "ring-2 ring-accent-warm/50" : ""
+                  } ${dragId === cat.id ? "opacity-40" : ""}`}
                   style={{ borderLeftColor: cat.color }}
                 >
+                  <span
+                    onMouseDown={() => setDragId(cat.id)}
+                    onTouchStart={() => setDragId(cat.id)}
+                    title="Drag to reorder · or use the arrows"
+                    aria-label={`Drag to reorder ${cat.name}`}
+                    className="cursor-grab active:cursor-grabbing text-ink-light/70 hover:text-ink-dark transition-colors p-0.5 shrink-0 touch-none"
+                  >
+                    <GripVertical size={15} />
+                  </span>
                   <span className="text-2xl shrink-0">{cat.icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-ink-dark truncate">{cat.name}</p>
@@ -296,6 +389,22 @@ export default function CategoriesPage() {
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
+                      onClick={() => moveCategory(cat.id, -1)}
+                      disabled={idx === 0}
+                      className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+                      aria-label={`Move ${cat.name} up`}
+                    >
+                      <ChevronUp size={13} />
+                    </button>
+                    <button
+                      onClick={() => moveCategory(cat.id, 1)}
+                      disabled={idx === categories.length - 1}
+                      className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+                      aria-label={`Move ${cat.name} down`}
+                    >
+                      <ChevronDown size={13} />
+                    </button>
+                    <button
                       onClick={() => requireAuth(() => startEdit(cat))}
                       className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-ink-dark transition-all"
                       aria-label="Edit"
@@ -303,7 +412,7 @@ export default function CategoriesPage() {
                       <Edit2 size={13} />
                     </button>
                     <button
-                      onClick={() => setDeleteTarget(cat)}
+                      onClick={() => requestDelete(cat)}
                       className="p-1.5 hover:bg-paper-dark rounded text-ink-light hover:text-accent-red transition-all"
                       aria-label="Delete"
                     >
@@ -318,14 +427,73 @@ export default function CategoriesPage() {
       </div>
 
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="managing categories" />
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Delete category?"
-        message={`This will remove "${deleteTarget?.name ?? ""}" from your categories. Existing expenses won't be deleted.`}
-      />
+
+      {/* Unused category — plain confirm */}
+      {deleteTarget && getExpenseCount(deleteTarget.name) === 0 && (
+        <ConfirmDialog
+          open
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Delete category?"
+          message={`This will remove "${deleteTarget.name}" from your categories. It isn't used by any expense.`}
+        />
+      )}
+
+      {/* Used category — pick where its expenses should move */}
+      {deleteTarget && getExpenseCount(deleteTarget.name) > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reassign-title"
+          data-gesture-block
+        >
+          <div className="absolute inset-0 bg-black/40" onClick={() => !deleting && setDeleteTarget(null)} />
+          <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-sm p-6 pt-8 paper-card text-center rotate-[-0.5deg]">
+            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+            <span className="text-5xl block mb-2" aria-hidden="true">📦</span>
+            <h3 id="reassign-title" className="font-handwritten text-2xl text-ink-dark font-semibold mb-1.5">
+              Move {getExpenseCount(deleteTarget.name)} {getExpenseCount(deleteTarget.name) === 1 ? "expense" : "expenses"} first
+            </h3>
+            <p className="text-xs text-ink-light leading-relaxed mb-4 max-w-[260px] mx-auto">
+              &ldquo;{deleteTarget.name}&rdquo; is still in use. Choose where those expenses should go before deleting it.
+            </p>
+            <select
+              value={reassignTo}
+              onChange={(e) => setReassignTo(e.target.value)}
+              className="w-full px-3 py-2.5 bg-paper-bg border border-[rgba(0,0,0,0.1)] rounded-lg text-sm text-ink-dark focus:outline-none focus:border-accent-warm mb-4"
+              aria-label="Replacement category"
+            >
+              {categories
+                .filter((c) => c.id !== deleteTarget.id)
+                .map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.icon} {c.name}
+                  </option>
+                ))}
+            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 border border-[rgba(0,0,0,0.1)] rounded-lg text-sm font-medium text-ink-medium hover:bg-paper-dark transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || !reassignTo}
+                className="flex-1 py-2.5 bg-accent-red text-white rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-sm cursor-pointer"
+              >
+                {deleting ? "Moving…" : "Move & Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

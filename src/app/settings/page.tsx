@@ -116,6 +116,8 @@ function SettingsContent() {
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const clearCache = useClearCache();
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
   const budgetRef = useRef<HTMLDivElement>(null);
@@ -220,9 +222,24 @@ function SettingsContent() {
     toast("Data exported");
   };
 
+  // Optional date-range filter (ISO yyyy-MM-dd compares correctly as strings).
+  const getExportExpenses = () => {
+    if (!exportFrom && !exportTo) return expenses;
+    return expenses.filter(
+      (e) =>
+        (!exportFrom || e.date >= exportFrom) &&
+        (!exportTo || e.date <= exportTo)
+    );
+  };
+
   const handleExportCSV = () => {
+    const list = getExportExpenses();
+    if (list.length === 0) {
+      toast("No expenses in the selected range", "error");
+      return;
+    }
     const headers = ["Date", "Name", "Amount", "Category", "Payment Method", "Expense Type", "Note"];
-    const rows = expenses.map((e) => [
+    const rows = list.map((e) => [
       e.date,
       `"${e.name.replace(/"/g, '""')}"`,
       e.amount.toFixed(2),
@@ -239,11 +256,16 @@ function SettingsContent() {
     a.download = `expense-diary-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("CSV exported");
+    toast(`CSV exported · ${list.length} ${list.length === 1 ? "expense" : "expenses"}`);
   };
 
   const handleExportExcel = () => {
-    const data = expenses.map((e) => ({
+    const list = getExportExpenses();
+    if (list.length === 0) {
+      toast("No expenses in the selected range", "error");
+      return;
+    }
+    const data = list.map((e) => ({
       Date: e.date,
       Name: e.name,
       Amount: e.amount,
@@ -260,7 +282,7 @@ function SettingsContent() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Expenses");
     XLSX.writeFile(wb, `expense-diary-${new Date().toISOString().split("T")[0]}.xlsx`);
-    toast("Excel exported");
+    toast(`Excel exported · ${list.length} ${list.length === 1 ? "expense" : "expenses"}`);
   };
 
   const handleExportPDF = () => {
@@ -728,7 +750,43 @@ function SettingsContent() {
           icon={<Download size={18} />}
           subtitle="JSON · CSV · Excel · PDF"
         >
-          <p className="text-xs text-ink-light mb-4">Download your expense data in different formats. All exports include all your expenses.</p>
+          <p className="text-xs text-ink-light mb-3">Download your expense data in different formats. All exports include all your expenses.</p>
+          <div className="flex flex-wrap items-end gap-2 mb-4">
+            <div>
+              <label htmlFor="export-from" className="block text-[10px] font-semibold text-ink-medium uppercase tracking-wider mb-1">From</label>
+              <input
+                id="export-from"
+                type="date"
+                value={exportFrom}
+                onChange={(e) => setExportFrom(e.target.value)}
+                className="px-2.5 py-1.5 bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded-lg text-xs text-ink-dark focus:outline-none focus:border-accent-warm"
+              />
+            </div>
+            <div>
+              <label htmlFor="export-to" className="block text-[10px] font-semibold text-ink-medium uppercase tracking-wider mb-1">To</label>
+              <input
+                id="export-to"
+                type="date"
+                value={exportTo}
+                onChange={(e) => setExportTo(e.target.value)}
+                className="px-2.5 py-1.5 bg-paper-dark border border-[rgba(0,0,0,0.08)] rounded-lg text-xs text-ink-dark focus:outline-none focus:border-accent-warm"
+              />
+            </div>
+            {(exportFrom || exportTo) && (
+              <button
+                type="button"
+                onClick={() => { setExportFrom(""); setExportTo(""); }}
+                className="text-[10px] font-semibold text-accent-warm hover:underline pb-2 cursor-pointer"
+              >
+                Clear range (all time)
+              </button>
+            )}
+          </div>
+          {(exportFrom || exportTo) && (
+            <p className="text-[10px] text-accent-green mb-3 -mt-2">
+              Range applies to CSV &amp; Excel exports. JSON backup and PDF report always include everything.
+            </p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               onClick={handleExportData}

@@ -47,6 +47,7 @@ import {
 } from "@/app/actions/income";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/components/AuthProvider";
+import { getCategoryOrder, saveCategoryOrder } from "@/lib/utils";
 import {
   enqueuePendingExpense,
   listPendingExpenses,
@@ -139,6 +140,7 @@ interface StoreContextValue {
   updateCategory: (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryByName: (name: string) => CategoryItem | undefined;
+  applyCategoryOrder: (orderedIds: string[]) => void;
 
   income: Income[];
   incomeLoaded: boolean;
@@ -192,6 +194,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [expenses]);
   const syncFlushRef = useRef(false);
 
+  // Reorders any category list to match the user's saved manual order.
+  const sortPerOrder = useCallback((list: CategoryItem[]): CategoryItem[] => {
+    const order = getCategoryOrder();
+    if (order.length === 0) return list;
+    const pos = new Map(order.map((id, i) => [id, i]));
+    return [...list].sort(
+      (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity)
+    );
+  }, []);
+
   // Budgets are fetched lazily but never latched on failure: the flag only
   // sticks after a successful fetch, so a failed attempt (e.g. auth not ready
   // yet) retries when the auth-gated effect re-runs.
@@ -231,7 +243,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const cachedCategories = readCache<CategoryItem[]>("cache_categories");
       if (cachedCategories) {
-        setCategories(cachedCategories);
+        setCategories(sortPerOrder(cachedCategories));
         setCategoriesLoaded(true);
       }
       const cachedNotes = readCache<Note[]>("cache_notes");
@@ -245,7 +257,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setIncomeLoaded(true);
       }
     }
-  }, []);
+  }, [sortPerOrder]);
 
   // Fetch from the server only once auth has resolved. Firing earlier races
   // session restoration: every server action then sees no user and silently
@@ -276,7 +288,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     fetchCategories().then((data) => {
       if (data.length > 0) {
-        setCategories(data);
+        setCategories(sortPerOrder(data));
         writeCache("cache_categories", data);
       }
       setCategoriesError(null);
@@ -307,7 +319,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }).finally(() => setIncomeLoaded(true));
 
     void fetchBudgetsOnce();
-  }, [isConfigured, userId, toast, fetchBudgetsOnce]);
+  }, [isConfigured, userId, toast, fetchBudgetsOnce, sortPerOrder]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const refetchExpenses = useCallback(async () => {
@@ -353,7 +365,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const data = await fetchCategories();
       if (data.length > 0) {
-        setCategories(data);
+        setCategories(sortPerOrder(data));
         writeCache("cache_categories", data);
       }
       setCategoriesError(null);
@@ -362,7 +374,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCategoriesError(msg);
       toast("Failed to load categories", "error");
     }
-  }, [toast]);
+  }, [toast, sortPerOrder]);
 
   const refetchIncome = useCallback(async () => {
     try {
@@ -885,6 +897,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [categories]
   );
 
+  // Persist a new manual order (drag handles / move buttons on Categories page).
+  const applyCategoryOrder = useCallback((orderedIds: string[]) => {
+    saveCategoryOrder(orderedIds);
+    setCategories((prev) => {
+      const pos = new Map(orderedIds.map((id, i) => [id, i]));
+      const next = [...prev].sort(
+        (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity)
+      );
+      writeCache("cache_categories", next);
+      return next;
+    });
+  }, []);
+
   // Income
   const addIncome = useCallback(async (data: Omit<Income, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
@@ -975,7 +1000,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notes, notesLoaded, notesError, refetchNotes,
       addNote, updateNote, deleteNote,
       categories, categoriesLoaded, categoriesError, refetchCategories,
-      addCategory, updateCategory, deleteCategory, getCategoryByName,
+      addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder,
       income, incomeLoaded, incomeError, refetchIncome,
       addIncome, updateIncome, deleteIncome, getMonthIncome,
       clearCache,
@@ -1020,8 +1045,8 @@ export function useNotes() {
 }
 
 export function useCategories() {
-  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName } = useStore();
-  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName };
+  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder } = useStore();
+  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder };
 }
 
 export function useIncome() {
