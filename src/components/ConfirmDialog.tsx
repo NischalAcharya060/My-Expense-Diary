@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, X } from "lucide-react";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 
 interface Props {
   open: boolean;
@@ -21,15 +22,17 @@ export default function ConfirmDialog({
   confirmLabel = "Delete",
   loading = false,
 }: Props) {
+  const { handlers, style } = useSwipeDownDismiss(onClose, open);
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative paper-card p-6 max-w-sm w-full page-enter">
+      <div className="relative paper-card p-6 max-w-sm w-full page-enter will-change-transform" {...handlers} style={style}>
         <button
           onClick={onClose}
           className="absolute top-3 right-3 p-1 text-ink-light hover:text-ink-dark cursor-pointer"
+          aria-label="Close dialog"
         >
           <X size={16} />
         </button>

@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import type { Expense, Category } from "@/types";
+import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_DATA } from "@/types";
 import { COUNTRIES, DEFAULT_COUNTRY, getFlagUrl } from "@/lib/countries";
 
 function getCountry() {
@@ -15,8 +16,8 @@ function getCountry() {
 }
 
 export function formatCurrency(amount: number): string {
-  const { symbol, locale } = getCountry();
-  return `${symbol} ${amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const { symbol } = getCountry();
+  return `${symbol} ${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 export function getCurrencySymbol(): string {
@@ -48,20 +49,7 @@ export function getCurrentMonth(): { year: number; month: number } {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-export const CATEGORIES: Category[] = [
-  "Groceries",
-  "Food",
-  "Transport",
-  "Shopping",
-  "Personal",
-  "Medicine",
-  "Education",
-  "Entertainment",
-  "Household",
-  "Bills",
-  "Subscription",
-  "Other",
-];
+export const CATEGORIES: Category[] = DEFAULT_CATEGORIES;
 
 export const PAYMENT_METHODS = ["Cash", "Bank", "Card", "Digital Wallet", "Other"] as const;
 
@@ -71,20 +59,9 @@ export const BILL_TYPES = ["Electricity", "Water", "Internet", "Mobile/Phone", "
 
 export const FREQUENCIES = ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"] as const;
 
-export const CATEGORY_COLORS: Record<Category, string> = {
-  Groceries: "#16A34A",
-  Food: "#EA580C",
-  Transport: "#2563EB",
-  Shopping: "#D946EF",
-  Personal: "#8B5CF6",
-  Medicine: "#DC2626",
-  Education: "#0891B2",
-  Entertainment: "#F59E0B",
-  Household: "#64748B",
-  Bills: "#E11D48",
-  Subscription: "#7C3AED",
-  Other: "#6B7280",
-};
+export const CATEGORY_COLORS: Record<Category, string> = Object.fromEntries(
+  DEFAULT_CATEGORY_DATA.map((c) => [c.name, c.color])
+);
 
 export function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
   const grouped: Record<string, Expense[]> = {};
@@ -106,3 +83,68 @@ export function getTotalByCategory(expenses: Expense[]): Record<Category, number
   });
   return totals;
 }
+
+/* Quick-add preferences — remembers the last used category / payment method
+   so the Add Expense form opens pre-selected for faster entry. */
+
+const QUICK_ADD_PREFS_KEY = "quick_add_prefs_v1";
+
+export interface QuickAddPrefs {
+  category?: string;
+  paymentMethod?: string;
+}
+
+export function getQuickAddPrefs(): QuickAddPrefs {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(QUICK_ADD_PREFS_KEY);
+    return raw ? (JSON.parse(raw) as QuickAddPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveQuickAddPrefs(prefs: QuickAddPrefs): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(QUICK_ADD_PREFS_KEY, JSON.stringify({ ...getQuickAddPrefs(), ...prefs }));
+  } catch {
+    // storage unavailable or full — preference writes are best-effort
+  }
+}
+
+const CATEGORY_ORDER_KEY = "category_order_v1";
+
+/** Saved manual order of category ids (drag-to-reorder on the Categories page). */
+export function getCategoryOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CATEGORY_ORDER_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCategoryOrder(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(ids));
+  } catch {
+    // best-effort preference write
+  }
+}
+
+/** Short vibration tick on supported devices (mobile expense saved). */
+export function hapticFeedback(): void {
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    navigator.vibrate(35);
+  }
+}
+
+/**
+ * Selector matching overlays (dialogs, mobile nav) that opt out of the global
+ * touch gestures — pull-to-refresh and edge swipe-back never fire while a
+ * matched element contains the touch target.
+ */
+export const GESTURE_BLOCK_SELECTOR = '[role="dialog"], [data-gesture-block]';

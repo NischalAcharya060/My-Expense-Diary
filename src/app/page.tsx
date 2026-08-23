@@ -1,42 +1,71 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { format } from "date-fns";
+import { useSyncExternalStore, memo, useState, useEffect } from "react";
+import { format, subMonths } from "date-fns";
+import dynamic from "next/dynamic";
 import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useExpenses, useRecurringPayments, useBudgets, useCategories } from "@/lib/store";
+import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome, useClearCache } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
+import { getUpcomingBills, getDueBadge } from "@/lib/reminders";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
+import BudgetBar from "@/components/BudgetBar";
+import ProgressRing from "@/components/ProgressRing";
+import HealthScoreCard from "@/components/HealthScoreCard";
+import PullToRefresh from "@/components/PullToRefresh";
+import FirstVisitTip from "@/components/FirstVisitTip";
+import InfoTip from "@/components/InfoTip";
+
+const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isConfigured, completeOnboarding } = useAuth();
   const { expenses, loaded, getTodayTotal, getMonthTotal } = useExpenses();
   const { payments } = useRecurringPayments();
   const { getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
+  const { getMonthIncome } = useIncome();
   const today = new Date();
   const { year, month } = getCurrentMonth();
   const router = useRouter();
+  const [showAdd, setShowAdd] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const refreshAll = useClearCache();
+  const tapTop = useTapScrollTop();
+
+  // First-time user experience: route brand-new users through onboarding once.
+  // Users who already have data (pre-onboarding accounts) are silently marked onboarded.
+  useEffect(() => {
+    if (!mounted || authLoading || !isConfigured || !user || !loaded) return;
+    if (user.user_metadata?.onboarded) return;
+    if (expenses.length > 0) {
+      completeOnboarding();
+    } else {
+      router.replace("/onboarding");
+    }
+  }, [mounted, authLoading, isConfigured, user, loaded, expenses.length, completeOnboarding, router]);
 
   if (!mounted || authLoading) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          <div className="h-4 w-32 bg-paper-dark rounded" />
-          <div className="space-y-3 mt-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-6 bg-paper-dark rounded" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-8">
+          <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 space-y-2">
+            <div className="shimmer h-11 w-64 rounded" />
+            <div className="shimmer h-3 w-24 rounded" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={`shimmer h-[76px] rounded ${i % 2 === 0 ? "rotate-1" : "-rotate-1"}`} />
             ))}
           </div>
         </div>
@@ -53,9 +82,30 @@ export default function DashboardPage() {
   if (!loaded) {
     return (
       <div className="notebook-paper min-h-screen p-8 pt-16 lg:pl-20">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-paper-dark rounded" />
-          <div className="h-4 w-32 bg-paper-dark rounded" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-8">
+          <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 space-y-2">
+            <div className="shimmer h-11 w-64 rounded" />
+            <div className="shimmer h-3 w-24 rounded" />
+          </div>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={`paper-card px-4 py-3 ${i % 2 === 0 ? "rotate-1" : "-rotate-1"}`}>
+                <div className={`shimmer h-2.5 rounded mb-2 ${["w-10", "w-14", "w-12", "w-16"][i - 1]}`} />
+                <div className="shimmer h-7 w-full max-w-[90px] rounded" />
+              </div>
+            ))}
+          </div>
+          {/* Today's entries card */}
+          <div className="paper-card p-6 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <div className="shimmer h-6 w-40 rounded" />
+              <div className="shimmer h-7 w-24 rounded" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="shimmer h-5 rounded" style={{ width: `${88 - i * 18}%` }} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -67,20 +117,56 @@ export default function DashboardPage() {
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const todayTotal = getTodayTotal();
   const monthTotal = getMonthTotal(year, month);
+  const monthIncome = getMonthIncome(year, month);
+  const netBalance = monthIncome - monthTotal;
   const budget = getBudget(year, month);
   const budgetAmount = budget?.amount || 0;
   const remaining = budgetAmount - monthTotal;
   
-  const upcomingPayments = payments
-    .filter((p) => p.is_active)
-    .sort((a, b) => a.due_day - b.due_day)
-    .slice(0, 3);
+  const upcomingBills = getUpcomingBills(payments, expenses, todayStr).slice(0, 5);
+  const allUpcomingBills = getUpcomingBills(payments, expenses, todayStr);
+
+  // Budget + savings progress values
+  const budgetPct = budgetAmount > 0 ? (monthTotal / budgetAmount) * 100 : 0;
+  const savingsRate = monthIncome > 0 ? (netBalance / monthIncome) * 100 : 0;
+  const savingsRateDisplay = Math.round(Math.min(Math.max(savingsRate, 0), 100));
+
+  // Financial health score inputs (each component null when its data is missing)
+  const prevMonthDate = subMonths(new Date(year, month - 1, 1), 1);
+  const prevTotal = getMonthTotal(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1);
+  const overdueCount = allUpcomingBills.filter((b) => b.daysUntil < 0).length;
+  const curPrefix = `${year}-${String(month).padStart(2, "0")}`;
+  const prevPrefix = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const curCatTotals = new Map<string, number>();
+  const prevCatTotals = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.date.startsWith(curPrefix)) curCatTotals.set(e.category, (curCatTotals.get(e.category) || 0) + e.amount);
+    else if (e.date.startsWith(prevPrefix)) prevCatTotals.set(e.category, (prevCatTotals.get(e.category) || 0) + e.amount);
+  }
+  let topCategorySpike: { name: string; increasePct: number } | null = null;
+  for (const [name, v] of curCatTotals) {
+    const p = prevCatTotals.get(name) || 0;
+    if (p <= 0) continue;
+    const inc = ((v - p) / p) * 100;
+    if (!topCategorySpike || inc > topCategorySpike.increasePct) topCategorySpike = { name, increasePct: inc };
+  }
+  const healthInput = {
+    budgetUsagePct: budgetAmount > 0 ? budgetPct : null,
+    momChangePct: prevTotal > 0 ? ((monthTotal - prevTotal) / prevTotal) * 100 : null,
+    billsOnTimePct: payments.length > 0 ? Math.max(0, Math.round((1 - overdueCount / payments.length) * 100)) : null,
+    savingsRatePct: monthIncome > 0 ? savingsRate : null,
+    topCategorySpike,
+  };
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => refreshAll()} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Date header */}
-        <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4">
+        <div
+          {...tapTop}
+          className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <h1 className="font-handwritten text-4xl sm:text-5xl text-ink-dark mb-1 leading-tight">
             {format(today, "MMMM d, yyyy")}
           </h1>
@@ -89,39 +175,115 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* One-time page tour tip */}
+        <FirstVisitTip id="tour-dashboard">
+          This is your daily journal. Tap any entry to see details — and watch the health gauge below to see how
+          you&rsquo;re really doing.
+        </FirstVisitTip>
+
         {/* Quick stats cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pt-2">
-          {/* Card 1 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 pt-2">
+          {/* Today */}
           <div className="paper-card px-4 py-3 relative rotate-[-1.5deg] hover:rotate-0 transition-transform shadow duration-200">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
             <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Today</p>
-            <p className="font-handwritten text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-accent-warm amount font-semibold">{formatCurrency(todayTotal)}</p>
           </div>
           
-          {/* Card 2 */}
-          <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
+          {/* Income */}
+          <div className="paper-card px-4 py-3 relative rotate-[0.5deg] hover:rotate-0 transition-transform shadow duration-200">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-2 shadow-sm rounded-sm pointer-events-none" />
-            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">This Month</p>
-            <p className="font-handwritten text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Income</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-accent-green amount font-semibold">{formatCurrency(monthIncome)}</p>
           </div>
 
-          {/* Card 3 */}
+          {/* Expenses */}
+          <div className="paper-card px-4 py-3 relative rotate-[1deg] hover:rotate-0 transition-transform shadow duration-200">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+            <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Expenses</p>
+            <p className="font-handwritten text-2xl sm:text-3xl text-ink-dark amount font-semibold">{formatCurrency(monthTotal)}</p>
+          </div>
+
+          {/* Net Balance / Remaining */}
           {budgetAmount > 0 ? (
             <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${remaining < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 rotate-1 shadow-sm rounded-sm pointer-events-none" />
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-1 shadow-sm rounded-sm pointer-events-none" />
               <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Remaining</p>
-              <p className={`font-handwritten text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
+              <p className={`font-handwritten text-2xl sm:text-3xl amount font-semibold ${remaining < 0 ? "text-accent-red" : "text-accent-green"}`}>
                 {formatCurrency(Math.abs(remaining))}
-                {remaining < 0 && <span className="text-xs block sm:inline font-sans font-normal text-accent-red ml-1">over</span>}
+                {remaining < 0 && <span className="text-[10px] block sm:inline font-sans font-normal text-accent-red ml-1">over</span>}
               </p>
             </div>
           ) : (
-            <Link href="/settings" className="paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 border-dashed border-ink-light/40 flex flex-col justify-center items-center group">
-              <span className="text-xs text-ink-light group-hover:text-accent-warm transition-colors font-medium">No Budget Set</span>
-              <span className="text-[10px] text-accent-warm mt-1 font-bold group-hover:underline">Set Budget →</span>
-            </Link>
+            <div className={`paper-card px-4 py-3 relative rotate-[-0.5deg] hover:rotate-0 transition-transform shadow duration-200 ${netBalance < 0 ? "border-l-4 border-l-accent-red" : ""}`}>
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-amber-200/20 border border-amber-300/10 -rotate-1 shadow-sm rounded-sm pointer-events-none" />
+              <p className="text-[10px] text-ink-light uppercase tracking-wider font-bold mb-1">Net Balance</p>
+              <p className={`font-handwritten text-2xl sm:text-3xl amount font-semibold ${netBalance < 0 ? "text-accent-red" : "text-accent-green"}`}>
+                {formatCurrency(Math.abs(netBalance))}
+                {netBalance < 0 && <span className="text-[10px] block sm:inline font-sans font-normal text-accent-red ml-1">deficit</span>}
+              </p>
+            </div>
           )}
         </div>
+
+        {/* Monthly budget & savings — only shown as an alert at ≥90% budget usage */}
+        {budgetAmount > 0 && budgetPct >= 90 && (
+          <div className="paper-card p-6 mb-8 relative rotate-[0.5deg] border-l-4 border-l-accent-warm">
+            <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
+              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark flex items-center gap-1.5">
+                Budget &amp; Savings
+                <InfoTip
+                  text="Your monthly budget is the spending limit you set in Settings. This gauge turns amber near the limit and red once you go over — the ring shows what share of your income you managed to keep."
+                  label="About budgets & savings rate"
+                  align="left"
+                />
+              </h2>
+              <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">
+                Manage →
+              </Link>
+            </div>
+            <div className="flex items-center gap-8 flex-wrap justify-between">
+              {budgetAmount > 0 && (
+                <div className="flex-1 min-w-[220px]">
+                  <div className="flex items-center justify-between mb-1.5 text-xs">
+                    <span className="text-ink-medium font-semibold">Monthly budget</span>
+                    <span
+                      className={`font-bold amount ${budgetPct >= 100 ? "text-accent-red" : budgetPct >= 80 ? "text-amber-600 dark:text-amber-400" : "text-ink-medium"}`}
+                    >
+                      {Math.round(budgetPct)}% used
+                    </span>
+                  </div>
+                  <BudgetBar pct={budgetPct} label="Monthly budget usage" />
+                  <p className="text-[10px] text-ink-light mt-1.5 amount">
+                    {formatCurrency(monthTotal)} of {formatCurrency(budgetAmount)} ·{" "}
+                    {remaining < 0 ? `${formatCurrency(Math.abs(remaining))} over` : `${formatCurrency(remaining)} left`}
+                  </p>
+                </div>
+              )}
+              {monthIncome > 0 && (
+                <div className="flex items-center gap-3 shrink-0 ml-auto">
+                  <ProgressRing
+                    pct={savingsRate}
+                    color={netBalance >= 0 ? "var(--accent-green)" : "var(--accent-red)"}
+                    label={`Savings rate ${savingsRateDisplay}% of income`}
+                    size={76}
+                  >
+                    <span className={`text-sm font-bold amount ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                      {savingsRateDisplay}%
+                    </span>
+                  </ProgressRing>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-ink-light mb-0.5">Saved</p>
+                    <p className={`font-handwritten text-xl amount font-semibold leading-none ${netBalance >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                      {formatCurrency(netBalance)}
+                    </p>
+                    <p className="text-[10px] text-ink-light mt-1">of {formatCurrency(monthIncome)} income</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Today's entries */}
         <div className="paper-card p-6 mb-8 relative rotate-[0.5deg]">
@@ -158,37 +320,46 @@ export default function DashboardPage() {
         </div>
 
         {/* Upcoming bills */}
-        {upcomingPayments.length > 0 && (
+        {upcomingBills.length > 0 && (
           <div className="paper-card p-6 mb-8 relative rotate-[-0.5deg]">
             <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
               <div className="flex items-center gap-2">
                 <CalendarClock size={20} className="text-accent-warm" />
-                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Upcoming Bills & Subs</h2>
+                <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Upcoming Bills &amp; Subs</h2>
               </div>
               <Link href="/bills" className="text-xs text-accent-warm hover:underline font-bold">
                 View All →
               </Link>
             </div>
             <div className="space-y-3">
-              {upcomingPayments.map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl shrink-0">{p.category === "Subscription" ? "📺" : "💡"}</span>
-                    <div>
-                      <p className="text-sm text-ink-dark font-semibold leading-tight">{p.name}</p>
-                      <p className="text-[10px] text-ink-light mt-0.5">
-                        Due on day {p.due_day} {p.auto_pay && "· ⏰ Auto-Pay"}
-                      </p>
+              {upcomingBills.map(({ payment: p, dueDateStr, daysUntil }) => {
+                const badge = getDueBadge({ payment: p, dueDateStr, daysUntil, isPaid: false });
+                return (
+                  <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,0.02)] last:border-0 hover:bg-paper-dark/30 px-2 rounded transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xl shrink-0">{p.category === "Subscription" ? "📺" : "💡"}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-ink-dark font-semibold leading-tight">{p.name}</p>
+                          {badge && <span className={badge.className}>{badge.label}</span>}
+                        </div>
+                        <p className="text-[10px] text-ink-light mt-0.5">
+                          Due {format(new Date(`${dueDateStr}T00:00:00`), "MMM d")} {p.auto_pay && "· ⏰ Auto-Pay"}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-sm font-semibold text-ink-medium amount shrink-0 ml-2">
+                      {p.is_variable ? "Variable" : formatCurrency(p.amount)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-ink-medium amount shrink-0">
-                    {p.is_variable ? "Variable" : formatCurrency(p.amount)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
+
+        {/* Financial health score gauge + tips */}
+        {expenses.length > 0 && <HealthScoreCard input={healthInput} />}
 
         {/* Recent expenses */}
         <div className="paper-card p-6 relative rotate-[0.5deg]">
@@ -202,9 +373,19 @@ export default function DashboardPage() {
             </Link>
           </div>
           {expenses.length === 0 ? (
-            <p className="text-center text-ink-light font-handwritten text-lg py-4">
-              Your expense diary is empty. Start writing!
-            </p>
+            <div className="text-center py-10">
+              <div className="animate-floaty text-6xl mb-3" aria-hidden="true">📓</div>
+              <p className="font-handwritten text-2xl text-ink-dark font-semibold">Your diary is empty!</p>
+              <p className="text-xs text-ink-light mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Every entry is a line in your journal. Write your first one — it takes 10 seconds.
+              </p>
+              <button
+                onClick={() => requireAuth(() => setShowAdd(true))}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+              >
+                <Plus size={16} /> Add First Expense
+              </button>
+            </div>
           ) : (
             <div className="space-y-1">
               {expenses.slice(0, 5).map((expense) => {
@@ -229,12 +410,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {showAdd && <AddExpenseModal open onClose={() => setShowAdd(false)} />}
       <AuthPrompt open={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} feature="adding expenses" />
     </div>
   );
 }
 
-function ExpenseEntry({ expense }: { expense: Expense }) {
+const ExpenseEntry = memo(function ExpenseEntry({ expense }: { expense: Expense }) {
   const { getCategoryByName } = useCategories();
   const color = getCategoryByName(expense.category)?.color || "#6B7280";
   return (
@@ -247,7 +429,7 @@ function ExpenseEntry({ expense }: { expense: Expense }) {
       </span>
     </div>
   );
-}
+});
 
 // Guest Marketing Landing Page Component
 function LandingPage() {
@@ -310,7 +492,7 @@ function LandingPage() {
 
         {/* Features list in sticky notes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left max-w-4xl mx-auto mb-16">
-          <div className="p-6 bg-[#FEF9C3] rounded-lg shadow rotate-[-1.5deg] relative">
+          <div className="p-6 bg-[#FEF9C3] dark:bg-[#3D3520] rounded-lg shadow rotate-[-1.5deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-1deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">✍️ Cozy Cursive Journal</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">
@@ -318,7 +500,7 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="p-6 bg-[#DCFCE7] rounded-lg shadow rotate-[1deg] relative">
+          <div className="p-6 bg-[#DCFCE7] dark:bg-[#1A3325] rounded-lg shadow rotate-[1deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[2deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">⏰ Scheduled Auto-Pay</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">
@@ -326,7 +508,7 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="p-6 bg-[#DBEAFE] rounded-lg shadow rotate-[-0.5deg] relative">
+          <div className="p-6 bg-[#DBEAFE] dark:bg-[#1A2538] rounded-lg shadow rotate-[-0.5deg] relative">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-white/40 shadow-sm border border-white/10 rotate-[-2deg] rounded-sm pointer-events-none" />
             <h3 className="font-handwritten text-xl font-bold text-ink-dark mb-2">📌 Checklist & Sticky Notes</h3>
             <p className="text-xs text-ink-medium leading-relaxed font-medium">

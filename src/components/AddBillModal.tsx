@@ -5,12 +5,15 @@ import { X, Check, Sparkles } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, FREQUENCIES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import InfoTip from "@/components/InfoTip";
+import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 import type { RecurringPayment, PaymentMethod, RecurringFrequency } from "@/types";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   editingPayment?: RecurringPayment | null;
+  preset?: { name: string; category: string } | null;
 }
 
 interface Preset {
@@ -38,7 +41,7 @@ const SUB_PRESETS: Preset[] = [
   { name: "GitHub", category: "Subscription", icon: "💻", color: "#24292F" },
 ];
 
-export default function AddBillModal({ open, onClose, editingPayment }: Props) {
+export default function AddBillModal({ open, onClose, editingPayment, preset }: Props) {
   const { addPayment, updatePayment } = useRecurringPayments();
   const { categories } = useCategories();
   const { toast } = useToast();
@@ -71,6 +74,18 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
         setPaymentMethod((editingPayment.payment_method as PaymentMethod) || "Card");
         setAutoPay(!!editingPayment.auto_pay);
         setReminderDays(editingPayment.reminder_days.toString());
+      } else if (preset) {
+        setName(preset.name);
+        setAmount("");
+        setIsVariable(false);
+        setCategory(preset.category === "Subscription" ? "Subscription" : "Bills");
+        setType(preset.category === "Subscription" ? "Subscription" : "Bill");
+        setFrequency("Monthly");
+        setDueDay("1");
+        setStartDate(getToday());
+        setPaymentMethod("Card");
+        setAutoPay(false);
+        setReminderDays("3");
       } else {
         setName("");
         setAmount("");
@@ -85,9 +100,10 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
         setReminderDays("3");
       }
     }
-  }, [open, editingPayment]);
+  }, [open, editingPayment, preset]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const swipe = useSwipeDownDismiss(onClose, open);
   if (!open) return null;
 
   const handleApplyPreset = (preset: Preset) => {
@@ -104,7 +120,6 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
     setSaving(true);
     const numericAmount = isVariable ? 0 : parseFloat(amount) || 0;
     const data = {
-      user_id: "",
       name: name.trim(),
       amount: numericAmount,
       is_variable: isVariable,
@@ -138,9 +153,9 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
   const currentPresets = type === "Bill" ? BILL_PRESETS : SUB_PRESETS;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter">
+      <div className="relative bg-paper-bg rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto paper-card page-enter will-change-transform" {...swipe.handlers} style={swipe.style}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[rgba(0,0,0,0.06)]">
           <h2 className="font-handwritten text-2xl text-ink-dark">
@@ -271,7 +286,15 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
 
             {/* Frequency selection */}
             <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Billing Frequency</label>
+              <label className="flex items-center gap-1 text-xs text-ink-light uppercase tracking-wide mb-1.5">
+                Billing Frequency
+                <InfoTip
+                  text="How often this bill repeats. Monthly totals, due dates and auto-pay logs are all calculated from it."
+                  label="About billing frequency"
+                  side="bottom"
+                  align="right"
+                />
+              </label>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
@@ -349,7 +372,14 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
           {/* Schedule Pay / Auto Pay Toggle */}
           <div className="p-3 bg-paper-dark border border-[rgba(0,0,0,0.06)] rounded-lg flex items-center justify-between">
             <div>
-              <span className="block text-sm font-semibold text-ink-dark">⏰ Schedule Pay (Auto-Pay)</span>
+              <span className="flex items-center gap-1 text-sm font-semibold text-ink-dark">
+                ⏰ Schedule Pay (Auto-Pay)
+                <InfoTip
+                  text="When on, the expense is written to your ledger automatically on each due date using this bill's name, category and amount — even if you haven't opened the app."
+                  label="How auto-pay works"
+                  align="left"
+                />
+              </span>
               <span className="block text-[10px] text-ink-light mt-0.5 leading-tight">
                 Automatically log this expense in your ledger when the due date arrives.
               </span>
@@ -360,6 +390,9 @@ export default function AddBillModal({ open, onClose, editingPayment }: Props) {
               className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none ${
                 autoPay ? "bg-accent-green" : "bg-ink-light/40"
               }`}
+              aria-label={autoPay ? "Disable auto-pay" : "Enable auto-pay"}
+              role="switch"
+              aria-checked={autoPay}
             >
               <span
                 className={`absolute w-5 h-5 rounded-full bg-white shadow top-0.5 left-0.5 transition-transform duration-200 ${

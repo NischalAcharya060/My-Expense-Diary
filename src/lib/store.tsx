@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from "react";
 import type {
   Expense,
   RecurringPayment,
   Budget,
   Note,
   CategoryItem,
+  Income,
 } from "@/types";
+import { DEFAULT_CATEGORY_DATA } from "@/types";
 import {
   fetchExpenses,
   addExpense as addExpenseAction,
@@ -34,30 +36,70 @@ import {
 import {
   fetchCategories,
   addCategory as addCategoryAction,
+  updateCategory as updateCategoryAction,
   deleteCategory as deleteCategoryAction,
 } from "@/app/actions/categories";
+import {
+  fetchIncome,
+  addIncome as addIncomeAction,
+  updateIncome as updateIncomeAction,
+  deleteIncome as deleteIncomeAction,
+} from "@/app/actions/income";
 import { useToast } from "@/components/Toast";
+import { useAuth } from "@/components/AuthProvider";
+import { getCategoryOrder, saveCategoryOrder } from "@/lib/utils";
+import {
+  enqueuePendingExpense,
+  listPendingExpenses,
+  removePendingExpense,
+  isNetworkError,
+  toPendingData,
+} from "@/lib/offlineQueue";
 
 
-const DEFAULT_CATEGORY_DATA: CategoryItem[] = [
-  { id: "default-groceries", name: "Groceries", icon: "🛒", color: "#16A34A" },
-  { id: "default-food", name: "Food", icon: "🍔", color: "#EA580C" },
-  { id: "default-transport", name: "Transport", icon: "🚌", color: "#2563EB" },
-  { id: "default-shopping", name: "Shopping", icon: "🛍️", color: "#D946EF" },
-  { id: "default-personal", name: "Personal", icon: "💆", color: "#8B5CF6" },
-  { id: "default-medicine", name: "Medicine", icon: "💊", color: "#DC2626" },
-  { id: "default-education", name: "Education", icon: "📚", color: "#0891B2" },
-  { id: "default-entertainment", name: "Entertainment", icon: "🎬", color: "#F59E0B" },
-  { id: "default-household", name: "Household", icon: "🏠", color: "#64748B" },
-  { id: "default-bills", name: "Bills", icon: "💡", color: "#E11D48" },
-  { id: "default-subscription", name: "Subscription", icon: "📺", color: "#7C3AED" },
-  { id: "default-other", name: "Other", icon: "📝", color: "#6B7280" },
-];
+const INITIAL_CATEGORIES: CategoryItem[] = DEFAULT_CATEGORY_DATA.map((c) => ({
+  id: `default-${c.name.toLowerCase()}`,
+  name: c.name,
+  icon: c.icon,
+  color: c.color,
+}));
+
+const CACHE_VERSION = "v2";
+
+const cacheKey = (name: string) => `${name}_${CACHE_VERSION}`;
+
+function readCache<T>(name: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(cacheKey(name));
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(name: string, data: unknown): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(cacheKey(name), JSON.stringify(data));
+  } catch {
+    // storage unavailable or full — cache writes are best-effort
+  }
+}
+
+const CACHE_NAMES = ["cache_expenses", "cache_payments", "cache_categories", "cache_notes", "cache_income"];
+
+function clearLegacyCache(): void {
+  if (typeof window === "undefined") return;
+  CACHE_NAMES.forEach((name) => localStorage.removeItem(name));
+}
 
 interface StoreContextValue {
   expenses: Expense[];
   expensesLoaded: boolean;
-  addExpense: (data: Omit<Expense, "id" | "created_at" | "updated_at">) => Promise<Expense>;
+  expensesError: string | null;
+  refetchExpenses: () => Promise<void>;
+  addExpense: (data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Expense>;
   updateExpense: (id: string, data: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   getExpensesByDate: (date: string) => Expense[];
@@ -67,12 +109,16 @@ interface StoreContextValue {
 
   payments: RecurringPayment[];
   paymentsLoaded: boolean;
-  addPayment: (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => Promise<RecurringPayment>;
+  paymentsError: string | null;
+  refetchPayments: () => Promise<void>;
+  addPayment: (data: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">) => Promise<RecurringPayment>;
   updatePayment: (id: string, data: Partial<RecurringPayment>) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 
   budgets: Budget[];
   budgetsLoaded: boolean;
+  budgetsError: string | null;
+  refetchBudgets: () => Promise<void>;
   setBudget: (year: number, month: number, amount: number, category?: string) => Promise<void>;
   getBudget: (year: number, month: number, category?: string) => Budget | undefined;
   deleteBudget: (id: string) => Promise<void>;
@@ -80,114 +126,347 @@ interface StoreContextValue {
 
   notes: Note[];
   notesLoaded: boolean;
-  addNote: (data: Omit<Note, "id" | "created_at" | "updated_at">) => Promise<Note>;
+  notesError: string | null;
+  refetchNotes: () => Promise<void>;
+  addNote: (data: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Note>;
   updateNote: (id: string, data: Partial<Note>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
   categories: CategoryItem[];
   categoriesLoaded: boolean;
+  categoriesError: string | null;
+  refetchCategories: () => Promise<void>;
   addCategory: (name: string, icon: string, color: string) => Promise<CategoryItem>;
+  updateCategory: (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryByName: (name: string) => CategoryItem | undefined;
+  applyCategoryOrder: (orderedIds: string[]) => void;
+
+  income: Income[];
+  incomeLoaded: boolean;
+  incomeError: string | null;
+  refetchIncome: () => Promise<void>;
+  addIncome: (data: Omit<Income, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Income>;
+  updateIncome: (id: string, data: Partial<Income>) => Promise<void>;
+  deleteIncome: (id: string) => Promise<void>;
+  getMonthIncome: (year: number, month: number) => number;
+
+  clearCache: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const { user, isConfigured } = useAuth();
+  const userId = user?.id ?? null;
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesLoaded, setExpensesLoaded] = useState(false);
+  const [expensesError, setExpensesError] = useState<string | null>(null);
 
   const [payments, setPayments] = useState<RecurringPayment[]>([]);
   const [paymentsLoaded, setPaymentsLoaded] = useState(false);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [autoPayProcessed, setAutoPayProcessed] = useState(false);
 
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoaded, setBudgetsLoaded] = useState(false);
-  const [budgetsFetched, setBudgetsFetched] = useState(false);
+  const [budgetsError, setBudgetsError] = useState<string | null>(null);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoaded, setNotesLoaded] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
 
-  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_DATA);
+  const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
+  const [income, setIncome] = useState<Income[]>([]);
+  const [incomeLoaded, setIncomeLoaded] = useState(false);
+  const [incomeError, setIncomeError] = useState<string | null>(null);
+
+  // Latest expenses for callbacks that must read current rows without
+  // re-creating on every render (delete + offline sync reconciliation).
+  const expensesRef = useRef<Expense[]>([]);
+  useEffect(() => {
+    expensesRef.current = expenses;
+  }, [expenses]);
+  const syncFlushRef = useRef(false);
+
+  // Reorders any category list to match the user's saved manual order.
+  const sortPerOrder = useCallback((list: CategoryItem[]): CategoryItem[] => {
+    const order = getCategoryOrder();
+    if (order.length === 0) return list;
+    const pos = new Map(order.map((id, i) => [id, i]));
+    return [...list].sort(
+      (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity)
+    );
+  }, []);
+
+  // Budgets are fetched lazily but never latched on failure: the flag only
+  // sticks after a successful fetch, so a failed attempt (e.g. auth not ready
+  // yet) retries when the auth-gated effect re-runs.
+  const budgetsFetchedRef = useRef(false);
+  const fetchBudgetsOnce = useCallback(async () => {
+    if (budgetsFetchedRef.current) return;
+    budgetsFetchedRef.current = true;
+    try {
+      const data = await fetchBudgets();
+      setBudgets(data);
+      setBudgetsError(null);
+    } catch (err) {
+      budgetsFetchedRef.current = false;
+      setBudgets([]);
+      const msg = err instanceof Error ? err.message : "Failed to load budgets";
+      setBudgetsError(msg);
+      toast("Failed to load budgets", "error");
+    } finally {
+      setBudgetsLoaded(true);
+    }
+  }, [toast]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
+  // Hydrate instantly from the localStorage cache on mount (stale-while-revalidate).
   useEffect(() => {
+    clearLegacyCache();
     if (typeof window !== "undefined") {
-      const cachedExpenses = localStorage.getItem("cache_expenses");
+      const cachedExpenses = readCache<Expense[]>("cache_expenses");
       if (cachedExpenses) {
-        setExpenses(JSON.parse(cachedExpenses));
+        setExpenses(cachedExpenses);
         setExpensesLoaded(true);
       }
-      const cachedPayments = localStorage.getItem("cache_payments");
+      const cachedPayments = readCache<RecurringPayment[]>("cache_payments");
       if (cachedPayments) {
-        setPayments(JSON.parse(cachedPayments));
+        setPayments(cachedPayments);
         setPaymentsLoaded(true);
       }
-      const cachedCategories = localStorage.getItem("cache_categories");
+      const cachedCategories = readCache<CategoryItem[]>("cache_categories");
       if (cachedCategories) {
-        setCategories(JSON.parse(cachedCategories));
+        setCategories(sortPerOrder(cachedCategories));
         setCategoriesLoaded(true);
       }
-      const cachedNotes = localStorage.getItem("cache_notes");
+      const cachedNotes = readCache<Note[]>("cache_notes");
       if (cachedNotes) {
-        setNotes(JSON.parse(cachedNotes));
+        setNotes(cachedNotes);
         setNotesLoaded(true);
       }
+      const cachedIncome = readCache<Income[]>("cache_income");
+      if (cachedIncome) {
+        setIncome(cachedIncome);
+        setIncomeLoaded(true);
+      }
     }
+  }, [sortPerOrder]);
+
+  // Fetch from the server only once auth has resolved. Firing earlier races
+  // session restoration: every server action then sees no user and silently
+  // returns [] — wiping state/caches, and latching budgets empty for the whole
+  // session (which hid the dashboard Budget & Savings card after a reload).
+  useEffect(() => {
+    if (!isConfigured || !userId) return;
 
     fetchExpenses().then((data) => {
       setExpenses(data);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setExpensesLoaded(true));
+      setExpensesError(null);
+      writeCache("cache_expenses", data);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load expenses";
+      setExpensesError(msg);
+      toast("Failed to load expenses", "error");
+    }).finally(() => setExpensesLoaded(true));
 
     fetchRecurringPayments().then((data) => {
       setPayments(data);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setPaymentsLoaded(true));
+      setPaymentsError(null);
+      writeCache("cache_payments", data);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
+      setPaymentsError(msg);
+      toast("Failed to load recurring payments", "error");
+    }).finally(() => setPaymentsLoaded(true));
 
     fetchCategories().then((data) => {
       if (data.length > 0) {
-        setCategories(data);
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(data));
+        setCategories(sortPerOrder(data));
+        writeCache("cache_categories", data);
       }
-    }).catch(() => {}).finally(() => setCategoriesLoaded(true));
+      setCategoriesError(null);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load categories";
+      setCategoriesError(msg);
+      toast("Failed to load categories", "error");
+    }).finally(() => setCategoriesLoaded(true));
 
     fetchNotes().then((data) => {
       setNotes(data);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(data));
-    }).catch(() => {}).finally(() => setNotesLoaded(true));
-  }, []); // hydrating store from cache + server on mount
+      setNotesError(null);
+      writeCache("cache_notes", data);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load notes";
+      setNotesError(msg);
+      toast("Failed to load notes", "error");
+    }).finally(() => setNotesLoaded(true));
+
+    fetchIncome().then((data) => {
+      setIncome(data);
+      setIncomeError(null);
+      writeCache("cache_income", data);
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : "Failed to load income";
+      setIncomeError(msg);
+      toast("Failed to load income", "error");
+    }).finally(() => setIncomeLoaded(true));
+
+    void fetchBudgetsOnce();
+  }, [isConfigured, userId, toast, fetchBudgetsOnce, sortPerOrder]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const addExpense = useCallback(async (data: Omit<Expense, "id" | "created_at" | "updated_at">) => {
-    const tempId = `temp-${Date.now()}`;
+  const refetchExpenses = useCallback(async () => {
+    try {
+      const data = await fetchExpenses();
+      setExpenses(data);
+      setExpensesError(null);
+      writeCache("cache_expenses", data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load expenses";
+      setExpensesError(msg);
+      toast("Failed to load expenses", "error");
+    }
+  }, [toast]);
+
+  const refetchPayments = useCallback(async () => {
+    try {
+      const data = await fetchRecurringPayments();
+      setPayments(data);
+      setPaymentsError(null);
+      writeCache("cache_payments", data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load recurring payments";
+      setPaymentsError(msg);
+      toast("Failed to load recurring payments", "error");
+    }
+  }, [toast]);
+
+  const refetchNotes = useCallback(async () => {
+    try {
+      const data = await fetchNotes();
+      setNotes(data);
+      setNotesError(null);
+      writeCache("cache_notes", data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load notes";
+      setNotesError(msg);
+      toast("Failed to load notes", "error");
+    }
+  }, [toast]);
+
+  const refetchCategories = useCallback(async () => {
+    try {
+      const data = await fetchCategories();
+      if (data.length > 0) {
+        setCategories(sortPerOrder(data));
+        writeCache("cache_categories", data);
+      }
+      setCategoriesError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load categories";
+      setCategoriesError(msg);
+      toast("Failed to load categories", "error");
+    }
+  }, [toast, sortPerOrder]);
+
+  const refetchIncome = useCallback(async () => {
+    try {
+      const data = await fetchIncome();
+      setIncome(data);
+      setIncomeError(null);
+      writeCache("cache_income", data);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load income";
+      setIncomeError(msg);
+      toast("Failed to load income", "error");
+    }
+  }, [toast]);
+
+  const refetchBudgets = useCallback(async () => {
+    try {
+      const data = await fetchBudgets();
+      setBudgets(data);
+      setBudgetsError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load budgets";
+      setBudgetsError(msg);
+      toast("Failed to load budgets", "error");
+    }
+  }, [toast]);
+
+  const clearCache = useCallback(async () => {
+    if (typeof window !== "undefined") {
+      CACHE_NAMES.forEach((name) => localStorage.removeItem(cacheKey(name)));
+      clearLegacyCache();
+    }
+    await Promise.all([
+      refetchExpenses(),
+      refetchPayments(),
+      refetchNotes(),
+      refetchCategories(),
+      refetchIncome(),
+      refetchBudgets(),
+    ]);
+  }, [refetchExpenses, refetchPayments, refetchNotes, refetchCategories, refetchIncome, refetchBudgets]);
+
+  const addExpense = useCallback(async (data: Omit<Expense, "id" | "user_id" | "created_at" | "updated_at">) => {
+    const nowIso = new Date().toISOString();
+    const uuid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const tempId = `temp-${uuid}`;
+    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
     const optimisticExpense: Expense = {
       ...data,
       id: tempId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      user_id: "",
+      created_at: nowIso,
+      updated_at: nowIso,
+      ...(isOffline ? { pendingSync: true } : {}),
     };
 
     setExpenses((prev) => {
       const next = [optimisticExpense, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
+
+    if (isOffline) {
+      await enqueuePendingExpense({ key: tempId, data, createdAt: nowIso });
+      return optimisticExpense;
+    }
 
     try {
       const realExpense = await addExpenseAction(data);
       setExpenses((prev) => {
         const next = prev.map((e) => (e.id === tempId ? realExpense : e));
-        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        writeCache("cache_expenses", next);
         return next;
       });
       return realExpense;
     } catch (err) {
+      // A dropped connection keeps the entry visible and queues it for an
+      // automatic retry; genuine server/validation errors roll back as before.
+      if (isNetworkError(err)) {
+        await enqueuePendingExpense({ key: tempId, data, createdAt: nowIso });
+        setExpenses((prev) => {
+          const next = prev.map((e) => (e.id === tempId ? { ...e, pendingSync: true } : e));
+          writeCache("cache_expenses", next);
+          return next;
+        });
+        return optimisticExpense;
+      }
       setExpenses((prev) => {
         const next = prev.filter((e) => e.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+        writeCache("cache_expenses", next);
         return next;
       });
       throw err;
@@ -199,7 +478,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setExpenses((prev) => {
       originalExpenses = prev;
       const next = prev.map((e) => (e.id === id ? { ...e, ...data, updated_at: new Date().toISOString() } : e));
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
 
@@ -207,28 +486,120 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateExpenseAction(id, data);
     } catch (err) {
       setExpenses(originalExpenses);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      writeCache("cache_expenses", originalExpenses);
       throw err;
     }
   }, []);
 
   const deleteExpense = useCallback(async (id: string) => {
+    const target = expensesRef.current.find((e) => e.id === id);
+    const isPendingLocal = !!target && (target.pendingSync || target.id.startsWith("temp-"));
     let originalExpenses: Expense[] = [];
     setExpenses((prev) => {
       originalExpenses = prev;
       const next = prev.filter((e) => e.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(next));
+      writeCache("cache_expenses", next);
       return next;
     });
 
     try {
-      await deleteExpenseAction(id);
+      if (isPendingLocal) {
+        // The row only exists locally — drop it from the offline outbox too.
+        await removePendingExpense(id);
+      } else {
+        await deleteExpenseAction(id);
+      }
     } catch (err) {
       setExpenses(originalExpenses);
-      if (typeof window !== "undefined") localStorage.setItem("cache_expenses", JSON.stringify(originalExpenses));
+      writeCache("cache_expenses", originalExpenses);
       throw err;
     }
   }, []);
+
+  /* ---------- offline outbox sync ---------- */
+
+  const flushPendingExpenses = useCallback(async () => {
+    if (!isConfigured || !userId) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (syncFlushRef.current) return;
+    syncFlushRef.current = true;
+    try {
+      // Re-enqueue any local pending rows that lost their outbox entry
+      // (e.g. IndexedDB cleared between sessions) so nothing is orphaned.
+      for (const row of expensesRef.current) {
+        if (!(row.pendingSync || row.id.startsWith("temp-"))) continue;
+        await enqueuePendingExpense({ key: row.id, data: toPendingData(row), createdAt: row.created_at });
+      }
+      const pending = await listPendingExpenses();
+      if (pending.length === 0) return;
+
+      toast(`Syncing ${pending.length} offline ${pending.length === 1 ? "entry" : "entries"}…`, "info");
+
+      // Server snapshot powers duplicate detection: an entry with the same
+      // name/date/category/amount already on the server means it was created
+      // from another device (or a previous retry landed) — merge instead of
+      // double-inserting.
+      let server: Expense[] | null = null;
+      try {
+        server = await fetchExpenses();
+      } catch {
+        server = null;
+      }
+
+      let synced = 0;
+      let merged = 0;
+      let failed = 0;
+      for (const item of pending) {
+        try {
+          const dup = server?.find(
+            (e) =>
+              !e.id.startsWith("temp-") &&
+              e.name === item.data.name &&
+              e.date === item.data.date &&
+              e.category === item.data.category &&
+              Math.abs(e.amount - item.data.amount) < 0.001
+          );
+          const real = dup ?? (await addExpenseAction(item.data));
+          if (!dup) synced++;
+          else merged++;
+          await removePendingExpense(item.key);
+          setExpenses((prev) => {
+            const next = prev.map((e) =>
+              e.id === item.key ? { ...real, pendingSync: undefined } : e
+            );
+            writeCache("cache_expenses", next);
+            return next;
+          });
+        } catch {
+          failed++;
+        }
+      }
+
+      if (synced + merged > 0 && failed === 0) {
+        toast(
+          `Synced ${synced + merged} offline ${synced + merged === 1 ? "entry" : "entries"}${
+            merged > 0 ? ` (${merged} matched existing)` : ""
+          }`,
+          "success"
+        );
+      } else if (failed > 0 && synced + merged === 0) {
+        toast("Offline entries will retry when the connection is stable", "error");
+      }
+    } finally {
+      syncFlushRef.current = false;
+    }
+  }, [isConfigured, userId, toast]);
+
+  useEffect(() => {
+    void flushPendingExpenses();
+    const handleOnline = () => void flushPendingExpenses();
+    window.addEventListener("online", handleOnline);
+    const interval = window.setInterval(handleOnline, 60_000);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.clearInterval(interval);
+    };
+  }, [flushPendingExpenses]);
 
   const getExpensesByDate = useCallback((date: string) =>
     expenses.filter((e) => e.date === date).sort((a, b) => b.created_at.localeCompare(a.created_at)),
@@ -251,18 +622,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [expenses]);
 
   // Payments
-  const addPayment = useCallback(async (data: Omit<RecurringPayment, "id" | "created_at" | "updated_at">) => {
+  const addPayment = useCallback(async (data: Omit<RecurringPayment, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticPayment: RecurringPayment = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     setPayments((prev) => {
       const next = [optimisticPayment, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -270,14 +642,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realPayment = await addRecurringPayment(data);
       setPayments((prev) => {
         const next = prev.map((p) => (p.id === tempId ? realPayment : p));
-        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        writeCache("cache_payments", next);
         return next;
       });
       return realPayment;
     } catch (err) {
       setPayments((prev) => {
         const next = prev.filter((p) => p.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+        writeCache("cache_payments", next);
         return next;
       });
       throw err;
@@ -289,7 +661,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPayments((prev) => {
       originalPayments = prev;
       const next = prev.map((p) => (p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p));
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -297,7 +669,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateRecurringPayment(id, data);
     } catch (err) {
       setPayments(originalPayments);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      writeCache("cache_payments", originalPayments);
       throw err;
     }
   }, []);
@@ -307,7 +679,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPayments((prev) => {
       originalPayments = prev;
       const next = prev.filter((p) => p.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(next));
+      writeCache("cache_payments", next);
       return next;
     });
 
@@ -315,7 +687,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteRecurringPayment(id);
     } catch (err) {
       setPayments(originalPayments);
-      if (typeof window !== "undefined") localStorage.setItem("cache_payments", JSON.stringify(originalPayments));
+      writeCache("cache_payments", originalPayments);
       throw err;
     }
   }, []);
@@ -336,7 +708,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         for (const dueDate of dueDates) {
           try {
             await addExpense({
-              user_id: "",
               name: p.name,
               amount: p.amount,
               category: p.category,
@@ -357,17 +728,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     runAutoPay();
   }, [expensesLoaded, paymentsLoaded, autoPayProcessed, payments, addExpense, updatePayment, toast]);
-
-  // Budgets
-  const fetchBudgetsIfNeeded = useCallback(async () => {
-    if (budgetsFetched) return;
-    setBudgetsFetched(true);
-    fetchBudgets().then(setBudgets).catch(() => setBudgets([])).finally(() => setBudgetsLoaded(true));
-  }, [budgetsFetched]);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { fetchBudgetsIfNeeded(); }, [fetchBudgetsIfNeeded]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const setBudget = useCallback(async (year: number, month: number, amount: number, category?: string) => {
     const budget = await upsertBudget(year, month, amount, category);
@@ -391,18 +751,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Notes
-  const addNote = useCallback(async (data: Omit<Note, "id" | "created_at" | "updated_at">) => {
+  const addNote = useCallback(async (data: Omit<Note, "id" | "user_id" | "created_at" | "updated_at">) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticNote: Note = {
       ...data,
       id: tempId,
+      user_id: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     setNotes((prev) => {
       const next = [optimisticNote, ...prev];
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -410,14 +771,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realNote = await addNoteAction(data);
       setNotes((prev) => {
         const next = prev.map((n) => (n.id === tempId ? realNote : n));
-        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        writeCache("cache_notes", next);
         return next;
       });
       return realNote;
     } catch (err) {
       setNotes((prev) => {
         const next = prev.filter((n) => n.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+        writeCache("cache_notes", next);
         return next;
       });
       throw err;
@@ -429,7 +790,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => {
       originalNotes = prev;
       const next = prev.map((n) => (n.id === id ? { ...n, ...data, updated_at: new Date().toISOString() } : n));
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -437,7 +798,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await updateNoteAction(id, data);
     } catch (err) {
       setNotes(originalNotes);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      writeCache("cache_notes", originalNotes);
       throw err;
     }
   }, []);
@@ -447,7 +808,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => {
       originalNotes = prev;
       const next = prev.filter((n) => n.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(next));
+      writeCache("cache_notes", next);
       return next;
     });
 
@@ -455,7 +816,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteNoteAction(id);
     } catch (err) {
       setNotes(originalNotes);
-      if (typeof window !== "undefined") localStorage.setItem("cache_notes", JSON.stringify(originalNotes));
+      writeCache("cache_notes", originalNotes);
       throw err;
     }
   }, []);
@@ -472,7 +833,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setCategories((prev) => {
       const next = [...prev, optimisticCategory];
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      writeCache("cache_categories", next);
       return next;
     });
 
@@ -480,16 +841,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const realCategory = await addCategoryAction(name, icon, color);
       setCategories((prev) => {
         const next = prev.map((c) => (c.id === tempId ? realCategory : c));
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        writeCache("cache_categories", next);
         return next;
       });
       return realCategory;
     } catch (err) {
       setCategories((prev) => {
         const next = prev.filter((c) => c.id !== tempId);
-        if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+        writeCache("cache_categories", next);
         return next;
       });
+      throw err;
+    }
+  }, []);
+
+  const updateCategory = useCallback(async (id: string, updates: Partial<Pick<CategoryItem, "name" | "icon" | "color">>) => {
+    let originalCategories: CategoryItem[] = [];
+    setCategories((prev) => {
+      originalCategories = prev;
+      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      writeCache("cache_categories", next);
+      return next;
+    });
+
+    try {
+      await updateCategoryAction(id, updates);
+    } catch (err) {
+      setCategories(originalCategories);
+      writeCache("cache_categories", originalCategories);
       throw err;
     }
   }, []);
@@ -500,7 +879,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCategories((prev) => {
       originalCategories = prev;
       const next = prev.filter((c) => c.id !== id);
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(next));
+      writeCache("cache_categories", next);
       return next;
     });
 
@@ -508,7 +887,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await deleteCategoryAction(id);
     } catch (err) {
       setCategories(originalCategories);
-      if (typeof window !== "undefined") localStorage.setItem("cache_categories", JSON.stringify(originalCategories));
+      writeCache("cache_categories", originalCategories);
       throw err;
     }
   }, []);
@@ -518,14 +897,113 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [categories]
   );
 
+  // Persist a new manual order (drag handles / move buttons on Categories page).
+  const applyCategoryOrder = useCallback((orderedIds: string[]) => {
+    saveCategoryOrder(orderedIds);
+    setCategories((prev) => {
+      const pos = new Map(orderedIds.map((id, i) => [id, i]));
+      const next = [...prev].sort(
+        (a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity)
+      );
+      writeCache("cache_categories", next);
+      return next;
+    });
+  }, []);
+
+  // Income
+  const addIncome = useCallback(async (data: Omit<Income, "id" | "user_id" | "created_at" | "updated_at">) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticIncome: Income = {
+      ...data,
+      id: tempId,
+      user_id: "",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setIncome((prev) => {
+      const next = [optimisticIncome, ...prev];
+      writeCache("cache_income", next);
+      return next;
+    });
+
+    try {
+      const realIncome = await addIncomeAction(data);
+      setIncome((prev) => {
+        const next = prev.map((i) => (i.id === tempId ? realIncome : i));
+        writeCache("cache_income", next);
+        return next;
+      });
+      return realIncome;
+    } catch (err) {
+      setIncome((prev) => {
+        const next = prev.filter((i) => i.id !== tempId);
+        writeCache("cache_income", next);
+        return next;
+      });
+      throw err;
+    }
+  }, []);
+
+  const updateIncome = useCallback(async (id: string, updates: Partial<Income>) => {
+    let originalIncome: Income[] = [];
+    setIncome((prev) => {
+      originalIncome = prev;
+      const next = prev.map((i) => (i.id === id ? { ...i, ...updates } : i));
+      writeCache("cache_income", next);
+      return next;
+    });
+
+    try {
+      await updateIncomeAction(id, updates);
+    } catch (err) {
+      setIncome(originalIncome);
+      writeCache("cache_income", originalIncome);
+      throw err;
+    }
+  }, []);
+
+  const deleteIncome = useCallback(async (id: string) => {
+    let originalIncome: Income[] = [];
+    setIncome((prev) => {
+      originalIncome = prev;
+      const next = prev.filter((i) => i.id !== id);
+      writeCache("cache_income", next);
+      return next;
+    });
+
+    try {
+      await deleteIncomeAction(id);
+    } catch (err) {
+      setIncome(originalIncome);
+      writeCache("cache_income", originalIncome);
+      throw err;
+    }
+  }, []);
+
+  const getMonthIncome = useCallback((year: number, month: number) => {
+    const prefix = `${year}-${String(month).padStart(2, "0")}`;
+    return income
+      .filter((i) => i.date.startsWith(prefix))
+      .reduce((sum, i) => sum + i.amount, 0);
+  }, [income]);
+
   return (
     <StoreContext.Provider value={{
-      expenses, expensesLoaded, addExpense, updateExpense, deleteExpense,
+      expenses, expensesLoaded, expensesError, refetchExpenses,
+      addExpense, updateExpense, deleteExpense,
       getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
-      payments, paymentsLoaded, addPayment, updatePayment, deletePayment,
-      budgets, budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded,
-      notes, notesLoaded, addNote, updateNote, deleteNote,
-      categories, categoriesLoaded, addCategory, deleteCategory, getCategoryByName,
+      payments, paymentsLoaded, paymentsError, refetchPayments,
+      addPayment, updatePayment, deletePayment,
+      budgets, budgetsLoaded, budgetsError, refetchBudgets,
+      setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded: fetchBudgetsOnce,
+      notes, notesLoaded, notesError, refetchNotes,
+      addNote, updateNote, deleteNote,
+      categories, categoriesLoaded, categoriesError, refetchCategories,
+      addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder,
+      income, incomeLoaded, incomeError, refetchIncome,
+      addIncome, updateIncome, deleteIncome, getMonthIncome,
+      clearCache,
     }}>
       {children}
     </StoreContext.Provider>
@@ -540,33 +1018,45 @@ function useStore() {
 
 export function useExpenses() {
   const {
-    expenses, expensesLoaded, addExpense, updateExpense, deleteExpense,
+    expenses, expensesLoaded, expensesError, refetchExpenses,
+    addExpense, updateExpense, deleteExpense,
     getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
   } = useStore();
   return {
-    expenses, loaded: expensesLoaded, addExpense, updateExpense, deleteExpense,
+    expenses, loaded: expensesLoaded, error: expensesError, refetch: refetchExpenses,
+    addExpense, updateExpense, deleteExpense,
     getExpensesByDate, getExpensesByMonth, getMonthTotal, getTodayTotal,
   };
 }
 
 export function useRecurringPayments() {
-  const { payments, paymentsLoaded, addPayment, updatePayment, deletePayment } = useStore();
-  return { payments, loaded: paymentsLoaded, addPayment, updatePayment, deletePayment };
+  const { payments, paymentsLoaded, paymentsError, refetchPayments, addPayment, updatePayment, deletePayment } = useStore();
+  return { payments, loaded: paymentsLoaded, error: paymentsError, refetch: refetchPayments, addPayment, updatePayment, deletePayment };
 }
 
 export function useBudgets() {
-  const { budgets, budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded } = useStore();
-  return { budgets, loaded: budgetsLoaded, setBudget, getBudget, deleteBudget, fetchBudgets: fetchBudgetsIfNeeded };
+  const { budgets, budgetsLoaded, budgetsError, refetchBudgets, setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded } = useStore();
+  return { budgets, loaded: budgetsLoaded, error: budgetsError, refetch: refetchBudgets, setBudget, getBudget, deleteBudget, fetchBudgets: fetchBudgetsIfNeeded };
 }
 
 export function useNotes() {
-  const { notes, notesLoaded, addNote, updateNote, deleteNote } = useStore();
-  return { notes, loaded: notesLoaded, addNote, updateNote, deleteNote };
+  const { notes, notesLoaded, notesError, refetchNotes, addNote, updateNote, deleteNote } = useStore();
+  return { notes, loaded: notesLoaded, error: notesError, refetch: refetchNotes, addNote, updateNote, deleteNote };
 }
 
 export function useCategories() {
-  const { categories, categoriesLoaded, addCategory, deleteCategory, getCategoryByName } = useStore();
-  return { categories, loaded: categoriesLoaded, addCategory, deleteCategory, getCategoryByName };
+  const { categories, categoriesLoaded, categoriesError, refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder } = useStore();
+  return { categories, loaded: categoriesLoaded, error: categoriesError, refetch: refetchCategories, addCategory, updateCategory, deleteCategory, getCategoryByName, applyCategoryOrder };
+}
+
+export function useIncome() {
+  const { income, incomeLoaded, incomeError, refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome } = useStore();
+  return { income, loaded: incomeLoaded, error: incomeError, refetch: refetchIncome, addIncome, updateIncome, deleteIncome, getMonthIncome };
+}
+
+export function useClearCache() {
+  const { clearCache } = useStore();
+  return clearCache;
 }
 
 export function getDueDates(payment: RecurringPayment, todayStr: string): string[] {
@@ -626,4 +1116,3 @@ export function getDueDates(payment: RecurringPayment, todayStr: string): string
   }
   return dates;
 }
-

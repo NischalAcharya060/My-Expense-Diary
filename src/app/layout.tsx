@@ -8,6 +8,11 @@ import { CountryProvider } from "@/components/CountryProvider";
 import { StoreProvider } from "@/lib/store";
 import ThemeToggle from "@/components/ThemeToggle";
 import Sidebar from "@/components/Sidebar";
+import BillReminderManager from "@/components/BillReminderManager";
+import SwipeBack from "@/components/SwipeBack";
+import PwaLayer from "@/components/PwaLayer";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
+import WhatsNew from "@/components/WhatsNew";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,11 +54,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AuthProvider>
               <ToastProvider>
                 <StoreProvider>
+                  <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-accent-warm focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold">
+                    Skip to content
+                  </a>
                   <Sidebar />
-                  <main className="flex-1 min-h-screen overflow-x-hidden">
+                  <main id="main-content" className="flex-1 min-h-screen overflow-x-hidden">
                     {children}
                   </main>
                   <ThemeToggle />
+                  <BillReminderManager />
+                  <SwipeBack />
+                  <PwaLayer />
+                  <KeyboardShortcutsHelp />
+                  <WhatsNew />
                 </StoreProvider>
               </ToastProvider>
             </AuthProvider>

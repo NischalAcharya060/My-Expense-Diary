@@ -7,658 +7,590 @@
 ## Phase 1: Critical Fixes (Security + Data Integrity)
 
 ### 1.1 Security Hardening
-- [ ] Verify `.env` is in `.gitignore` and not tracked by git. Rotate Supabase keys if repo is public.
-- [ ] Add Zod validation schemas for ALL server actions (`expenses.ts`, `recurring.ts`, `budgets.ts`, `notes.ts`, `categories.ts`)
+- [x] Verify `.env` is in `.gitignore` and not tracked by git. Rotate Supabase keys if repo is public.
+- [x] Add Zod validation schemas for ALL server actions (`expenses.ts`, `recurring.ts`, `budgets.ts`, `notes.ts`, `categories.ts`)
   - Validate: name length (max 200), amount (positive, max 999999.99), date format, category names
   - Reject unknown/extra fields
-- [ ] Replace `null as any` casts in `lib/supabase/client.ts:12` and `lib/supabase/server.ts:9` with proper null checks and thrown errors
-- [ ] Add password strength validation in `profile/page.tsx` (min 8 chars, require number or special char)
+- [x] Replace `null as any` casts in `lib/supabase/client.ts:12` and `lib/supabase/server.ts:9` with proper null checks and thrown errors
+- [x] Add password strength validation in `profile/page.tsx` (min 8 chars, require number or special char)
 
 ### 1.2 Database Schema Fixes
-- [ ] Add `payment_method` column to `recurring_payments` table (currently only stored in localStorage, lost on cache clear)
-- [ ] Add `auto_pay` column to `recurring_payments` table (same issue — localStorage only)
-- [ ] Add missing indexes:
+- [x] Add `payment_method` column to `recurring_payments` table (currently only stored in localStorage, lost on cache clear)
+- [x] Add `auto_pay` column to `recurring_payments` table (same issue — localStorage only)
+- [x] Add missing indexes:
   - `categories(user_id)` 
   - `expenses(user_id, expense_type)` — bills page filters by this constantly
   - `recurring_payments(user_id, due_day)` — auto-pay engine queries
-- [ ] Add CHECK constraint on `expense_type` column (prevent typos: should only be 'Expense', 'Bill', 'Subscription', 'Recurring payment')
-- [ ] Add database trigger to sync `last_paid` on `recurring_payments` when an expense is logged with `recurring_payment_id`
+- [x] Add CHECK constraint on `expense_type` column (prevent typos: should only be 'Expense', 'Bill', 'Subscription', 'Recurring payment')
+- [x] Add database trigger to sync `last_paid` on `recurring_payments` when an expense is logged with `recurring_payment_id`
 
 ---
 
 ## Phase 2: Error Handling + Resilience
 
 ### 2.1 Error Boundaries
-- [ ] Create `src/app/error.tsx` — global error boundary with retry button
-- [ ] Create `src/app/expenses/error.tsx`
-- [ ] Create `src/app/bills/error.tsx`
-- [ ] Create `src/app/recurring/error.tsx`
-- [ ] Create `src/app/insights/error.tsx`
-- [ ] Create `src/app/calendar/error.tsx`
-- [ ] Create `src/app/monthly/error.tsx`
-- [ ] Create `src/app/notes/error.tsx`
-- [ ] Create `src/app/settings/error.tsx`
-- [ ] Create `src/app/not-found.tsx` — custom 404 page with "Go Home" CTA
+- [x] Create `src/app/error.tsx` — global error boundary with retry button
+- [x] Create `src/app/expenses/error.tsx`
+- [x] Create `src/app/bills/error.tsx`
+- [x] Create `src/app/recurring/error.tsx`
+- [x] Create `src/app/insights/error.tsx`
+- [x] Create `src/app/calendar/error.tsx`
+- [x] Create `src/app/monthly/error.tsx`
+- [x] Create `src/app/notes/error.tsx`
+- [x] Create `src/app/settings/error.tsx`
+- [x] Create `src/app/not-found.tsx` — custom 404 page with "Go Home" CTA
 
 ### 2.2 Loading States
-- [ ] Create `src/app/expenses/loading.tsx` — skeleton matching expense list layout
-- [ ] Create `src/app/bills/loading.tsx` — skeleton matching bill cards
-- [ ] Create `src/app/insights/loading.tsx` — chart-shaped skeletons
-- [ ] Create `src/app/calendar/loading.tsx` — calendar grid skeleton
-- [ ] Create `src/app/recurring/loading.tsx`
-- [ ] Create `src/app/monthly/loading.tsx`
-- [ ] Create `src/app/notes/loading.tsx`
+- [x] Create `src/app/expenses/loading.tsx` — skeleton matching expense list layout
+- [x] Create `src/app/bills/loading.tsx` — skeleton matching bill cards
+- [x] Create `src/app/insights/loading.tsx` — chart-shaped skeletons
+- [x] Create `src/app/calendar/loading.tsx` — calendar grid skeleton
+- [x] Create `src/app/recurring/loading.tsx`
+- [x] Create `src/app/monthly/loading.tsx`
+- [x] Create `src/app/notes/loading.tsx`
 
 ### 2.3 Store Error Handling
-- [ ] In `lib/store.tsx` — stop silently swallowing errors in `.catch(() => {})` (lines ~139-159)
-- [ ] Show toast on failed data fetches with retry option
-- [ ] Add error state to each hook (`useExpenses().error`, `useRecurringPayments().error`)
-- [ ] Handle Supabase session expiry gracefully in `AuthProvider.tsx`
+- [x] In `lib/store.tsx` — stop silently swallowing errors in `.catch(() => {})` (lines ~139-159)
+- [x] Show toast on failed data fetches with retry option
+- [x] Add error state to each hook (`useExpenses().error`, `useRecurringPayments().error`)
+- [x] Handle Supabase session expiry gracefully in `AuthProvider.tsx`
 
 ---
 
 ## Phase 3: UX Consistency Fixes
 
 ### 3.1 Replace Native Browser Dialogs
-- [ ] `bills/page.tsx:98` — Replace `prompt()` for variable bill amount with a custom modal input
-- [ ] `settings/page.tsx:178` — Replace `alert("Invalid backup file")` with `toast("Invalid backup file", "error")`
+- [x] `bills/page.tsx:98` — Replace `prompt()` for variable bill amount with a custom modal input
+- [x] `settings/page.tsx:178` — Replace `alert("Invalid backup file")` with `toast("Invalid backup file", "error")`
 
 ### 3.2 Auth Guard Consistency
-- [ ] Add `AuthGuard` wrapper to `insights/page.tsx`
-- [ ] Add `AuthGuard` wrapper to `calendar/page.tsx`
-- [ ] Add `AuthGuard` wrapper to `monthly/page.tsx`
+- [x] Add `AuthGuard` wrapper to `insights/page.tsx`
+- [x] Add `AuthGuard` wrapper to `calendar/page.tsx`
+- [x] Add `AuthGuard` wrapper to `monthly/page.tsx`
 
 ### 3.3 Confirmation Dialogs
-- [ ] `recurring/page.tsx` — Add ConfirmDialog for toggle active/inactive (currently instant, no undo)
-- [ ] `bills/page.tsx` — Add ConfirmDialog for deactivate bill action (currently instant)
+- [x] `recurring/page.tsx` — Add ConfirmDialog for toggle active/inactive (currently instant, no undo)
+- [x] `bills/page.tsx` — Add ConfirmDialog for deactivate bill action (currently instant)
 
 ### 3.4 Toast Error Messages
-- [ ] Add error toast to all failed server actions across all pages (currently some silently fail)
-- [ ] Add loading state to delete buttons (show spinner while deleting)
+- [x] Add error toast to all failed server actions across all pages (currently some silently fail)
+- [x] Add loading state to delete buttons (show spinner while deleting)
 
 ---
 
 ## Phase 4: Dark Mode Polish
 
 ### 4.1 Fix Dark Mode Breakages
-- [ ] `notes/page.tsx:197-238` — Replace hardcoded `dark:text-black`, `dark:bg-black/10` with CSS custom properties
-- [ ] `globals.css:152` — `.sticky-note` hardcoded `background: #FEF9C3` needs dark mode variant
-- [ ] `page.tsx:309-331` — Landing page sticky notes `bg-[#FEF9C3]`, `bg-[#DCFCE7]`, `bg-[#DBEAFE]` need dark variants
-- [ ] `login/page.tsx:209` — Google sign-in button `bg-white` needs dark mode handling
-- [ ] `components/FlagIcon.tsx` — External CDN dependency (`flagcdn.com`); add fallback for when CDN is down
+- [x] `notes/page.tsx:197-238` — Replace hardcoded `dark:text-black`, `dark:bg-black/10` with CSS custom properties
+- [x] `globals.css:152` — `.sticky-note` hardcoded `background: #FEF9C3` needs dark mode variant
+- [x] `page.tsx:309-331` — Landing page sticky notes `bg-[#FEF9C3]`, `bg-[#DCFCE7]`, `bg-[#DBEAFE]` need dark variants
+- [x] `login/page.tsx:209` — Google sign-in button `bg-white` needs dark mode handling
+- [x] `components/FlagIcon.tsx` — External CDN dependency (`flagcdn.com`); add fallback for when CDN is down
 
 ### 4.2 Theme Toggle Conflict
-- [ ] `ThemeToggle.tsx` and `Toast.tsx` both use `fixed bottom-6 right-6 z-50` — move toast container to `bottom-6 left-6` or adjust z-index stacking
+- [x] `ThemeToggle.tsx` and `Toast.tsx` both use `fixed bottom-6 right-6 z-50` — move toast container to `bottom-6 left-6` or adjust z-index stacking
 
 ---
 
 ## Phase 5: Accessibility
 
 ### 5.1 WCAG Compliance
-- [ ] Add `alt` text to flag images in `FlagIcon.tsx` (currently `alt=""`)
-- [ ] Add `aria-label` to all icon-only buttons (edit, delete, toggle) across `recurring/page.tsx`, `expenses/page.tsx`, `bills/page.tsx`
-- [ ] Add skip-to-content link in `layout.tsx`
-- [ ] Ensure all interactive elements have visible focus indicators
-- [ ] Add `role` attributes to custom modals (`ConfirmDialog`, `AddExpenseModal`, etc.)
+- [x] Add `alt` text to flag images in `FlagIcon.tsx` (currently `alt=""`)
+- [x] Add `aria-label` to all icon-only buttons (edit, delete, toggle) across `expenses/page.tsx`, `bills/page.tsx`, `categories/page.tsx`, `notes/page.tsx`, `insights/page.tsx`, `calendar/page.tsx`, `monthly/page.tsx`, `settings/page.tsx`, `Sidebar.tsx`, `AddBillModal.tsx`, `EditExpenseModal.tsx`, `ConfirmDialog.tsx`, `VariableAmountModal.tsx`
+- [x] Ensure all interactive elements have visible focus indicators
+- [x] Add `role="dialog"` and `aria-modal="true"` to custom modals (`ConfirmDialog`, `AddExpenseModal`, `EditExpenseModal`, `AddBillModal`, `VariableAmountModal`)
+- [x] Add skip-to-content link in `layout.tsx`
 
 ---
 
 ## Phase 6: Missing Core Features
 
 ### 6.1 Income Tracking
-- [ ] Add `income` table to Supabase schema (id, user_id, name, amount, date, source, category, created_at)
-- [ ] Add server actions: `fetchIncome`, `addIncome`, `updateIncome`, `deleteIncome`
-- [ ] Add `useIncome` hook to store
-- [ ] Create `src/app/income/page.tsx` — income journal with CRUD
-- [ ] Update dashboard (`page.tsx`) to show net balance (income - expenses)
-- [ ] Update `monthly/page.tsx` to show income vs expense comparison
-- [ ] Update `insights/page.tsx` to include income charts
-- [ ] Add sidebar link for Income
+- [x] Add `income` table to Supabase schema (id, user_id, name, amount, date, source, category, created_at)
+- [x] Add server actions: `fetchIncome`, `addIncome`, `updateIncome`, `deleteIncome`
+- [x] Add `useIncome` hook to store
+- [x] Create `src/app/income/page.tsx` — income journal with CRUD
+- [x] Update dashboard (`page.tsx`) to show net balance (income - expenses)
+- [x] Update `monthly/page.tsx` to show income vs expense comparison
+- [x] Update `insights/page.tsx` to include income charts
+- [x] Add sidebar link for Income
 
 ### 6.2 Category Management
-- [ ] Create `src/app/categories/page.tsx` — dedicated page to view, edit, reorder, delete categories
-- [ ] Add `updateCategory` server action to `actions/categories.ts`
-- [ ] Add edit icon and reorder drag handles to category list
-- [ ] Show expense count per category
-- [ ] Prevent deletion of categories with existing expenses (or offer to reassign)
+- [x] Create `src/app/categories/page.tsx` — dedicated page to view, edit, reorder, delete categories
+- [x] Add `updateCategory` server action to `actions/categories.ts`
+- [x] Add edit icon and reorder drag handles to category list (GripVertical drag-and-drop + ChevronUp/Down buttons; order persisted in localStorage `category_order_v1`, applied centrally via store `applyCategoryOrder` — no DB migration needed since default categories are shared rows)
+- [x] Show expense count per category
+- [x] Prevent deletion of categories with existing expenses (or offer to reassign) (used categories open a "Move & Delete" dialog with replacement picker; unused → plain confirm; defaults can't be deleted; last-category guard blocks orphaning)
 
 ### 6.3 CSV Export
-- [ ] Add CSV export option alongside JSON in `settings/page.tsx`
-- [ ] Format: Date, Name, Amount, Category, Payment Method, Expense Type, Note
-- [ ] Add date range selector for export
-- [ ] Add CSV export to monthly summary page
+- [x] Add CSV export option alongside JSON in `settings/page.tsx`
+- [x] Format: Date, Name, Amount, Category, Payment Method, Expense Type, Note
+- [x] Add date range selector for export (From/To inputs in Export Data section; applies to CSV & Excel, JSON/PDF stay full)
+- [x] Add CSV export to monthly summary page
 
 ### 6.4 Date Range Filter on Expenses
-- [ ] Add start/end date picker to `expenses/page.tsx` filter bar
-- [ ] Add "This Week", "This Month", "Last 30 Days", "Custom Range" quick filters
-- [ ] Persist filter selection in URL query params for shareability
-
----
-
-## Phase 7: Dashboard Enhancement
-
-### 7.1 Rich Dashboard
-- [ ] Add mini category pie chart to dashboard (reuse insights chart component)
-- [ ] Add spending trend sparkline (last 7 days)
-- [ ] Add "Top Spending Category" card
-- [ ] Add monthly budget progress bar (when budget is set)
-- [ ] Improve empty state: show illustration + "Add Your First Expense" CTA button
-
-### 7.2 Quick Actions
-- [ ] Add floating action button (FAB) on mobile for quick expense entry
-- [ ] Add keyboard shortcut `Ctrl+N` to open add expense modal (desktop)
-
----
-
-## Phase 8: Expense Templates
-
-- [ ] Add `expense_templates` table (id, user_id, name, amount, category, payment_method, expense_type, created_at)
-- [ ] Add server actions for CRUD
-- [ ] Add "Save as Template" button on expense creation success
-- [ ] Add "Use Template" section in AddExpenseModal to pre-fill from template
-- [ ] Show templates list in settings or as a dropdown on expense page
+- [x] Add start/end date picker to `expenses/page.tsx` filter bar
+- [x] Add "This Week", "This Month", "Last 30 Days", "Custom Range" quick filters
+- [x] Persist filter selection in URL query params for shareability
 
 ---
 
 ## Phase 9: Notifications & Reminders
 
 ### 9.1 Bill Reminders
-- [ ] Use the `reminder_days` field on `RecurringPayment` (currently unused)
-- [ ] On dashboard, show "Upcoming in X days" badges for bills within reminder window
-- [ ] Add browser Notification API support (request permission, show notification on due date)
+- [x] Use the `reminder_days` field on `RecurringPayment` (currently unused)
+- [x] On dashboard, show "Upcoming in X days" badges for bills within reminder window
+- [x] Add browser Notification API support (request permission, show notification on due date)
 
 ### 9.2 Budget Alerts
-- [ ] When adding an expense that pushes a category over budget, show warning toast
-- [ ] On dashboard, show budget warning cards when any category is >80% used
+- [x] When adding an expense that pushes a category over budget, show warning toast
+- [x] On dashboard, show budget warning cards when any category is >80% used
 
 ---
 
 ## Phase 10: Performance Optimization
 
 ### 10.1 Pagination
-- [ ] Add server-side pagination to `fetchExpenses` (limit/offset)
-- [ ] Add "Load More" button or infinite scroll to expenses page
-- [ ] Paginate bills history tab
+- [x] Add server-side pagination to `fetchExpenses` (limit/offset)
+- [x] Add "Load More" button or infinite scroll to expenses page
+- [x] Paginate bills history tab
 
 ### 10.2 Code Splitting
-- [ ] Lazy load `recharts` in `insights/page.tsx` (400KB bundle)
-- [ ] Lazy load `AddBillModal` and `AddExpenseModal` (only needed on interaction)
-- [ ] Use `next/dynamic` for chart components
+- [x] Lazy load `recharts` in `insights/page.tsx` (400KB bundle)
+- [x] Lazy load `AddBillModal` and `AddExpenseModal` (only needed on interaction)
+- [x] Use `next/dynamic` for chart components
 
 ### 10.3 Caching
-- [ ] Add `React.memo` to expense list item components
-- [ ] Add `useMemo` for filtered/sorted expense lists
-- [ ] Improve localStorage cache with version stamp (invalidate on schema changes)
+- [x] Add `React.memo` to expense list item components
+- [x] Add `useMemo` for filtered/sorted expense lists
+- [x] Improve localStorage cache with version stamp (invalidate on schema changes)
 
 ---
 
 ## Phase 11: UI Polish & Micro-interactions
 
 ### 11.1 Animations
-- [ ] Add page transition animations (route change fade/slide)
-- [ ] Add subtle hover lift effect on cards
-- [ ] Add swipe-to-delete on mobile expense items
-- [ ] Add confetti or celebration animation when all bills are paid for the month
+- [x] Add page transition animations (route change fade/slide) (already present via `.page-enter` on every page root)
+- [x] Add subtle hover lift effect on cards (`.card-hover` utility using `--shadow-lifted`; applied to stat/info cards)
+- [x] Add swipe-to-delete on mobile expense items (`ExpenseRow` touch handlers reveal red delete layer, threshold triggers confirm dialog)
+- [x] Add confetti or celebration animation when all bills are paid for the month (`Confetti` component + banner + toast on bills page)
 
 ### 11.2 Empty States (per page)
-- [ ] `expenses/page.tsx` — Illustrated empty state with "Start Tracking" CTA
-- [ ] `bills/page.tsx` — Already has one, but improve with illustration
-- [ ] `recurring/page.tsx` — Add illustration and CTA button
-- [ ] `insights/page.tsx` — "Add expenses to see insights" with CTA
-- [ ] `calendar/page.tsx` — Show empty calendar with prompt
-- [ ] `notes/page.tsx` — "Jot down your first note" prompt
-- [ ] `income/page.tsx` (new) — "Track your first income" prompt
+- [x] `expenses/page.tsx` — Illustrated empty state with "Start Tracking" CTA (+ separate "no filter matches" state with Clear Filters)
+- [x] `bills/page.tsx` — Improved with illustration and "Add Your First Bill" CTA
+- [x] ~~`recurring/page.tsx`~~ — N/A, page was removed (replaced by `/bills`)
+- [x] `insights/page.tsx` — "No data to analyze yet" with Log First Expense CTA (charts hidden when no expenses)
+- [x] `calendar/page.tsx` — Empty calendar prompt with CTA when no expenses exist
+- [x] `notes/page.tsx` — "Jot down your first note" prompt with Write a Note CTA
+- [x] `income/page.tsx` — "Track Your First Income" prompt with CTA
 
 ### 11.3 Visual Refinements
-- [ ] Consistent card shadows across all pages
-- [ ] Add subtle gradient to header sections
-- [ ] Improve typography hierarchy (headings, body, captions)
-- [ ] Add color-coded category dots next to expense names (not just left border)
+- [x] Consistent card shadows across all pages (tokenized via `--shadow-paper` / `--shadow-lifted`)
+- [x] Add subtle gradient to header sections (`.header-gradient` applied to 9 page headers)
+- [x] Improve typography hierarchy (font smoothing + optimizeLegibility on body)
 
 ---
 
 ## Phase 12: Code Quality & Maintainability
 
 ### 12.1 Deduplication
-- [ ] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component
-- [ ] Consolidate default categories from 3 locations (`types/index.ts:3-16`, `lib/store.tsx:42-55`, `lib/utils.ts:51-64`) into a single source of truth
-- [ ] Remove `CategoryItem` duplicate type definition from `actions/categories.ts:5-10`
+- [x] Extract shared form fields from `AddExpenseModal.tsx` and `EditExpenseModal.tsx` into a shared `ExpenseForm` component (controlled component with `ExpenseFormData` + `onChange(patch)`; variations via `allExpenseTypes`, `categoryTilesExtra`, `categoryHint` props)
+- [x] Consolidate default categories from 4 locations into a single source of truth (`types/index.ts` now holds `DEFAULT_CATEGORY_DATA` with name/icon/color; `DEFAULT_CATEGORIES`, utils `CATEGORIES`/`CATEGORY_COLORS`, and store `INITIAL_CATEGORIES` are all derived from it)
+- [x] Remove `CategoryItem` duplicate type definition from `actions/categories.ts` (now imported from `@/types`)
 
 ### 12.2 Type Safety
-- [ ] Remove all `as any` casts (found in `recurring/page.tsx:56`, `bills/page.tsx:115`, `store.tsx`)
-- [ ] Create proper union types for `ExpenseType`, `Frequency`, `PaymentMethod` if not already done
-- [ ] Add strict TypeScript config: `"strict": true` in `tsconfig.json`
-
-### 12.3 Testing
-- [ ] Add unit tests for `getDueDates` function (complex pure function with 5 frequency types)
-- [ ] Add unit tests for `formatCurrency` and other utility functions
-- [ ] Add component tests for `ConfirmDialog`, `Toast`, `AddExpenseModal`
-- [ ] Add E2E tests for: login → add expense → verify on dashboard → delete expense flow
-
----
+- [x] Remove all `as any` casts (none remain in src — verified via grep)
+- [x] Create proper union types for `ExpenseType`, `Frequency`, `PaymentMethod` (already in `types/index.ts`)
+- [x] Add strict TypeScript config: `"strict": true` in `tsconfig.json` (already set)
 
 ## Phase 13: First-Time User Experience (Onboarding)
 
 ### 13.1 Welcome Flow
-- [ ] Create `src/app/onboarding/page.tsx` — 3-step guided welcome after first login
+- [x] Create `src/app/onboarding/page.tsx` — 3-step guided welcome after first login
   - Step 1: "Welcome to My Expense Diary" — short animated intro with app preview
   - Step 2: "Pick your currency" — country/currency selector (reuses CountryProvider)
   - Step 3: "Log your first expense" — inline mini form to add one expense right there
-- [ ] Store `onboarded` flag in `user_metadata` to skip flow on return visits
-- [ ] Show onboarding only once per user (check `user.user_metadata.onboarded`)
+- [x] Store `onboarded` flag in `user_metadata` to skip flow on return visits
+- [x] Show onboarding only once per user (check `user.user_metadata.onboarded`)
 
 ### 13.2 Empty State CTAs with Guidance
-- [ ] Dashboard empty state: "Your diary is empty!" with animated illustration + "Add First Expense" button that opens the modal
-- [ ] Expenses page empty: Show a mock journal page with faded example entries and "Tap to start tracking" overlay
-- [ ] Bills page empty: Show a card with "No bills yet — add Netflix, rent, electricity..." and quick-add presets
-- [ ] Notes page empty: Show a blank sticky note with blinking cursor prompt "Jot something down..."
-- [ ] Insights page empty: "Add 3+ expenses to unlock insights" with progress indicator
-- [ ] Calendar page empty: Show current month calendar with "Tap any day to add expenses"
+- [x] Dashboard empty state: "Your diary is empty!" with animated illustration + "Add First Expense" button that opens the modal
+- [x] Expenses page empty: Show a mock journal page with faded example entries and "Tap to start tracking" overlay
+- [x] Bills page empty: Show a card with "No bills yet — add Netflix, rent, electricity..." and quick-add presets
+- [x] Notes page empty: Show a blank sticky note with blinking cursor prompt "Jot something down..."
+- [x] Insights page empty: "Add 3+ expenses to unlock insights" with progress indicator
+- [x] Calendar page empty: Show current month calendar with "Tap any day to add expenses"
 
 ---
 
 ## Phase 14: Frictionless Expense Entry (Core UX)
 
 ### 14.1 Quick Add (1-Tap Expense)
-- [ ] Add "Quick Add" floating action button (FAB) visible on ALL pages (bottom-right, above theme toggle)
-- [ ] Quick Add opens a minimal modal: Amount + Category grid + Done button (3 taps total)
-- [ ] Remember last used category and pre-select it
-- [ ] Remember last used payment method and pre-select it
-- [ ] Show recent expense names as chips above the name field for quick re-entry
+- [x] Remember last used category and pre-select it (`getQuickAddPrefs`/`saveQuickAddPrefs` in utils, persisted to localStorage on save; validated against live category list)
+- [x] Remember last used payment method and pre-select it
+- [x] Show recent expense names as chips above the name field for quick re-entry (6 most recent unique names from expense history in `ExpenseForm`)
 
 ### 14.2 Smart Expense Form
-- [ ] Auto-categorize based on expense name (e.g., "Netflix" → Subscription, "Uber" → Transport)
-- [ ] Show category suggestions as user types the name
-- [ ] Add " Repeat this?" toggle on expense form → creates recurring payment automatically
-- [ ] Show running daily total at the bottom of the form as user adds expenses
-- [ ] Haptic feedback on mobile when expense is saved (navigator.vibrate)
-
-### 14.3 Voice Entry (Future)
-- [ ] Add microphone button on AddExpenseModal
-- [ ] Use Web Speech API: "Spent 50 dollars on groceries" → auto-fills amount + category
-- [ ] Show transcribed text for confirmation before saving
-
----
-
-## Phase 15: Smart Defaults & Personalization
-
-### 15.1 Recent & Frequent
-- [ ] On AddExpenseModal: Show "Recent" section with last 5 used categories + payment methods
-- [ ] On AddExpenseModal: Show "Frequently Used" section with top 3 categories by frequency
-- [ ] Pre-fill date with today, payment method with last used, category with most used
-
-### 15.2 Expense Name Autocomplete
-- [ ] As user types expense name, show dropdown of previous expense names matching the input
-- [ ] Selecting a suggestion auto-fills amount, category, and payment method from history
-- [ ] Dedupe suggestions by name, show most recent amount
-
-### 15.3 Smart Category Suggestions
-- [ ] When user types a new category name, check if it's similar to existing ones ("food" vs "Food")
-- [ ] Suggest merging similar categories
-- [ ] Auto-assign colors based on category name hash (consistent per user)
-
----
+- [x] Auto-categorize based on expense name (e.g., "Netflix" → Subscription, "Uber" → Transport) — `lib/smartCategory.ts` keyword engine with word-boundary matching; suggestions validated against visible categories so hidden Bill/Subscription categories are never auto-picked on the Add form
+- [x] Show category suggestions as user types the name (✨ suggestion chip when a manual category override is active; "Auto-matched" hint otherwise; manual pick stops auto-categorize until name is cleared)
+- [x] Show running daily total at the bottom of the form as user adds expenses ("Spent so far on {date}" + live `+ entry = new total`)
+- [x] Haptic feedback on mobile when expense is saved (navigator.vibrate via `hapticFeedback()` util)
 
 ## Phase 16: Visual Feedback & Micro-interactions
 
 ### 16.1 Success Celebrations
-- [ ] After adding expense: Show a subtle checkmark animation (scale up + fade) on the button
-- [ ] After paying all bills for the month: Show confetti animation on bills page
-- [ ] After reaching budget limit: Show a gentle "Budget reached" pulse animation on the category
-- [ ] After deleting: Slide-out animation on the deleted row before removing from DOM
+- [x] After adding expense: Show a subtle checkmark animation (scale up + fade) on the button (button turns green with `check-pop` icon for ~800ms before modal closes)
+- [x] After paying all bills for the month: Show confetti animation on bills page (done in Phase 11 — Confetti component + banner + toast)
+- [x] After reaching budget limit: Show a gentle "Budget reached" pulse animation on the category (`budget-pulse` glow on dashboard + monthly budget bars when over 100%)
+- [x] After deleting: Slide-out animation on the deleted row before removing from DOM (`row-exit` on ExpenseRow; dialog dismisses, row slides right/fades/collapses over 340ms, then delete runs)
 
 ### 16.2 Progress Indicators
-- [ ] Budget progress bars with color gradient: green (0-50%) → yellow (50-80%) → red (80-100%)
-- [ ] Monthly savings goal progress ring (circular progress)
-- [ ] Bill payment progress: "3 of 5 bills paid this month" with visual progress bar
-- [ ] Expense count milestone badges: "100 expenses logged! 🎉"
-
-### 16.3 Haptic & Visual Feedback
-- [ ] On mobile: Light haptic feedback on button taps (navigator.vibrate(10))
-- [ ] On mobile: Pull-to-refresh on expenses list
-- [ ] Long-press on expense → context menu (Edit, Delete, Duplicate)
-- [ ] Swipe left on expense → reveals red delete button (mobile)
-- [ ] Swipe right on expense → reveals green duplicate button (mobile)
+- [x] Budget progress bars with color gradient: green (0-50%) → yellow (50-80%) → red (80-100%) — shared `BudgetBar` component used by dashboard overall-budget card, budget alerts, and monthly page
+- [x] Monthly savings goal progress ring (circular progress) — `ProgressRing` SVG ring on dashboard "Budget & Savings" card showing savings rate (net/income), green/red by sign
+- [x] Bill payment progress: "3 of 5 bills paid this month" with visual progress bar (bills page overview card)
+- [x] Expense count milestone badges: "100 expenses logged! 🎉" — one-time toast at 10/25/50/100/250/500/1000 after adding an expense (seen milestones tracked in localStorage)
 
 ### 16.4 Skeleton Loading Improvements
-- [ ] Expense list skeletons: Show rows with animated gradient shimmer matching handwritten style
-- [ ] Chart skeletons: Show faint chart outlines with pulse animation
-- [ ] Dashboard skeletons: Show stat cards with shimmer effect
-- [ ] Calendar skeletons: Show grid with pulse
+- [x] Expense list skeletons: Show rows with animated gradient shimmer matching handwritten style (route loading.tsx + inline !loaded state: journal rows, day headers, filter bar)
+- [x] Chart skeletons: Show faint chart outlines with pulse animation (pie ring outline + legend lines, bar chart columns, dashed-grid area chart with pulsing stroke)
+- [x] Dashboard skeletons: Show stat cards with shimmer effect (rotated stat-card shapes + entries card lines)
+- [x] Calendar skeletons: Show grid with pulse (day cells with date/dot placeholders, today-ring hint, weekday header)
 
 ---
 
 ## Phase 17: Navigation & Wayfinding
 
 ### 17.1 Smart Sidebar
-- [ ] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist
-- [ ] Show today's expense count on "Expenses" sidebar link
-- [ ] Highlight current page with animated underline (not just color change)
-- [ ] Show "New" badge on sidebar links for features user hasn't tried yet
+- [x] Show unread bill count badge on "Bills & Subs" sidebar link when overdue bills exist (red count bubble via `getUpcomingBills` overdue filter; mini bubble in collapsed mode)
+- [x] ~~Show today's expense count on "Expenses" sidebar link~~ — implemented then removed per user preference (only the overdue-bills badge remains)
+- [x] Highlight current page with animated underline (not just color change) (scale-x underline under the active label, origin-left 300ms ease-out)
+- [x] Show "New" badge on sidebar links for features user hasn't tried yet (visited pages tracked in `visited_pages_v1`; green NEW pill until first visit)
 
 ### 17.2 Breadcrumbs & Back Navigation
-- [ ] Add breadcrumbs on settings sub-pages
-- [ ] On mobile: Show back arrow in page header for easy navigation
-- [ ] On modals: Swipe down to dismiss (mobile)
+- [x] Add breadcrumbs on settings sub-pages (`Breadcrumbs` component; Home / Settings on settings page and Home / Profile on profile page)
+- [x] On mobile: Show back arrow in page header for easy navigation (`BackButton` on expenses, bills, calendar, monthly, income, insights, categories, notes, settings, profile; history.back with "/" fallback)
+- [x] On modals: Swipe down to dismiss (mobile) (`useSwipeDownDismiss` hook applied to ConfirmDialog, AuthPrompt, VariableAmountModal, AddExpenseModal, EditExpenseModal, AddBillModal — rubber-band drag, closes past 90px)
 
 ### 17.3 Quick Jump
-- [ ] Add `Ctrl+K` / `Cmd+K` keyboard shortcut to open command palette
-- [ ] Command palette: Search expenses, jump to pages, quick actions (add expense, add bill)
-- [ ] Show recent actions in command palette
-- [ ] Show on desktop only, with spotlight-style UI
-
----
-
-## Phase 18: Dashboard UX Redesign
-
-### 18.1 At-a-Glance Cards
-- [ ] Top row: 4 stat cards with icons — Total Spent (month), Bills Due, Budget Left, Savings
-- [ ] Each card: Icon + label + amount + trend arrow (↑↓ vs last month)
-- [ ] Cards should be tappable to navigate to relevant page
-
-### 18.2 Today's Summary Card
-- [ ] Show today's expenses with running total
-- [ ] Show "Last expense: [name] [amount] [time ago]"
-- [ ] Quick "Add Another" button at the bottom
-
-### 18.3 Upcoming Bills Timeline
-- [ ] Show next 3-5 upcoming bills as a vertical timeline
-- [ ] Color-code: Red (overdue), Orange (due today), Blue (upcoming)
-- [ ] Show countdown: "Netflix due in 3 days"
-- [ ] Each bill item tappable to go to bills page
-
-### 18.4 Spending Heatmap
-- [ ] Show a mini GitHub-style spending heatmap for the current month
-- [ ] Green shades for low spending days, red shades for high spending days
-- [ ] Tappable to navigate to that day's expenses
+- [x] Add `Ctrl+K` / `Cmd+K` keyboard shortcut to toggle focus on the Expenses page search bar from anywhere (press again to blur; "Ctrl K" hint chip inside the search input)
+- [ ] ~~Command palette~~ — implemented then removed per user preference (shortcut now focuses the expenses search bar instead)
 
 ---
 
 ## Phase 19: Expense List UX Improvements
 
 ### 19.1 Grouping & Sorting
-- [ ] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18")
-- [ ] Show daily subtotals in the date header
-- [ ] Sort options: Newest first, Oldest first, Highest amount, Lowest amount
-- [ ] Sort toggle button in the filter bar
+- [x] Group expenses by date with sticky date headers ("Today", "Yesterday", "Aug 18") (day headers now sticky (top-2, paper tab w/ shadow) while their group is in view; Today/Yesterday labels with full date subtitle)
+- [x] Show daily subtotals in the date header ("Total: X" under each day header)
+- [x] Sort options: Newest first, Oldest first, Highest amount, Lowest amount (amount sorts order day groups by daily total; ties newer-first)
+- [x] Sort toggle button in the filter bar (icon dropdown select next to category filter)
 
 ### 19.2 Inline Actions
-- [ ] Swipe to delete on mobile
-- [ ] Long press for context menu (Edit, Delete, Duplicate, View details)
-- [ ] Tap on expense → expand to show full details (note, receipt, category color)
-- [ ] Double-tap on expense → quick edit amount inline
+- [x] Swipe to delete on mobile (done in Phase 11 via `ExpenseRow`)
+- [x] Long press for context menu (Edit, Delete, Duplicate, View details) (500ms hold opens portal menu at press point; right-click opens it on desktop; outside tap/scroll/Esc closes)
+- [x] Tap on expense → expand to show full details (note, receipt, category color) (tap toggles detail panel: colored category chip, type badge, note in handwritten style, receipt thumbnail/link, added timestamp)
+- [x] Double-tap on expense → quick edit amount inline (300ms double-tap/double-click opens number input in the row; Enter/✓/blur saves via `updateExpense`, Esc/✕ cancels)
 
 ### 19.3 Search UX
-- [ ] Search bar with magnifying glass icon and clear button
-- [ ] Search as you type (debounced 300ms)
-- [ ] Show result count: "Found 12 expenses"
-- [ ] Highlight matching text in results
-- [ ] Recent searches dropdown when search is focused
-- [ ] Empty search state: "No expenses match your search"
+- [x] Search bar with magnifying glass icon and clear button (✕ button replaces the Ctrl K hint while typing; clears input + committed term and refocuses)
+- [x] Search as you type (debounced 300ms) (`searchInput` raw vs `search` debounced/trimmed committed value used by filters)
+- [x] Show result count: "Found 12 expenses" (with "matching …" when searching; aria-live polite)
+- [x] Highlight matching text in results (`HighlightMatch` wraps first case-insensitive occurrence in accent `<mark>` inside expense names)
+- [x] Recent searches dropdown when search is focused (max 5, localStorage `recent_searches_v1`, dedupe case-insensitive; header with Clear-all; rows fill the query)
+- [x] Empty search state: "No expenses match your search" ("Nothing matches your current search or filters." + Clear filters button)
 
 ### 19.4 Filter UX
-- [ ] Filter chips with visual feedback (colored borders when active)
-- [ ] Active filter count badge: "3 filters active"
-- [ ] "Clear all filters" button when any filter is active
-- [ ] Filter bar should be sticky on scroll
+- [x] Filter chips with visual feedback (colored borders when active) (active chips get solid accent background + white text)
+- [x] Active filter count badge: "3 filters active" (counts search + category + date range; warm pill in quick-filter row)
+- [x] "Clear all filters" button when any filter is active (now shown in the filter bar next to the badge, not just the empty state)
+- [x] Filter bar should be sticky on scroll (sticky top-2 opaque paper card z-40; day headers park below it via measured bar height w/ ResizeObserver)
+
+### 19.5 Search & Filter Polish (mobile-first refinement)
+- [x] Slim sticky mode: bar collapses when stuck (sentinel + IntersectionObserver hides the date-chip row and tightens padding; ResizeObserver keeps day-header offsets in sync); floating count bubble appears when stuck w/ active filters — tap scrolls back to full bar
+- [x] Mobile layout: category + sort selects sit side-by-side (grid-cols-2) instead of stacked full-width; search field taller tap target (py-2.5) with focus ring
+- [x] Date chips: horizontally scrollable strip (no-scrollbar utility + right-edge fade affordance) instead of multi-row wrap; pill-shaped chips with bigger tap targets; badge/Reset labels shorten on small screens
+- [x] Result count now includes day span ("Found 12 expenses across 5 days"); row edit/delete buttons get larger touch targets on mobile
+
+### 19.6 Search & Filter Redesign (UI/UX Pro Max audit fixes)
+- [x] Unified control scale: shared CONTROL_CLS — all controls h-11 (mobile) / h-10 (desktop), rounded-lg, visible focus-visible ring (accent-warm border + ring-accent-warm/25); selects use appearance-none + custom ChevronDown for consistent styling across browsers
+- [x] Recents popover rebuilt: menu-in entrance animation (reduced-motion aware, also reused by ExpenseRow context menu, replacing nonexistent .menu-pop class), rounded-xl + shadow-xl elevation, 384px desktop panel, per-row ✕ remove buttons (writes through to localStorage), Clear all in header, hover/keyboard highlight sync (↑/↓ to navigate, Enter picks, Esc closes popover first then blurs field)
+- [x] Date chips: 36px-tall pill buttons via CHIP_BASE_CLS with aria-pressed state, active chips keep identical height (border-transparent instead of removed border), active:scale-95 press feedback; custom range date inputs restyled to matching h-9 scale; clear-date button is a proper 36px hit area
+- [x] Badge/Reset: taller badge (h-7), Reset button promoted to a 36px target with press feedback and red focus ring
+- [x] Mobile Filters toggle: category/sort selects + date-chip strip collapse behind a "Filters" button (sm:hidden) beside the search field; button shows active-filter count badge, fills warm when expanded, and panels animate in via menu-in; desktop unaffected (sm:flex / sm:contents keep everything visible)
 
 ---
 
 ## Phase 20: Bills & Subscriptions UX
 
 ### 20.1 Visual Status Cards
-- [ ] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge
-- [ ] Due today: Orange left border + "DUE TODAY" badge
-- [ ] Upcoming: Blue left border + countdown badge
-- [ ] Paid: Green left border + checkmark + strikethrough name
+- [x] Overdue bills: Red left border + pulsing dot + "OVERDUE" badge (due-date split by string compare; red pill w/ `.pulse-dot` (reduced-motion aware) + existing "Overdue since ..." line)
+- [x] Due today: Orange left border + "DUE TODAY" badge (`border-l-accent-warm` card, warm pill badge, "Due today (...)" subtitle; section header shows "· Due Today" suffix when only due-today items remain)
+- [x] Upcoming: Blue left border + countdown badge (blue border + "(X days left)" inline countdown)
+- [x] Paid: Green left border + checkmark + strikethrough name (green border, strikethrough name, green "Paid" pill; CheckCircle2 on section header)
 
 ### 20.2 Pay Flow
-- [ ] "Pay Now" button opens a confirmation modal (not instant)
-- [ ] Show payment summary before confirming: Name, Amount, Date, Method
-- [ ] After payment: Green checkmark animation + toast
-- [ ] Show "All bills paid! 🎉" celebration when all monthly bills are settled
+- [x] "Pay Now" button opens a confirmation modal (not instant) (fixed bills open `PayConfirmModal`; variable bills go through the amount modal first, then the same confirmation)
+- [x] Show payment summary before confirming: Name, Amount, Date, Method (dl rows; Date reflects early-pay logging rule `dueDate <= today ? dueDate : today`)
+- [x] After payment: Green checkmark animation + toast (centered success card with `check-pop` CheckCircle2 + name/amount, auto-dismisses after ~2.4s; toast unchanged)
+- [x] Show "All bills paid! 🎉" celebration when all monthly bills are settled (Confetti component + green banner + toast)
 
 ### 20.3 Subscription Health
-- [ ] Show monthly subscription total prominently
-- [ ] Show "You spend $X/month on subscriptions" with comparison to income
-- [ ] Flag unused subscriptions: "Haven't used in 30 days" warning
-- [ ] Suggest canceling expensive subscriptions (UX hint, not actual cancel)
+- [x] Show monthly subscription total prominently ("Monthly Total" overview stat card)
+- [x] Show "You spend $X/month on subscriptions" with comparison to income (Subscription Health card; frequency-normalized monthly cost, % of `getMonthIncome` with color-coded bar — green ≤10%, warm ≤25%, red >25%; prompts to log income when none)
+- [x] Flag unused subscriptions: "Haven't used in 30 days" warning (activity proxy: latest logged expense / `last_paid`; amber AlertTriangle row when >30 days stale or never paid after 30+ days tracked)
+- [x] Suggest canceling expensive subscriptions (UX hint, not actual cancel) (💡 rows for subs costing ≥5% of monthly income, priciest first; mentions "no recent activity" when also unused)
 
 ---
 
 ## Phase 21: Notes & Journal UX
 
 ### 21.1 Rich Note Creation
-- [ ] Drag-and-drop color picker for sticky notes (instead of dropdown)
-- [ ] Pin note to top with visual "pin" animation
-- [ ] Notes should auto-resize as content grows
-- [ ] Show character count / word count at bottom of note
+- [x] Drag-and-drop color picker for sticky notes (instead of dropdown) (editor swatches are draggable + click-selectable; drop onto any note card or the editor itself to recolor with accent ring highlight + "Drop the color…" hint while dragging)
+- [x] Pin note to top with visual "pin" animation (Pin/PinOff toggle buttons + pinned indicator; pinned sorted first)
+- [x] Notes should auto-resize as content grows (`AutoResizeTextarea` grows/shrinks with content via scrollHeight, overflow hidden)
+- [x] Show character count / word count at bottom of note ("X words · Y characters" live counter in editor footer; per-note word/char count in card footers next to Updated date)
 
 ### 21.2 Note Organization
-- [ ] Pinned notes always at top with a subtle "📌" indicator
-- [ ] Sort by: Last edited, Created date, Color
-- [ ] Grid layout on desktop, list on mobile
-- [ ] Masonry layout option for notes (Pinterest-style)
+- [x] Pinned notes always at top with a subtle "📌" indicator (pinned-first sort + indicator on card)
+- [x] Sort by: Last edited, Created date, Color (sort select in toolbar above grid — pinned always first; color groups by NOTE_COLORS order w/ recency tiebreak; choice persisted to `notes_sort_v1`)
+- [x] Grid layout on desktop, list on mobile (`grid-cols-1 sm:grid-cols-2`)
+- [x] Masonry layout option for notes (Pinterest-style) (Grid/Masonry toggle (LayoutGrid/Columns3 icons); masonry = CSS columns with break-inside-avoid + full unclamped content so cards size naturally; persisted to `notes_layout_v1`)
 
 ### 21.3 Note-to-Expense Link
-- [ ] Allow linking a note to an expense (e.g., "Grocery list" note linked to grocery expense)
-- [ ] Show linked notes on expense detail view
-- [ ] Show linked expenses on note view
+- [x] Allow linking a note to an expense (e.g., "Grocery list" note linked to grocery expense) (`notes.expense_id` FK column (ON DELETE SET NULL) + migration; "+ Link to an expense…" picker in the note editor listing 50 most recent expenses with name/amount/date, removable chip when linked)
+- [x] Show linked notes on expense detail view (expanded row panel lists pinned indicator, title + content snippet as sticky chips in the note's color; click opens Notes)
+- [x] Show linked expenses on note view (note cards show a category-icon/name/amount chip that deep-links to `/expenses?q=<name>`; editor shows the same link chip)
 
 ---
 
 ## Phase 22: Calendar UX Improvements
 
 ### 22.1 Day Detail Panel
-- [ ] Tapping a day opens a slide-in panel from right (not a new page)
-- [ ] Panel shows: Date, total, list of expenses, "Add Expense" button for that date
-- [ ] Swipe panel left/right to navigate to previous/next day
+- [x] Tapping a day opens a slide-in panel from right (not a new page) (`DayDetailDrawer` fixed right-side drawer w/ `drawer-in` slide animation + fade backdrop; backdrop tap closes; replaces the old inline card below the grid)
+- [x] Panel shows: Date, total, list of expenses, "Add Expense" button for that date (drawer header shows date + daily total, rows with category color/delete (ConfirmDialog), footer "Add Expense" opens `AddExpenseModal` pre-filled with `defaultDate`)
+- [x] Swipe panel left/right to navigate to previous/next day (horizontal swipe w/ rubber-band drag, 60px threshold; chevron buttons + ←/→ keys on desktop; content swaps directionally via `day-swap-next/prev`; crossing month boundaries syncs the grid)
 
 ### 22.2 Visual Indicators
-- [ ] Days with expenses: Show dot indicator with color matching top category
-- [ ] Days with high spending: Show red dot
-- [ ] Today: Highlight with ring/border
-- [ ] Days with no expenses: Subtle gray dot or no indicator
+- [x] Days with expenses: Show dot indicator with color matching top category (implemented as category icons per day)
+- [x] Days with high spending: Show red dot (threshold-based: day total ≥ 1.75× the month's average spending-day total → pulsing red corner dot via `.pulse-dot`)
+- [x] Today: Highlight with ring/border (already implemented)
+- [x] Days with no expenses: Subtle gray dot or no indicator (faint centered gray dot on empty current-month cells)
 
 ### 22.3 Monthly Navigation
-- [ ] Smooth month transition animation (slide left/right)
-- [ ] Show monthly total at top of calendar
-- [ ] "Today" button to quickly jump back to current month
+- [x] Smooth month transition animation (slide left/right) (grid remounts per month keyed by yyyy-MM with directional `month-slide-next/prev` animations; reduced-motion aware)
+- [x] Show monthly total at top of calendar (already implemented)
+- [x] "Today" button to quickly jump back to current month (pill button under the month header, only shown when viewing another month)
 
 ---
 
 ## Phase 23: Settings & Profile UX
 
 ### 23.1 Settings Organization
-- [ ] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account"
-- [ ] Each section collapsible
-- [ ] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active")
+- [x] Group settings into cards with clear sections: "Appearance", "Currency", "Budget", "Data", "Account" (already separate paper-cards: Appearance, Country & Currency, Budget, Data Overview, Export Data, Danger Zone)
+- [x] Each section collapsible (shared `CollapsibleSection` component; animated expand/collapse via grid-template-rows trick; every section starts collapsed by default and expands when the user taps its header)
+- [x] Show current values as subtitles (e.g., "Dark Mode" → "Dark Mode · Currently active") (each header shows live state: theme mode, country · currency symbol, budgets saved + this month's amount, total records stored, export formats, cache size, record count at risk)
 
 ### 23.2 Profile Improvements
-- [ ] Avatar picker with preview (current implementation is basic)
-- [ ] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked"
-- [ ] Account deletion option (with strong confirmation)
+- [x] Avatar picker with preview (current avatar preview + selection grid with ring highlight; Google/custom options)
+- [x] Show user stats: "Member since [date]", "[X] expenses logged", "[Y] bills tracked" ("Your Journey" card on profile; member since from `user.created_at`, bills counted as active recurring payments)
+- [x] Account deletion option (with strong confirmation) (Danger Zone card → dialog requiring typed "DELETE"; calls new `delete_own_account` security-definer RPC (supabase-migrations/20260823_120000_phase23_delete_own_account.sql), signs out, hard-navigates home)
 
 ### 23.3 Data Management
-- [ ] Export as CSV with date range picker
-- [ ] Export as PDF report with charts
-- [ ] Import preview: Show what will be imported before confirming
-- [ ] "Clear all data" requires typing "DELETE ALL" to confirm
+- [x] Export as CSV with date range picker (done in Phase 6.3)
+- [x] Export as PDF report with charts (jsPDF report now draws a last-6-months spending bar chart + top-categories horizontal breakdown bars with amounts/percentages before the table)
+- [x] Import preview: Show what will be imported before confirming (JSON import opens a preview modal with per-type counts, first expense entries sample, and an explicit Import/Cancel choice; nothing applied until confirmed)
+- [x] "Clear all data" requires typing "DELETE ALL" to confirm (custom dialog with typed confirmation input, Enter-to-confirm, button stays disabled until exact match)
 
 ---
 
 ## Phase 24: Mobile-Specific UX
 
 ### 24.1 Touch Interactions
-- [ ] Pull-to-refresh on all list pages
-- [ ] Swipe right to go back (iOS-style)
-- [ ] Long press on expense for context menu
-- [ ] Swipe left to delete, swipe right to duplicate
-- [ ] Tap status bar to scroll to top
-
-### 24.2 Bottom Navigation (Mobile)
-- [ ] Show bottom tab bar on mobile instead of sidebar
-- [ ] Tabs: Home, Expenses, Add (center FAB), Bills, More
-- [ ] Active tab indicator with color
-- [ ] Badge counts on relevant tabs (overdue bills count)
-
-### 24.3 Mobile Modals
-- [ ] All modals should slide up from bottom on mobile (sheet style)
-- [ ] Swipe down on modal to dismiss
-- [ ] Modal backdrop blur effect
-
-### 24.4 Responsive Breakpoints
-- [ ] Ensure all pages work on 320px minimum width
-- [ ] Test on iPhone SE, iPhone 14, Galaxy S21, iPad
-- [ ] Cards should stack vertically on mobile, grid on desktop
-- [ ] Charts should be full-width on mobile with horizontal scroll if needed
-
----
+- [x] Pull-to-refresh on all list pages (`usePullToRefresh` + `PullToRefresh` indicator — rubber-band drag at top of page, spinner hold, haptic tick; wired into dashboard (full cache refresh), expenses, bills, notes, income, categories, calendar, monthly; native browser PTR disabled via `overscroll-behavior-y: none`)
+- [x] Swipe right to go back (iOS-style) (`SwipeBack` component mounted globally in layout — left-edge 28px start zone, axis-locked, arrow-chip + edge-bar progress indicators, haptic on fire; suppressed while dialogs/mobile nav are open via `GESTURE_BLOCK_SELECTOR`)
+- [x] Long press on expense for context menu (done in Phase 19)
+- [x] Swipe left to delete, swipe right to duplicate (`ExpenseRow` now reveals a green Duplicate layer behind the row on swipe-right with haptic tick; touches starting in the swipe-back edge zone only track leftward so the two gestures never clash)
+- [x] Tap status bar to scroll to top (page headers tappable via `useTapScrollTop` — smooth scroll honoring reduced motion, clicks on nested buttons ignored; applied to dashboard, expenses, bills, notes, income, categories, calendar, monthly, insights)
 
 ## Phase 25: Insights & Analytics UX
 
 ### 25.1 Interactive Charts
-- [ ] Tap on pie chart segment → filter expense list to that category
-- [ ] Tap on bar chart bar → navigate to that month's expenses
-- [ ] Long press on chart → show tooltip with exact values
-- [ ] Pinch to zoom on area chart
+- [x] Tap on pie chart segment → filter expense list to that category (CategoryPie takes onSelect; tap routes to /expenses?category=X&month=YYYY-MM; side progress rows are now accessible buttons doing the same)
+- [x] Tap on bar chart bar → navigate to that month's expenses (MonthlyComparisonBar datum gained a `key` (YYYY-MM) + onSelectMonth → /expenses?month=YYYY-MM)
+- [x] Long press on chart → show tooltip with exact values (InteractiveChart shell: 420ms hold pins a paper-card tooltip + dashed guide line at that x, haptic feedback, auto-dismisses in 3.5s; works on daily trend and 6-month bars — pie excluded since segment arcs don't map linearly to x)
+- [x] Pinch to zoom on area chart (two-finger pinch shrinks/expands visible window, min 7 points, center-anchored; single-finger horizontal drag pans while zoomed with axis-lock so vertical scroll still works; double-tap or Reset chip restores full range; spans >62 days auto-bucket weekly)
 
 ### 25.2 Time Range Selector
-- [ ] Toggle between: This Week, This Month, Last 3 Months, Last 6 Months, This Year, Custom
-- [ ] Show selected range prominently
-- [ ] Charts should animate when range changes
+- [x] Toggle between: This Week, This Month, Last 3 Months, Last 6 Months, This Year, Custom (RangeSelector chips + custom start/end date inputs; nav arrows shift week/month/3m/6m/year anchors, disabled for custom)
+- [x] Show selected range prominently (handwritten range label centered in the nav card above Total Outflow; all cards/charts derive from the selected window)
+- [x] Charts animate when range changes (charts keyed by range → recharts entrance animations replay on every range switch)
 
 ### 25.3 Comparison Views
-- [ ] Month-over-month comparison: "You spent 15% less than last month"
-- [ ] Category comparison: "Food spending increased by 20%"
-- [ ] Show trend arrows and percentages on all comparison cards
+- [x] Month-over-month comparison: "You spent 15% less than last month" (strip under the range card compares against the equal-length preceding window for ANY range type, not just months; green/red/neutral tones with TrendingDown/TrendingUp/Minus icons)
+- [x] Category comparison: "Food spending increased by 20%" (each category allocation row shows ▲/▼ % vs the previous period, "NEW" badge when a category had no prior spend)
+- [x] Show trend arrows and percentages on all comparison cards (comparison strip + category rows carry trend icons + rounded percentages with aria-labels)
 
 ### 25.4 Financial Health Score
-- [ ] Calculate a simple score based on: budget adherence, spending trends, bill punctuality
-- [ ] Show as a gauge/meter on dashboard
-- [ ] Tips to improve score: "Try reducing food spending by 10%"
+- [x] Calculate a simple score based on: budget adherence, spending trends, bill punctuality (src/lib/healthScore.ts: weighted components — budget 30pts, savings rate 25, MoM trend 20, bill punctuality 25; missing data renormalizes the scale instead of punishing)
+- [x] Show as a gauge/meter on dashboard (HealthScoreCard: semicircle SVG gauge with animated stroke-dasharray arc, score out of 100, tier label Excellent/Good/Fair/Needs Work, placed after the quick-stats grid)
+- [x] Tips to improve score: "Try reducing food spending by 10%" (top 3 contextual tips: budget pacing/over-budget, biggest category spike vs last month with copy matching this suggestion, savings-rate nudge, overdue-bill reminder, set-a-budget hint)
 
 ---
 
 ## Phase 26: Offline-First UX (PWA)
 
 ### 26.1 Service Worker
-- [ ] Configure `next-pwa` for offline support
-- [ ] Cache all static assets (fonts, icons, CSS, JS)
-- [ ] Cache API responses with stale-while-revalidate strategy
-- [ ] Show offline indicator banner when network is unavailable
+- [x] Configure `next-pwa` for offline support (deviation: hand-rolled vanilla `public/sw.js` instead — next-pwa requires webpack but Next 16 builds with Turbopack; registered production-only in PwaLayer)
+- [x] Cache all static assets (fonts, icons, CSS, JS) (`/_next/static/` + font/image extensions cache-first into `static-v1`)
+- [x] Cache API responses with stale-while-revalidate strategy (Supabase `/rest/v1/*` GETs served from `data-v1` while revalidating in background; navigations network-first with `/offline` fallback)
+- [x] Show offline indicator banner when network is unavailable (PwaLayer fixed bottom WifiOff banner driven by online/offline events)
 
 ### 26.2 Offline Expense Entry
-- [ ] Allow adding expenses when offline (save to IndexedDB)
-- [ ] Show "Syncing..." indicator on expenses added offline
-- [ ] Auto-sync when connection is restored
-- [ ] Show conflict resolution if same expense was edited on another device
+- [x] Allow adding expenses when offline (save to IndexedDB) (`src/lib/offlineQueue.ts` outbox in db `expense-diary-offline`; addExpense queues when `!navigator.onLine` or on network-type errors and returns the optimistic row instead of throwing)
+- [x] Show "Syncing..." indicator on expenses added offline (CloudUpload chip on rows with `pendingSync`, persisted via localStorage cache)
+- [x] Auto-sync when connection is restored (flushPendingExpenses on `online` event + 60s interval + mount; re-inserts via addExpenseAction and swaps temp→real row)
+- [x] Show conflict resolution if same expense was edited on another device (duplicate detection: name+date+category+amount match against fresh fetchExpenses merges to the server row instead of double-inserting; orphans re-enqueued)
 
 ### 26.3 Install Prompt
-- [ ] Show "Add to Home Screen" banner after 3rd visit
-- [ ] Custom install modal explaining PWA benefits
-- [ ] Track installation status
+- [x] Show "Add to Home Screen" banner after 3rd visit (custom modal after visit #3 with 14-day dismiss cooldown; beforeinstallprompt captured at module scope pre-hydration)
+- [x] Custom install modal explaining PWA benefits (cozy paper-card modal, benefits list, install button enabled only when browser offers installation)
+- [x] Track installation status (localStorage `pwa_installed`/`pwa_visit_count`/`pwa_install_dismissed_at`; standalone detection marks installed; appinstalled listener)
 
 ---
 
 ## Phase 27: Onboarding Tips & Contextual Help
 
 ### 27.1 Feature Discovery
-- [ ] Show tooltip tour on first visit to each page:
-  - Dashboard: "This is your daily journal. Tap any entry to see details."
+- [x] Show tooltip tour on first visit to each page (one-time dismissible `FirstVisitTip` sticky-note cards per page, seen-flags in localStorage `hints_seen_v1`; insights message adapts to data count):
+  - Dashboard: "This is your daily journal. Tap any entry to see details." (+ health gauge mention)
   - Expenses: "Swipe left to delete, tap to edit. Use filters to find anything."
   - Bills: "Add your recurring bills here. Enable auto-pay to log them automatically."
   - Insights: "Your spending patterns visualized. Tap any chart segment for details."
-- [ ] Show "What's new" changelog modal after updates
-- [ ] Add "?" help icons next to complex features (budget, auto-pay, recurring)
+- [x] Show "What's new" changelog modal after updates (`src/lib/help.ts` APP_VERSION + WHATS_NEW entries, localStorage `whats_new_seen_version`, global `WhatsNew` component in layout, 1.8s delayed once-per-version)
+- [x] Add "?" help icons next to complex features (budget, auto-pay, recurring) (`InfoTip` hover/focus/tap tooltip: dashboard Budget & Savings header, AddBillModal Billing Frequency + Schedule Pay blocks)
 
 ### 27.2 Contextual Hints
-- [ ] First time adding expense: Show a one-time hint "Tip: You can swipe to delete expenses"
-- [ ] First time visiting bills: Show hint "Enable auto-pay on recurring bills to track them automatically"
-- [ ] First time visiting insights: Show hint "Add at least 5 expenses to see meaningful charts"
-- [ ] Store "hints seen" in localStorage to avoid repeating
+- [x] First time adding expense: Show a one-time hint "Tip: You can swipe to delete expenses" (AddExpenseModal fires info toast 1.4s after the first-ever add via `hint-swipe-delete` flag)
+- [x] First time visiting bills: Show hint "Enable auto-pay on recurring bills to track them automatically" (merged into the bills tour card copy — separate card would duplicate it)
+- [x] First time visiting insights: Show hint "Add at least 5 expenses to see meaningful charts" (adaptive `tour-insights` message when <5 expenses exist; page already had a 3-expense progress empty state)
+- [x] Store "hints seen" in localStorage to avoid repeating (`hints_seen_v1` JSON map via hasSeenHint/markHintSeen)
 
 ### 27.3 Keyboard Shortcuts Help
-- [ ] Show keyboard shortcuts modal on `?` key press (desktop)
-- [ ] List all shortcuts: `N` new expense, `Ctrl+K` command palette, `Esc` close modal
-- [ ] Add keyboard shortcut hints to buttons on hover (desktop only)
+- [x] Show keyboard shortcuts modal on `?` key press (desktop) (`KeyboardShortcutsHelp` global layer; ignores typing targets + touch devices via `(hover: hover) and (pointer: fine)`)
+- [x] List all shortcuts: `N` new expense (added to Expenses page this phase), `Ctrl+K` ~~command palette~~ focuses expense search (palette was removed in Phase 19 — modal lists the real behavior), `Esc` close modal
+- [x] Add keyboard shortcut hints to buttons on hover (desktop only) (`title="Press N anywhere on this page"` on Log Expense button; search icon already carried the Ctrl K hint)
 
 ---
 
 ## Updated Implementation Order
 
 ```
-Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE partially
-Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility)
-Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add) + Phase 15 (Smart Defaults)
-Week 4:   Phase 6 (Income + Categories + CSV + Date Filter)
-Week 5:   Phase 7 (Dashboard) + Phase 16 (Micro-interactions) + Phase 17 (Navigation)
-Week 6:   Phase 18 (Dashboard UX) + Phase 19 (Expense List UX)
+Week 1:   Phase 1 (Security) + Phase 2 (Error Handling) — DONE
+Week 2:   Phase 3 (UX Consistency) + Phase 4 (Dark Mode) + Phase 5 (Accessibility) — DONE
+Week 3:   Phase 13 (Onboarding) + Phase 14 (Quick Add)
+Week 4:   Phase 6 (Income + Categories + CSV + Date Filter) — DONE
+Week 5:   Phase 16 (Micro-interactions) + Phase 17 (Navigation) — DONE
+Week 6:   Phase 19 (Expense List UX)
 Week 7:   Phase 20 (Bills UX) + Phase 21 (Notes UX) + Phase 22 (Calendar UX)
 Week 8:   Phase 23 (Settings UX) + Phase 24 (Mobile UX)
-Week 9:   Phase 25 (Insights UX) + Phase 8 (Templates) + Phase 9 (Notifications)
-Week 10:  Phase 10 (Performance) + Phase 26 (PWA)
-Week 11:  Phase 27 (Onboarding Tips) + Phase 11 (UI Polish)
-Week 12:  Phase 12 (Code Quality) + Final QA & Testing
+Week 9:   Phase 25 (Insights UX) + Phase 9 (Notifications) — DONE
+Week 10:  Phase 10 (Performance) — DONE + Phase 26 (PWA)
+Week 11:  Phase 27 (Onboarding Tips) + Phase 11 (UI Polish) — DONE
+Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 ```
 
 ---
 
 ## Files to Create (New)
 
-| File | Purpose |
-|---|---|
-| `src/app/error.tsx` | Global error boundary |
-| `src/app/not-found.tsx` | Custom 404 page |
-| `src/app/expenses/loading.tsx` | Expense page skeleton |
-| `src/app/bills/loading.tsx` | Bills page skeleton |
-| `src/app/insights/loading.tsx` | Insights page skeleton |
-| `src/app/calendar/loading.tsx` | Calendar page skeleton |
-| `src/app/recurring/loading.tsx` | Recurring page skeleton |
-| `src/app/monthly/loading.tsx` | Monthly page skeleton |
-| `src/app/notes/loading.tsx` | Notes page skeleton |
-| `src/app/income/page.tsx` | Income tracking page |
-| `src/app/income/loading.tsx` | Income page skeleton |
-| `src/app/categories/page.tsx` | Category management page |
-| `src/components/ExpenseForm.tsx` | Shared expense form (dedup) |
-| `src/components/VariableAmountModal.tsx` | Replace prompt() in bills |
-| `src/lib/validations.ts` | Zod schemas for all actions |
-| `src/app/actions/income.ts` | Income server actions |
-| `supabase-migrations/` | Schema migration files |
+| File | Purpose | Status |
+|---|---|---|
+| `src/app/error.tsx` | Global error boundary | DONE |
+| `src/app/not-found.tsx` | Custom 404 page | DONE |
+| `src/app/expenses/loading.tsx` | Expense page skeleton | DONE |
+| `src/app/bills/loading.tsx` | Bills page skeleton | DONE |
+| `src/app/insights/loading.tsx` | Insights page skeleton | DONE |
+| `src/app/calendar/loading.tsx` | Calendar page skeleton | DONE |
+| `src/app/recurring/loading.tsx` | ~~Recurring page skeleton~~ — page removed, file deleted | REMOVED |
+| `src/app/monthly/loading.tsx` | Monthly page skeleton | DONE |
+| `src/app/notes/loading.tsx` | Notes page skeleton | DONE |
+| `src/app/income/page.tsx` | Income tracking page | DONE |
+| `src/app/income/loading.tsx` | Income page skeleton | DONE |
+| `src/app/income/error.tsx` | Income error boundary | DONE |
+| `src/app/categories/page.tsx` | Category management page | DONE |
+| `src/app/categories/loading.tsx` | Categories page skeleton | DONE |
+| `src/app/categories/error.tsx` | Categories error boundary | DONE |
+| `src/components/ExpenseForm.tsx` | Shared expense form (dedup) | DONE |
+| `src/components/VariableAmountModal.tsx` | Replace prompt() in bills | DONE |
+| `src/components/BudgetBar.tsx` | Gradient budget progress bar (green/yellow/red) | DONE |
+| `src/components/ProgressRing.tsx` | Circular progress ring (savings rate) | DONE |
+| `src/components/DayDetailDrawer.tsx` | Calendar day slide-in drawer (Phase 22) | DONE |
+| `src/components/CollapsibleSection.tsx` | Collapsible settings section w/ value subtitles (Phase 23) | DONE |
+| `src/components/PullToRefresh.tsx` | Pull-to-refresh indicator + `src/lib/usePullToRefresh.ts` hook (Phase 24) | DONE |
+| `src/components/SwipeBack.tsx` | iOS-style left-edge swipe-back navigation (Phase 24) | DONE |
+| `src/lib/useTapScrollTop.ts` | Tap-header-to-scroll-top hook (Phase 24) | DONE |
+| `src/components/insights/RangeSelector.tsx` | Period chips (week/month/3m/6m/year/custom) + range math helpers (Phase 25.2) | DONE |
+| `src/components/insights/InteractiveChart.tsx` | Touch chart shell: long-press pinned values, pinch-zoom/pan/double-tap reset (Phase 25.1) | DONE |
+| `src/lib/healthScore.ts` | Financial health score components + tips (Phase 25.4) | DONE |
+| `src/components/HealthScoreCard.tsx` | Dashboard gauge card with score, tier, tips (Phase 25.4) | DONE |
+| `public/sw.js` | Hand-rolled service worker: static cache-first, Supabase SWR data cache, offline nav fallback (Phase 26.1) | DONE |
+| `src/app/offline/page.tsx` | Static prerendered offline fallback page (Phase 26.1) | DONE |
+| `src/lib/offlineQueue.ts` | IndexedDB outbox for offline expense entry + network-error heuristic (Phase 26.2) | DONE |
+| `src/components/PwaLayer.tsx` | SW registration, offline banner, install prompt modal (Phase 26) | DONE |
+| `src/lib/help.ts` | Hint seen-flags, typing-target guard, changelog version/entries (Phase 27) | DONE |
+| `src/components/FirstVisitTip.tsx` | One-time dismissible page tour tip card (Phase 27.1/27.2) | DONE |
+| `src/components/InfoTip.tsx` | "?" help icon with hover/focus/tap tooltip (Phase 27.1) | DONE |
+| `src/components/ShortcutsModal.tsx` | Keyboard shortcuts guide dialog (Phase 27.3) | DONE |
+| `src/components/KeyboardShortcutsHelp.tsx` | Global "?" hotkey layer for the shortcuts modal (Phase 27.3) | DONE |
+| `src/components/WhatsNew.tsx` | Once-per-version changelog modal (Phase 27.1) | DONE |
+| `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
+| `src/lib/validations.ts` | Zod schemas for all actions | DONE |
+| `src/app/actions/income.ts` | Income server actions | DONE |
+| `src/app/expenses/error.tsx` | Expenses error boundary | DONE |
+| `src/app/bills/error.tsx` | Bills error boundary | DONE |
+| `src/app/recurring/error.tsx` | ~~Recurring error boundary~~ — page removed, file deleted | REMOVED |
+| `src/app/insights/error.tsx` | Insights error boundary | DONE |
+| `src/app/calendar/error.tsx` | Calendar error boundary | DONE |
+| `src/app/monthly/error.tsx` | Monthly error boundary | DONE |
+| `src/app/notes/error.tsx` | Notes error boundary | DONE |
+| `src/app/settings/error.tsx` | Settings error boundary | DONE |
+| `supabase-migrations/` | Schema migration files | DONE |
 
 ## Files to Modify (Existing)
 
-| File | Changes |
-|---|---|
-| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA |
-| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels |
-| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard |
-| `src/app/recurring/page.tsx` | Confirm dialogs for toggle, aria labels, dark mode |
-| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton |
-| `src/app/calendar/page.tsx` | Auth guard, loading skeleton |
-| `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard |
-| `src/app/notes/page.tsx` | Dark mode fixes, empty state |
-| `src/app/settings/page.tsx` | CSV export, date range export, replace alert() |
-| `src/app/profile/page.tsx` | Name editing, password strength |
-| `src/app/login/page.tsx` | Dark mode Google button fix |
-| `src/app/layout.tsx` | Skip-to-content link |
-| `src/components/Sidebar.tsx` | Add Income + Categories links |
-| `src/components/ConfirmDialog.tsx` | Add loading spinner animation |
-| `src/components/Toast.tsx` | Fix position conflict with ThemeToggle |
-| `src/components/ThemeToggle.tsx` | Fix position conflict with Toast |
-| `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure |
-| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm |
-| `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm |
-| `src/components/AddBillModal.tsx` | Add payment method from DB |
-| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization |
-| `src/lib/utils.ts` | Consolidate categories, add CSV utils |
-| `src/lib/supabase/client.ts` | Remove null as any |
-| `src/lib/supabase/server.ts` | Remove null as any |
-| `src/types/index.ts` | Add Income type, Template type, consolidate categories |
-| `src/app/actions/expenses.ts` | Add Zod validation |
-| `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay |
-| `src/app/actions/budgets.ts` | Add Zod validation |
-| `src/app/actions/notes.ts` | Add Zod validation |
-| `src/app/actions/categories.ts` | Add Zod validation, updateCategory action |
-| `src/app/globals.css` | Fix sticky-note dark mode, add animations |
-| `supabase-schema.sql` | Add income table, indexes, constraints, triggers |
+| File | Changes | Status |
+|---|---|---|
+| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | PARTIAL (income display + empty-state CTA done; dashboard charts not; + Phase 27: tour tip, Budget & Savings InfoTip) |
+| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | DONE (Phase 6.3/15; + `?category=` / `?month=` deep links for Phase 25 chart taps) |
+| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | DONE (+ Phase 27: tour tip; AddBillModal gained frequency/auto-pay InfoTips) |
+| ~~`src/app/recurring/page.tsx`~~ | Page removed (replaced by /bills) | REMOVED |
+| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE (+ Phase 25: range selector, comparisons, interactive charts; + Phase 27: adaptive tour tip) |
+| `src/app/calendar/page.tsx` | Auth guard, loading skeleton | DONE |
+| `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard | DONE |
+| `src/app/notes/page.tsx` | Dark mode fixes, empty state | DONE |
+| `src/app/settings/page.tsx` | CSV export, date range export, replace alert() | DONE |
+| `src/app/profile/page.tsx` | Name editing, password strength | DONE |
+| `src/app/login/page.tsx` | Dark mode Google button fix | DONE |
+| `src/app/layout.tsx` | Skip-to-content link | DONE (+ Phase 26: mounts PwaLayer; + Phase 27: mounts KeyboardShortcutsHelp & WhatsNew) |
+| `src/components/Sidebar.tsx` | Add Income + Categories links | DONE |
+| `src/components/ConfirmDialog.tsx` | Add loading spinner animation | PARTIAL (loading state disables buttons + "Deleting..." text; no spinner icon) |
+| `src/components/Toast.tsx` | Fix position conflict with ThemeToggle | DONE |
+| `src/components/ThemeToggle.tsx` | Fix position conflict with Toast | DONE |
+| `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure | DONE |
+| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE (+ Phase 27: one-time swipe hint after first add) |
+| `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE |
+| `src/components/AddBillModal.tsx` | Add payment method from DB | DONE |
+| `src/components/AuthProvider.tsx` | Handle session expiry gracefully | DONE |
+| `src/lib/store.tsx` | Error handling, income hook, pagination, memoization | DONE (Phase 2; + Phase 26: offline-aware add/delete, IndexedDB flush + auto-sync) |
+| `src/lib/utils.ts` | Consolidate categories, add CSV utils | DONE |
+| `src/lib/supabase/client.ts` | Replace null returns with thrown errors | DONE |
+| `src/lib/supabase/server.ts` | Replace null returns with thrown errors | DONE |
+| `src/types/index.ts` | Add Income type, consolidate categories | DONE (+ Phase 26: `pendingSync` flag on Expense) |
+| `src/app/actions/expenses.ts` | Add Zod validation | DONE |
+| `src/app/actions/recurring.ts` | Add Zod validation, payment_method, auto_pay | DONE |
+| `src/app/actions/budgets.ts` | Add Zod validation | DONE |
+| `src/app/actions/notes.ts` | Add Zod validation | DONE |
+| `src/app/actions/categories.ts` | Add Zod validation, updateCategory action | DONE |
+| `src/app/globals.css` | Fix sticky-note dark mode, add animations | DONE |
+| `supabase-schema.sql` | Add payment_method, auto_pay, indexes, CHECK, trigger | DONE |
+| `src/app/auth/callback/route.ts` | Handle thrown errors from createClient | DONE |

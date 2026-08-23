@@ -10,6 +10,7 @@ interface AuthContextType {
   isConfigured: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  completeOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   isConfigured: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  completeOnboarding: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -27,8 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) {
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
       setLoading(false);
       setIsConfigured(false);
       return;
@@ -37,8 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsConfigured(true);
 
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error && error.message.includes("session")) {
+        setUser(null);
+      } else {
+        setUser(user);
+      }
       setLoading(false);
     };
 
@@ -56,8 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const signInWithGoogle = async () => {
-    const supabase = createClient();
-    if (!supabase) return;
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
+      return;
+    }
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -67,14 +79,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const supabase = createClient();
-    if (!supabase) return;
+    let supabase;
+    try {
+      supabase = createClient();
+    } catch {
+      return;
+    }
     await supabase.auth.signOut();
     setUser(null);
   };
 
+  // Optimistically flip the flag so the onboarding gate never re-triggers,
+  // then persist to user_metadata for cross-device/session persistence.
+  const completeOnboarding = async () => {
+    setUser((u) =>
+      u ? { ...u, user_metadata: { ...u.user_metadata, onboarded: true } } : u
+    );
+    try {
+      const supabase = createClient();
+      await supabase.auth.updateUser({ data: { onboarded: true } });
+    } catch {
+      // Local state already updated; metadata sync can retry on next login.
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isConfigured, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isConfigured, signInWithGoogle, signOut, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );

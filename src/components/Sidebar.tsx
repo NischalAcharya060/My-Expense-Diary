@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Receipt,
   Calendar,
   BarChart3,
-  RefreshCw,
   FileText,
   LineChart,
   StickyNote,
   Settings,
+  Tag,
+  DollarSign,
   Plus,
   Menu,
   X,
@@ -25,6 +26,9 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import AuthPrompt from "@/components/AuthPrompt";
+import { useExpenses, useRecurringPayments } from "@/lib/store";
+import { getUpcomingBills } from "@/lib/reminders";
+import { getToday } from "@/lib/utils";
 
 const AVATARS: Record<string, string> = Object.fromEntries(
   Array.from({ length: 11 }, (_, i) => [`av-${i + 1}`, `/profiles/${i + 1}.png`])
@@ -47,7 +51,7 @@ const navSections = [
     label: "Finance",
     items: [
       { href: "/monthly", label: "Monthly Summary", icon: BarChart3 },
-      { href: "/recurring", label: "Recurring", icon: RefreshCw },
+      { href: "/income", label: "Income", icon: DollarSign },
       { href: "/bills", label: "Bills & Subs", icon: FileText },
     ],
   },
@@ -55,11 +59,16 @@ const navSections = [
     label: "Tools",
     items: [
       { href: "/insights", label: "Insights", icon: LineChart },
+      { href: "/categories", label: "Categories", icon: Tag },
       { href: "/notes", label: "Notes", icon: StickyNote },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
+
+// Features highlighted with a "New" badge until the user visits them once.
+const NEW_FEATURE_PATHS = ["/monthly", "/income", "/bills", "/insights", "/categories", "/notes", "/calendar"];
+const VISITED_KEY = "visited_pages_v1";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -72,6 +81,40 @@ export default function Sidebar() {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const { user, loading, isConfigured, signOut } = useAuth();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const { expenses } = useExpenses();
+  const { payments } = useRecurringPayments();
+
+  // Smart badges
+  const todayStr = getToday();
+  const overdueBillCount = useMemo(
+    () => getUpcomingBills(payments, expenses, todayStr).filter((b) => b.daysUntil < 0).length,
+    [payments, expenses, todayStr]
+  );
+
+  // Pages the user has already visited (drives the "New" badges).
+  const [visitedPaths, setVisitedPaths] = useState<string[]>([]);
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VISITED_KEY);
+      const visited: string[] = raw ? JSON.parse(raw) : [];
+      const next = visited.includes(pathname) ? visited : [...visited, pathname];
+      if (next.length !== visited.length) {
+        localStorage.setItem(VISITED_KEY, JSON.stringify(next));
+      }
+      setVisitedPaths(next);
+    } catch {
+      setVisitedPaths([]);
+    }
+  }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const badgeCountFor = (href: string): number | null => {
+    if (href === "/bills") return overdueBillCount || null;
+    return null;
+  };
+  const isNewFor = (href: string): boolean =>
+    NEW_FEATURE_PATHS.includes(href) && !visitedPaths.includes(href);
 
   const toggleCollapse = () => {
     setCollapsed((prev) => {
@@ -94,12 +137,14 @@ export default function Sidebar() {
 
       {/* Mobile overlay */}
       <div
+        data-gesture-block
         className={`lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-200 ${mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setMobileOpen(false)}
       />
 
       {/* Sidebar */}
       <aside
+        data-gesture-block
         className={`
           fixed lg:sticky top-0 left-0 h-screen z-50 lg:z-10
           bg-paper-dark/95 backdrop-blur-md border-r border-[rgba(0,0,0,0.06)]
@@ -164,6 +209,8 @@ export default function Sidebar() {
                     item.href === "/"
                       ? pathname === "/"
                       : pathname.startsWith(item.href);
+                  const badgeCount = badgeCountFor(item.href);
+                  const isNew = isNewFor(item.href);
                   return (
                     <li key={item.href} className="relative">
                       <Link
@@ -194,14 +241,51 @@ export default function Sidebar() {
                         />
 
                         {!collapsed && (
-                          <span className="flex-1 truncate">{item.label}</span>
+                          <span className="relative flex-1 truncate">
+                            {item.label}
+                            {/* Animated underline for the current page */}
+                            <span
+                              aria-hidden="true"
+                              className={`absolute left-0 -bottom-0.5 h-[2px] w-full max-w-[80%] rounded-full bg-accent-warm origin-left transition-transform duration-300 ease-out ${
+                                isActive ? "scale-x-100" : "scale-x-0"
+                              }`}
+                            />
+                          </span>
+                        )}
+
+                        {/* Smart badges */}
+                        {!collapsed && badgeCount !== null && (
+                          <span
+                            className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-red text-white text-[10px] font-bold flex items-center justify-center"
+                            title="Overdue bills"
+                          >
+                            {badgeCount}
+                          </span>
+                        )}
+                        {!collapsed && isNew && (
+                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-accent-green/15 text-accent-green border border-accent-green/30 px-1.5 py-0.5 rounded-full">
+                            New
+                          </span>
                         )}
 
                         {/* Active dot */}
-                        {isActive && !collapsed && (
+                        {isActive && !collapsed && badgeCount === null && !isNew && (
                           <div className="w-1.5 h-1.5 rounded-full bg-accent-warm/60 shrink-0" />
                         )}
                       </Link>
+
+                      {/* Collapsed-mode badges */}
+                      {collapsed && (badgeCount !== null || isNew) && (
+                        <span
+                          className={`absolute top-1 right-1 z-10 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none ${
+                            badgeCount !== null
+                              ? "bg-accent-red text-white"
+                              : "bg-accent-green/20 text-accent-green border border-accent-green/40"
+                          }`}
+                        >
+                          {badgeCount !== null ? badgeCount : "★"}
+                        </span>
+                      )}
 
                       {/* Collapsed tooltip */}
                       {collapsed && hoveredItem === item.href && (
@@ -299,7 +383,7 @@ export default function Sidebar() {
                       <button
                         onClick={(e) => { e.stopPropagation(); signOut(); setMobileOpen(false); }}
                         className="p-2 text-ink-light hover:text-accent-red hover:bg-accent-red/5 rounded-lg transition-colors shrink-0"
-                        title="Sign out"
+                        aria-label="Sign out"
                       >
                         <LogOut size={14} />
                       </button>
