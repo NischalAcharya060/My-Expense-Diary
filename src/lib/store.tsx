@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from "react";
 import type {
   Expense,
   RecurringPayment,
@@ -46,6 +46,7 @@ import {
   deleteIncome as deleteIncomeAction,
 } from "@/app/actions/income";
 import { useToast } from "@/components/Toast";
+import { useAuth } from "@/components/AuthProvider";
 
 
 const INITIAL_CATEGORIES: CategoryItem[] = DEFAULT_CATEGORY_DATA.map((c) => ({
@@ -148,6 +149,9 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const { user, isConfigured } = useAuth();
+  const userId = user?.id ?? null;
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expensesLoaded, setExpensesLoaded] = useState(false);
   const [expensesError, setExpensesError] = useState<string | null>(null);
@@ -160,7 +164,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoaded, setBudgetsLoaded] = useState(false);
   const [budgetsError, setBudgetsError] = useState<string | null>(null);
-  const [budgetsFetched, setBudgetsFetched] = useState(false);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesLoaded, setNotesLoaded] = useState(false);
@@ -174,7 +177,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [incomeLoaded, setIncomeLoaded] = useState(false);
   const [incomeError, setIncomeError] = useState<string | null>(null);
 
+  // Budgets are fetched lazily but never latched on failure: the flag only
+  // sticks after a successful fetch, so a failed attempt (e.g. auth not ready
+  // yet) retries when the auth-gated effect re-runs.
+  const budgetsFetchedRef = useRef(false);
+  const fetchBudgetsOnce = useCallback(async () => {
+    if (budgetsFetchedRef.current) return;
+    budgetsFetchedRef.current = true;
+    try {
+      const data = await fetchBudgets();
+      setBudgets(data);
+      setBudgetsError(null);
+    } catch (err) {
+      budgetsFetchedRef.current = false;
+      setBudgets([]);
+      const msg = err instanceof Error ? err.message : "Failed to load budgets";
+      setBudgetsError(msg);
+      toast("Failed to load budgets", "error");
+    } finally {
+      setBudgetsLoaded(true);
+    }
+  }, [toast]);
+
   /* eslint-disable react-hooks/set-state-in-effect */
+  // Hydrate instantly from the localStorage cache on mount (stale-while-revalidate).
   useEffect(() => {
     clearLegacyCache();
     if (typeof window !== "undefined") {
@@ -204,6 +230,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setIncomeLoaded(true);
       }
     }
+  }, []);
+
+  // Fetch from the server only once auth has resolved. Firing earlier races
+  // session restoration: every server action then sees no user and silently
+  // returns [] — wiping state/caches, and latching budgets empty for the whole
+  // session (which hid the dashboard Budget & Savings card after a reload).
+  useEffect(() => {
+    if (!isConfigured || !userId) return;
 
     fetchExpenses().then((data) => {
       setExpenses(data);
@@ -256,7 +290,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setIncomeError(msg);
       toast("Failed to load income", "error");
     }).finally(() => setIncomeLoaded(true));
-  }, [toast]); // hydrating store from cache + server on mount
+
+    void fetchBudgetsOnce();
+  }, [isConfigured, userId, toast, fetchBudgetsOnce]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const refetchExpenses = useCallback(async () => {
@@ -551,25 +587,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     runAutoPay();
   }, [expensesLoaded, paymentsLoaded, autoPayProcessed, payments, addExpense, updatePayment, toast]);
 
-  // Budgets
-  const fetchBudgetsIfNeeded = useCallback(async () => {
-    if (budgetsFetched) return;
-    setBudgetsFetched(true);
-    fetchBudgets().then((data) => {
-      setBudgets(data);
-      setBudgetsError(null);
-    }).catch((err) => {
-      setBudgets([]);
-      const msg = err instanceof Error ? err.message : "Failed to load budgets";
-      setBudgetsError(msg);
-      toast("Failed to load budgets", "error");
-    }).finally(() => setBudgetsLoaded(true));
-  }, [budgetsFetched, toast]);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { fetchBudgetsIfNeeded(); }, [fetchBudgetsIfNeeded]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
   const setBudget = useCallback(async (year: number, month: number, amount: number, category?: string) => {
     const budget = await upsertBudget(year, month, amount, category);
     setBudgets((prev) => {
@@ -824,7 +841,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       payments, paymentsLoaded, paymentsError, refetchPayments,
       addPayment, updatePayment, deletePayment,
       budgets, budgetsLoaded, budgetsError, refetchBudgets,
-      setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded,
+      setBudget, getBudget, deleteBudget, fetchBudgetsIfNeeded: fetchBudgetsOnce,
       notes, notesLoaded, notesError, refetchNotes,
       addNote, updateNote, deleteNote,
       categories, categoriesLoaded, categoriesError, refetchCategories,
