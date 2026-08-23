@@ -366,20 +366,20 @@
 ## Phase 22: Calendar UX Improvements
 
 ### 22.1 Day Detail Panel
-- [ ] Tapping a day opens a slide-in panel from right (not a new page) (tap shows an inline detail card below the grid instead of a slide-in panel)
-- [x] Panel shows: Date, total, list of expenses, "Add Expense" button for that date (inline card shows date, expense list with delete, daily total)
-- [ ] Swipe panel left/right to navigate to previous/next day
+- [x] Tapping a day opens a slide-in panel from right (not a new page) (`DayDetailDrawer` fixed right-side drawer w/ `drawer-in` slide animation + fade backdrop; backdrop tap closes; replaces the old inline card below the grid)
+- [x] Panel shows: Date, total, list of expenses, "Add Expense" button for that date (drawer header shows date + daily total, rows with category color/delete (ConfirmDialog), footer "Add Expense" opens `AddExpenseModal` pre-filled with `defaultDate`)
+- [x] Swipe panel left/right to navigate to previous/next day (horizontal swipe w/ rubber-band drag, 60px threshold; chevron buttons + ←/→ keys on desktop; content swaps directionally via `day-swap-next/prev`; crossing month boundaries syncs the grid)
 
 ### 22.2 Visual Indicators
 - [x] Days with expenses: Show dot indicator with color matching top category (implemented as category icons per day)
-- [ ] Days with high spending: Show red dot (all expense days show red amount text; not threshold-based)
+- [x] Days with high spending: Show red dot (threshold-based: day total ≥ 1.75× the month's average spending-day total → pulsing red corner dot via `.pulse-dot`)
 - [x] Today: Highlight with ring/border (already implemented)
-- [ ] Days with no expenses: Subtle gray dot or no indicator
+- [x] Days with no expenses: Subtle gray dot or no indicator (faint centered gray dot on empty current-month cells)
 
 ### 22.3 Monthly Navigation
-- [ ] Smooth month transition animation (slide left/right)
+- [x] Smooth month transition animation (slide left/right) (grid remounts per month keyed by yyyy-MM with directional `month-slide-next/prev` animations; reduced-motion aware)
 - [x] Show monthly total at top of calendar (already implemented)
-- [ ] "Today" button to quickly jump back to current month
+- [x] "Today" button to quickly jump back to current month (pill button under the month header, only shown when viewing another month)
 
 ---
 
@@ -524,6 +524,7 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/VariableAmountModal.tsx` | Replace prompt() in bills | DONE |
 | `src/components/BudgetBar.tsx` | Gradient budget progress bar (green/yellow/red) | DONE |
 | `src/components/ProgressRing.tsx` | Circular progress ring (savings rate) | DONE |
+| `src/components/DayDetailDrawer.tsx` | Calendar day slide-in drawer (Phase 22) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
 | `src/app/expenses/error.tsx` | Expenses error boundary | DONE |

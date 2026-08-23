@@ -459,3 +459,65 @@ body {
     animation: pulseDot 1.5s ease-in-out infinite;
   }
 }
+
+/* Simple fade (drawer backdrops).
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .fade-in {
+    animation: fadeIn 0.2s ease-out both;
+  }
+}
+
+/* Slide-in drawer panel from the right (calendar day details).
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes drawerIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  .drawer-in {
+    animation: drawerIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+}
+
+/* Directional slide for calendar month grid transitions.
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes monthSlideNext {
+    from { opacity: 0; transform: translateX(28px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes monthSlidePrev {
+    from { opacity: 0; transform: translateX(-28px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .month-slide-next {
+    animation: monthSlideNext 0.26s ease-out both;
+  }
+  .month-slide-prev {
+    animation: monthSlidePrev 0.26s ease-out both;
+  }
+}
+
+/* Directional content swap inside the day drawer (prev/next day swipe).
+   Disabled for users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes daySwapNext {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes daySwapPrev {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .day-swap-next {
+    animation: daySwapNext 0.2s ease-out both;
+  }
+  .day-swap-prev {
+    animation: daySwapPrev 0.2s ease-out both;
+  }
+}
