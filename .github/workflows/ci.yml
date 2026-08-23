@@ -39,6 +39,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate Next.js route types
+        run: npx next typegen
+
       - run: npx tsc --noEmit
 
   build:
