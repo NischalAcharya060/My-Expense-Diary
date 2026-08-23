@@ -11,6 +11,8 @@ import Sidebar from "@/components/Sidebar";
 import BillReminderManager from "@/components/BillReminderManager";
 import SwipeBack from "@/components/SwipeBack";
 import PwaLayer from "@/components/PwaLayer";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
+import WhatsNew from "@/components/WhatsNew";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,6 +65,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <BillReminderManager />
                   <SwipeBack />
                   <PwaLayer />
+                  <KeyboardShortcutsHelp />
+                  <WhatsNew />
                 </StoreProvider>
               </ToastProvider>
             </AuthProvider>

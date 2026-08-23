@@ -17,7 +17,9 @@ import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
 import PullToRefresh from "@/components/PullToRefresh";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import { useToast } from "@/components/Toast";
+import { isTypingTarget } from "@/lib/help";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
 const EditExpenseModal = dynamic(() => import("@/components/EditExpenseModal"), { ssr: false });
@@ -217,7 +219,7 @@ function ExpensesPageInner() {
     }
   }, []);
 
-  // Ctrl/Cmd+K toggles focus on the search bar from anywhere.
+  // Ctrl/Cmd+K toggles focus on the search bar; N opens the log form (desktop).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -230,11 +232,17 @@ function ExpensesPageInner() {
           el.focus();
           el.select();
         }
+        return;
+      }
+      if ((e.key === "n" || e.key === "N") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (isTypingTarget(document.activeElement)) return;
+        e.preventDefault();
+        requireAuth(() => setShowAdd(true));
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [requireAuth]);
 
   const filterKey = `${search}|${filterCategory}|${dateRange?.start ?? ""}|${dateRange?.end ?? ""}|${sortBy}`;
   const visibleDays = pagination.key === filterKey ? pagination.days : PAGE_SIZE;
@@ -450,11 +458,18 @@ function ExpensesPageInner() {
           </div>
           <button
             onClick={() => requireAuth(() => setShowAdd(true))}
+            title="Press N anywhere on this page"
             className="flex items-center gap-1.5 px-4 py-2 bg-accent-warm text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
           >
             <Plus size={16} /> Log Expense
           </button>
         </div>
+
+        {/* One-time page tour tip */}
+        <FirstVisitTip id="tour-expenses">
+          Swipe left to delete, swipe right to duplicate, tap to expand and double-tap to edit an amount. Use the
+          filters to find anything in seconds.
+        </FirstVisitTip>
 
         {/* Sticky sentinel — lets us know when the filter bar is stuck */}
         <div ref={filterSentinelRef} aria-hidden className="h-px -mb-px" />

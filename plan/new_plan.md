@@ -461,24 +461,24 @@
 ## Phase 27: Onboarding Tips & Contextual Help
 
 ### 27.1 Feature Discovery
-- [ ] Show tooltip tour on first visit to each page:
-  - Dashboard: "This is your daily journal. Tap any entry to see details."
+- [x] Show tooltip tour on first visit to each page (one-time dismissible `FirstVisitTip` sticky-note cards per page, seen-flags in localStorage `hints_seen_v1`; insights message adapts to data count):
+  - Dashboard: "This is your daily journal. Tap any entry to see details." (+ health gauge mention)
   - Expenses: "Swipe left to delete, tap to edit. Use filters to find anything."
   - Bills: "Add your recurring bills here. Enable auto-pay to log them automatically."
   - Insights: "Your spending patterns visualized. Tap any chart segment for details."
-- [ ] Show "What's new" changelog modal after updates
-- [ ] Add "?" help icons next to complex features (budget, auto-pay, recurring)
+- [x] Show "What's new" changelog modal after updates (`src/lib/help.ts` APP_VERSION + WHATS_NEW entries, localStorage `whats_new_seen_version`, global `WhatsNew` component in layout, 1.8s delayed once-per-version)
+- [x] Add "?" help icons next to complex features (budget, auto-pay, recurring) (`InfoTip` hover/focus/tap tooltip: dashboard Budget & Savings header, AddBillModal Billing Frequency + Schedule Pay blocks)
 
 ### 27.2 Contextual Hints
-- [ ] First time adding expense: Show a one-time hint "Tip: You can swipe to delete expenses"
-- [ ] First time visiting bills: Show hint "Enable auto-pay on recurring bills to track them automatically"
-- [ ] First time visiting insights: Show hint "Add at least 5 expenses to see meaningful charts"
-- [ ] Store "hints seen" in localStorage to avoid repeating
+- [x] First time adding expense: Show a one-time hint "Tip: You can swipe to delete expenses" (AddExpenseModal fires info toast 1.4s after the first-ever add via `hint-swipe-delete` flag)
+- [x] First time visiting bills: Show hint "Enable auto-pay on recurring bills to track them automatically" (merged into the bills tour card copy — separate card would duplicate it)
+- [x] First time visiting insights: Show hint "Add at least 5 expenses to see meaningful charts" (adaptive `tour-insights` message when <5 expenses exist; page already had a 3-expense progress empty state)
+- [x] Store "hints seen" in localStorage to avoid repeating (`hints_seen_v1` JSON map via hasSeenHint/markHintSeen)
 
 ### 27.3 Keyboard Shortcuts Help
-- [ ] Show keyboard shortcuts modal on `?` key press (desktop)
-- [ ] List all shortcuts: `N` new expense, `Ctrl+K` command palette, `Esc` close modal
-- [ ] Add keyboard shortcut hints to buttons on hover (desktop only)
+- [x] Show keyboard shortcuts modal on `?` key press (desktop) (`KeyboardShortcutsHelp` global layer; ignores typing targets + touch devices via `(hover: hover) and (pointer: fine)`)
+- [x] List all shortcuts: `N` new expense (added to Expenses page this phase), `Ctrl+K` ~~command palette~~ focuses expense search (palette was removed in Phase 19 — modal lists the real behavior), `Esc` close modal
+- [x] Add keyboard shortcut hints to buttons on hover (desktop only) (`title="Press N anywhere on this page"` on Log Expense button; search icon already carried the Ctrl K hint)
 
 ---
 
@@ -537,6 +537,12 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/app/offline/page.tsx` | Static prerendered offline fallback page (Phase 26.1) | DONE |
 | `src/lib/offlineQueue.ts` | IndexedDB outbox for offline expense entry + network-error heuristic (Phase 26.2) | DONE |
 | `src/components/PwaLayer.tsx` | SW registration, offline banner, install prompt modal (Phase 26) | DONE |
+| `src/lib/help.ts` | Hint seen-flags, typing-target guard, changelog version/entries (Phase 27) | DONE |
+| `src/components/FirstVisitTip.tsx` | One-time dismissible page tour tip card (Phase 27.1/27.2) | DONE |
+| `src/components/InfoTip.tsx` | "?" help icon with hover/focus/tap tooltip (Phase 27.1) | DONE |
+| `src/components/ShortcutsModal.tsx` | Keyboard shortcuts guide dialog (Phase 27.3) | DONE |
+| `src/components/KeyboardShortcutsHelp.tsx` | Global "?" hotkey layer for the shortcuts modal (Phase 27.3) | DONE |
+| `src/components/WhatsNew.tsx` | Once-per-version changelog modal (Phase 27.1) | DONE |
 | `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
@@ -554,24 +560,24 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 
 | File | Changes | Status |
 |---|---|---|
-| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | PARTIAL (income display + empty-state CTA done; dashboard charts not) |
+| `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | PARTIAL (income display + empty-state CTA done; dashboard charts not; + Phase 27: tour tip, Budget & Savings InfoTip) |
 | `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | DONE (Phase 6.3/15; + `?category=` / `?month=` deep links for Phase 25 chart taps) |
-| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | DONE |
+| `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | DONE (+ Phase 27: tour tip; AddBillModal gained frequency/auto-pay InfoTips) |
 | ~~`src/app/recurring/page.tsx`~~ | Page removed (replaced by /bills) | REMOVED |
-| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE (+ Phase 25: range selector, comparisons, interactive charts) |
+| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE (+ Phase 25: range selector, comparisons, interactive charts; + Phase 27: adaptive tour tip) |
 | `src/app/calendar/page.tsx` | Auth guard, loading skeleton | DONE |
 | `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard | DONE |
 | `src/app/notes/page.tsx` | Dark mode fixes, empty state | DONE |
 | `src/app/settings/page.tsx` | CSV export, date range export, replace alert() | DONE |
 | `src/app/profile/page.tsx` | Name editing, password strength | DONE |
 | `src/app/login/page.tsx` | Dark mode Google button fix | DONE |
-| `src/app/layout.tsx` | Skip-to-content link | DONE (+ Phase 26: mounts PwaLayer) |
+| `src/app/layout.tsx` | Skip-to-content link | DONE (+ Phase 26: mounts PwaLayer; + Phase 27: mounts KeyboardShortcutsHelp & WhatsNew) |
 | `src/components/Sidebar.tsx` | Add Income + Categories links | DONE |
 | `src/components/ConfirmDialog.tsx` | Add loading spinner animation | PARTIAL (loading state disables buttons + "Deleting..." text; no spinner icon) |
 | `src/components/Toast.tsx` | Fix position conflict with ThemeToggle | DONE |
 | `src/components/ThemeToggle.tsx` | Fix position conflict with Toast | DONE |
 | `src/components/FlagIcon.tsx` | Add alt text, fallback for CDN failure | DONE |
-| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE |
+| `src/components/AddExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE (+ Phase 27: one-time swipe hint after first add) |
 | `src/components/EditExpenseModal.tsx` | Refactor to use shared ExpenseForm | DONE |
 | `src/components/AddBillModal.tsx` | Add payment method from DB | DONE |
 | `src/components/AuthProvider.tsx` | Handle session expiry gracefully | DONE |

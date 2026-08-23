@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/components/Toast";
 import ExpenseForm, { type ExpenseFormData } from "@/components/ExpenseForm";
 import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
+import { hasSeenHint, markHintSeen } from "@/lib/help";
 import type { PaymentMethod, ExpenseType, Expense } from "@/types";
 
 interface Props {
@@ -231,6 +232,13 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
     setTimeout(() => toast(`🎉 ${latest} expenses logged!`), 900);
   };
 
+  // One-time hint right after the user logs their very first expense.
+  const maybeShowSwipeHint = () => {
+    if (hasSeenHint("hint-swipe-delete")) return;
+    markHintSeen("hint-swipe-delete");
+    setTimeout(() => toast("💡 Tip: Swipe a row left to delete it, right to duplicate", "info"), 1400);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.amount || parseFloat(form.amount) <= 0) return;
@@ -250,6 +258,7 @@ export default function AddExpenseModal({ open, onClose, defaultDate }: Props) {
       saveQuickAddPrefs({ category: form.category, paymentMethod: form.paymentMethod });
       hapticFeedback();
       toast("Expense added");
+      maybeShowSwipeHint();
       celebrateMilestone(expenses.length + 1);
       // Brief success state on the button before dismissing.
       setSaved(true);

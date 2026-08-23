@@ -28,6 +28,7 @@ import RangeSelector, {
   type DateRangeSel,
 } from "@/components/insights/RangeSelector";
 import InteractiveChart from "@/components/insights/InteractiveChart";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import type { DailyTrendDatum, MonthlyComparisonDatum } from "@/components/insights/Charts";
 
 function ChartSkeleton({ className }: { className: string }) {
@@ -222,6 +223,13 @@ export default function InsightsPage() {
             </div>
           </div>
         </div>
+
+        {/* One-time page tour tip — message adapts to how much data exists */}
+        <FirstVisitTip id="tour-insights">
+          {expenses.length < 5
+            ? "Add at least 5 expenses to see meaningful charts — your spending patterns will start telling a story."
+            : "Your spending patterns visualized. Tap any chart segment for details — and long-press points on mobile to pin exact values."}
+        </FirstVisitTip>
 
         {/* Range navigation + selector */}
         <div className="paper-card p-4 mb-4">

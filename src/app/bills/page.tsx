@@ -17,6 +17,7 @@ import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
 import PullToRefresh from "@/components/PullToRefresh";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import { useToast } from "@/components/Toast";
 import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
@@ -290,6 +291,12 @@ function BillsPageInner() {
             <Plus size={16} /> Add Bill / Subscription
           </button>
         </div>
+
+        {/* One-time page tour tip */}
+        <FirstVisitTip id="tour-bills">
+          Add your recurring bills here. Enable auto-pay on the ones that charge automatically and they&rsquo;ll be
+          logged in your ledger on their due date — no manual entry needed.
+        </FirstVisitTip>
 
         {/* Overview Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

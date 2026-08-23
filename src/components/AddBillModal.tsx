@@ -5,6 +5,7 @@ import { X, Check, Sparkles } from "lucide-react";
 import { useRecurringPayments, useCategories } from "@/lib/store";
 import { PAYMENT_METHODS, FREQUENCIES, getToday, getCurrencySymbol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import InfoTip from "@/components/InfoTip";
 import { useSwipeDownDismiss } from "@/lib/useSwipeDownDismiss";
 import type { RecurringPayment, PaymentMethod, RecurringFrequency } from "@/types";
 
@@ -285,7 +286,15 @@ export default function AddBillModal({ open, onClose, editingPayment, preset }: 
 
             {/* Frequency selection */}
             <div>
-              <label className="block text-xs text-ink-light uppercase tracking-wide mb-1.5">Billing Frequency</label>
+              <label className="flex items-center gap-1 text-xs text-ink-light uppercase tracking-wide mb-1.5">
+                Billing Frequency
+                <InfoTip
+                  text="How often this bill repeats. Monthly totals, due dates and auto-pay logs are all calculated from it."
+                  label="About billing frequency"
+                  side="bottom"
+                  align="right"
+                />
+              </label>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
@@ -363,7 +372,14 @@ export default function AddBillModal({ open, onClose, editingPayment, preset }: 
           {/* Schedule Pay / Auto Pay Toggle */}
           <div className="p-3 bg-paper-dark border border-[rgba(0,0,0,0.06)] rounded-lg flex items-center justify-between">
             <div>
-              <span className="block text-sm font-semibold text-ink-dark">⏰ Schedule Pay (Auto-Pay)</span>
+              <span className="flex items-center gap-1 text-sm font-semibold text-ink-dark">
+                ⏰ Schedule Pay (Auto-Pay)
+                <InfoTip
+                  text="When on, the expense is written to your ledger automatically on each due date using this bill's name, category and amount — even if you haven't opened the app."
+                  label="How auto-pay works"
+                  align="left"
+                />
+              </span>
               <span className="block text-[10px] text-ink-light mt-0.5 leading-tight">
                 Automatically log this expense in your ledger when the due date arrives.
               </span>

@@ -18,6 +18,8 @@ import BudgetBar from "@/components/BudgetBar";
 import ProgressRing from "@/components/ProgressRing";
 import HealthScoreCard from "@/components/HealthScoreCard";
 import PullToRefresh from "@/components/PullToRefresh";
+import FirstVisitTip from "@/components/FirstVisitTip";
+import InfoTip from "@/components/InfoTip";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
 
@@ -173,6 +175,12 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* One-time page tour tip */}
+        <FirstVisitTip id="tour-dashboard">
+          This is your daily journal. Tap any entry to see details — and watch the health gauge below to see how
+          you&rsquo;re really doing.
+        </FirstVisitTip>
+
         {/* Quick stats cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 pt-2">
           {/* Today */}
@@ -222,7 +230,14 @@ export default function DashboardPage() {
         {budgetAmount > 0 && budgetPct >= 90 && (
           <div className="paper-card p-6 mb-8 relative rotate-[0.5deg] border-l-4 border-l-accent-warm">
             <div className="flex items-center justify-between mb-4 border-b border-[rgba(0,0,0,0.04)] pb-3">
-              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark">Budget &amp; Savings</h2>
+              <h2 className="font-handwritten text-2xl sm:text-3xl text-ink-dark flex items-center gap-1.5">
+                Budget &amp; Savings
+                <InfoTip
+                  text="Your monthly budget is the spending limit you set in Settings. This gauge turns amber near the limit and red once you go over — the ring shows what share of your income you managed to keep."
+                  label="About budgets & savings rate"
+                  align="left"
+                />
+              </h2>
               <Link href="/settings" className="text-xs text-accent-warm hover:underline font-bold">
                 Manage →
               </Link>
