@@ -6,15 +6,17 @@ import dynamic from "next/dynamic";
 import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome } from "@/lib/store";
+import { useExpenses, useRecurringPayments, useBudgets, useCategories, useIncome, useClearCache } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
 import { formatCurrency, getCurrentMonth } from "@/lib/utils";
 import { getUpcomingBills, getDueBadge } from "@/lib/reminders";
 import type { Expense } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import BudgetBar from "@/components/BudgetBar";
 import ProgressRing from "@/components/ProgressRing";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
 
@@ -35,6 +37,8 @@ export default function DashboardPage() {
     () => false,
   );
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
+  const refreshAll = useClearCache();
+  const tapTop = useTapScrollTop();
 
   // First-time user experience: route brand-new users through onboarding once.
   // Users who already have data (pre-onboarding accounts) are silently marked onboarded.
@@ -125,9 +129,13 @@ export default function DashboardPage() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => refreshAll()} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Date header */}
-        <div className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <h1 className="font-handwritten text-4xl sm:text-5xl text-ink-dark mb-1 leading-tight">
             {format(today, "MMMM d, yyyy")}
           </h1>

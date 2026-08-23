@@ -12,9 +12,11 @@ import { formatCurrency } from "@/lib/utils";
 import type { Expense, Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { hapticFeedback } from "@/lib/utils";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
@@ -69,8 +71,8 @@ function loadRecentSearches(): string[] {
 }
 
 function ExpensesPageInner() {
-  const { expenses, loaded, deleteExpense, addExpense, updateExpense } = useExpenses();
-  const { categories, getCategoryByName } = useCategories();
+  const { expenses, loaded, refetch: refetchExpenses, deleteExpense, addExpense, updateExpense } = useExpenses();
+  const { categories, refetch: refetchCategories, getCategoryByName } = useCategories();
   const { notes } = useNotes();
   const [showAdd, setShowAdd] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -93,6 +95,7 @@ function ExpensesPageInner() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+  const tapTop = useTapScrollTop();
 
   useEffect(() => {
     if (searchParams.get("add") === "true") requireAuth(() => setShowAdd(true));
@@ -408,10 +411,14 @@ function ExpensesPageInner() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => Promise.all([refetchExpenses(), refetchCategories()])} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>
@@ -938,8 +945,16 @@ function HighlightMatch({ text, query }: { text: string; query?: string }) {
   );
 }
 
-const SWIPE_THRESHOLD = -64;
-const SWIPE_MAX = -96;
+/** |dx| beyond which a release fires delete (<0) or duplicate (>0). */
+const SWIPE_THRESHOLD = 64;
+/** Clamp for the drag distance in either direction. */
+const SWIPE_MAX = 96;
+/**
+ * Touches starting within this distance of the left screen edge belong to the
+ * global edge swipe-back gesture (components/SwipeBack.tsx) — rows only track
+ * leftward there so the two gestures never fire together.
+ */
+const SWIPE_BACK_EDGE_PX = 28;
 /** How long a finger must stay still before the context menu opens. */
 const LONG_PRESS_MS = 500;
 /** Movement (px) beyond which a press is treated as a scroll/swipe instead of a tap. */
@@ -975,6 +990,7 @@ const ExpenseRow = memo(function ExpenseRow({
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const gestureMoved = useRef(false);
+  const edgeGuard = useRef(false);
   const longPressFired = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClick = useRef(false);
@@ -1053,13 +1069,14 @@ const ExpenseRow = memo(function ExpenseRow({
     setEditingAmount(false);
   }, []);
 
-  /* ---------- touch: swipe-to-delete + long-press context menu ---------- */
+  /* ---------- touch: swipe-to-delete/duplicate + long-press context menu ---------- */
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     startX.current = touch.clientX;
     startY.current = touch.clientY;
     gestureMoved.current = false;
+    edgeGuard.current = touch.clientX <= SWIPE_BACK_EDGE_PX;
     longPressFired.current = false;
     suppressClick.current = false;
     setDragging(true);
@@ -1082,17 +1099,23 @@ const ExpenseRow = memo(function ExpenseRow({
     if (Math.abs(deltaX) > TAP_SLOP || Math.abs(deltaY) > TAP_SLOP) clearLongPressTimer();
     if (Math.abs(deltaX) > TAP_SLOP && Math.abs(deltaX) > Math.abs(deltaY)) {
       gestureMoved.current = true;
-      setDx(Math.max(Math.min(0, deltaX), SWIPE_MAX));
+      // Rightward tracking is disabled when the touch began in the swipe-back edge zone.
+      const maxRight = edgeGuard.current ? 0 : SWIPE_MAX;
+      setDx(Math.max(Math.min(deltaX, maxRight), -SWIPE_MAX));
     }
   };
 
   const handleTouchEnd = () => {
     setDragging(false);
     clearLongPressTimer();
-    const wasSwipe = dx < SWIPE_THRESHOLD;
+    const swipedLeft = dx < -SWIPE_THRESHOLD;
+    const swipedRight = !edgeGuard.current && dx > SWIPE_THRESHOLD;
     if (gestureMoved.current || longPressFired.current) suppressClick.current = true;
-    if (wasSwipe) {
+    if (swipedLeft) {
       onDelete(expense.id);
+    } else if (swipedRight) {
+      hapticFeedback();
+      onDuplicate(expense);
     }
     setDx(0);
     startX.current = null;
@@ -1152,6 +1175,15 @@ const ExpenseRow = memo(function ExpenseRow({
   return (
     <div className={`relative overflow-hidden rounded ${exiting ? "row-exit" : ""}`} aria-hidden={exiting}>
       <button
+        onClick={() => onDuplicate(expense)}
+        className="absolute inset-y-0 left-0 w-24 bg-accent-green text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+        aria-label="Duplicate expense"
+        tabIndex={-1}
+      >
+        <Copy size={16} />
+        <span className="text-[10px] font-semibold">Duplicate</span>
+      </button>
+      <button
         onClick={() => onDelete(expense.id)}
         className="absolute inset-y-0 right-0 w-24 bg-accent-red text-white flex flex-col items-center justify-center gap-0.5 cursor-pointer"
         aria-label="Delete expense"
@@ -1180,7 +1212,7 @@ const ExpenseRow = memo(function ExpenseRow({
         onTouchCancel={() => {
           handleTouchEnd();
         }}
-        title="Tap for details · Double-tap to edit amount · Long-press for actions"
+        title="Tap for details · Double-tap to edit amount · Long-press for actions · Swipe ← delete · → duplicate"
       >
         <div className="flex items-center gap-3">
           <span className="text-xl shrink-0">{icon}</span>

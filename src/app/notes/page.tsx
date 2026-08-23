@@ -8,9 +8,11 @@ import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import type { Note } from "@/types";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 
 const NOTE_COLORS = [
@@ -95,8 +97,8 @@ export default function NotesPage() {
 }
 
 function NotesContent() {
-  const { notes, loaded, addNote, updateNote, deleteNote } = useNotes();
-  const { expenses } = useExpenses();
+  const { notes, loaded, refetch: refetchNotes, addNote, updateNote, deleteNote } = useNotes();
+  const { expenses, refetch: refetchExpenses } = useExpenses();
   const { getCategoryByName } = useCategories();
   const router = useRouter();
   const [showEditor, setShowEditor] = useState(false);
@@ -117,6 +119,7 @@ function NotesContent() {
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+  const tapTop = useTapScrollTop();
 
   const sorted = useMemo(() => {
     return [...notes].sort((a, b) => {
@@ -185,10 +188,14 @@ function NotesContent() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => Promise.all([refetchNotes(), refetchExpenses()])} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="flex items-center justify-between mb-8 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>

@@ -137,12 +137,14 @@ export default function Sidebar() {
 
       {/* Mobile overlay */}
       <div
+        data-gesture-block
         className={`lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-200 ${mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setMobileOpen(false)}
       />
 
       {/* Sidebar */}
       <aside
+        data-gesture-block
         className={`
           fixed lg:sticky top-0 left-0 h-screen z-50 lg:z-10
           bg-paper-dark/95 backdrop-blur-md border-r border-[rgba(0,0,0,0.06)]

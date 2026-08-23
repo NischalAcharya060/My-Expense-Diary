@@ -7,6 +7,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthGuard from "@/components/AuthGuard";
 import BackButton from "@/components/BackButton";
 
@@ -38,6 +39,7 @@ export default function InsightsPage() {
     () => true,
     () => false,
   );
+  const tapTop = useTapScrollTop();
 
   if (!mounted || !loaded) {
     return (
@@ -100,7 +102,10 @@ export default function InsightsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>

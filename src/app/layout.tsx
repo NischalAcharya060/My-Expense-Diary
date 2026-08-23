@@ -9,6 +9,7 @@ import { StoreProvider } from "@/lib/store";
 import ThemeToggle from "@/components/ThemeToggle";
 import Sidebar from "@/components/Sidebar";
 import BillReminderManager from "@/components/BillReminderManager";
+import SwipeBack from "@/components/SwipeBack";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   </main>
                   <ThemeToggle />
                   <BillReminderManager />
+                  <SwipeBack />
                 </StoreProvider>
               </ToastProvider>
             </AuthProvider>

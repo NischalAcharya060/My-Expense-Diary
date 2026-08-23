@@ -6,18 +6,21 @@ import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 
 const INCOME_SOURCES = ["Salary", "Freelance", "Business", "Investment", "Gift", "Other"] as const;
 const INCOME_CATEGORIES = ["Primary", "Side Hustle", "Investment", "Passive", "One-time", "Other"] as const;
 
 export default function IncomePage() {
-  const { income, loaded, addIncome, updateIncome, deleteIncome } = useIncome();
+  const { income, loaded, refetch: refetchIncome, addIncome, updateIncome, deleteIncome } = useIncome();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+  const tapTop = useTapScrollTop();
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -124,9 +127,13 @@ export default function IncomePage() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => refetchIncome()} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="flex items-center justify-between mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>

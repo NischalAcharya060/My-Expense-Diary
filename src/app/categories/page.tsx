@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Plus, Trash2, Edit2, X } from "lucide-react";
 import { useCategories, useExpenses } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 import type { CategoryItem } from "@/types";
 
@@ -26,10 +28,11 @@ const QUICK_COLORS = [
 ];
 
 export default function CategoriesPage() {
-  const { categories, loaded, addCategory, updateCategory, deleteCategory } = useCategories();
-  const { expenses } = useExpenses();
+  const { categories, loaded, refetch: refetchCategories, addCategory, updateCategory, deleteCategory } = useCategories();
+  const { expenses, refetch: refetchExpenses } = useExpenses();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
+  const tapTop = useTapScrollTop();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<CategoryItem | null>(null);
@@ -113,8 +116,12 @@ export default function CategoriesPage() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => Promise.all([refetchCategories(), refetchExpenses()])} />
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <div className="flex items-center justify-between mb-6 header-gradient">
+        <div
+          {...tapTop}
+          className="flex items-center justify-between mb-6 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>

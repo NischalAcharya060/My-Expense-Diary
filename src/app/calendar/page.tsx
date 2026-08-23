@@ -16,8 +16,10 @@ import {
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useExpenses, useCategories } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthGuard from "@/components/AuthGuard";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const DayDetailDrawer = dynamic(() => import("@/components/DayDetailDrawer"), { ssr: false });
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
@@ -27,13 +29,14 @@ const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { 
 const HIGH_SPEND_FACTOR = 1.75;
 
 export default function CalendarPage() {
-  const { expenses, loaded, deleteExpense } = useExpenses();
+  const { expenses, loaded, refetch: refetchExpenses, deleteExpense } = useExpenses();
   const { getCategoryByName } = useCategories();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   // Direction of the last month change: 1 = forward, -1 = back, 0 = initial load.
   const [monthDir, setMonthDir] = useState<-1 | 0 | 1>(0);
   const [showAdd, setShowAdd] = useState(false);
+  const tapTop = useTapScrollTop();
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -118,11 +121,15 @@ export default function CalendarPage() {
 
   return (
     <AuthGuard feature="expense calendar">
+    <PullToRefresh onRefresh={() => refetchExpenses()} />
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient">
+        <div
+          {...tapTop}
+          className="mb-6 border-b border-[rgba(0,0,0,0.06)] pb-4 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>

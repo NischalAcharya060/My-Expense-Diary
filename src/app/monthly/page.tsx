@@ -8,18 +8,21 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useExpenses, useBudgets, useCategories, useIncome } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthGuard from "@/components/AuthGuard";
 import BudgetBar from "@/components/BudgetBar";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 
 export default function MonthlySummaryPage() {
-  const { expenses, loaded } = useExpenses();
-  const { getBudget } = useBudgets();
+  const { expenses, loaded, refetch: refetchExpenses } = useExpenses();
+  const { refetch: refetchBudgets, getBudget } = useBudgets();
   const { getCategoryByName } = useCategories();
-  const { getMonthIncome } = useIncome();
+  const { getMonthIncome, refetch: refetchIncome } = useIncome();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const tapTop = useTapScrollTop();
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -143,9 +146,13 @@ export default function MonthlySummaryPage() {
 
   return (
     <AuthGuard feature="monthly summaries">
+    <PullToRefresh onRefresh={() => Promise.all([refetchExpenses(), refetchBudgets(), refetchIncome()])} />
     <div className="notebook-paper min-h-screen page-enter">
       <div className="max-w-3xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
-        <div className="flex items-center justify-between mb-6 header-gradient">
+        <div
+          {...tapTop}
+          className="flex items-center justify-between mb-6 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <h1 className="font-handwritten text-3xl sm:text-4xl text-ink-dark">Monthly Summary</h1>

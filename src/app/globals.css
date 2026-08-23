@@ -62,6 +62,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Disable the browser's native pull-to-refresh so the custom one
+     (components/PullToRefresh.tsx) owns the gesture. */
+  overscroll-behavior-y: none;
 }
 
 /* Notebook paper background */

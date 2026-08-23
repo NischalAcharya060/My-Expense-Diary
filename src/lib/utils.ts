@@ -119,3 +119,10 @@ export function hapticFeedback(): void {
     navigator.vibrate(35);
   }
 }
+
+/**
+ * Selector matching overlays (dialogs, mobile nav) that opt out of the global
+ * touch gestures — pull-to-refresh and edge swipe-back never fire while a
+ * matched element contains the touch target.
+ */
+export const GESTURE_BLOCK_SELECTOR = '[role="dialog"], [data-gesture-block]';

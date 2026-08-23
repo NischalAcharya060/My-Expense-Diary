@@ -406,11 +406,11 @@
 ## Phase 24: Mobile-Specific UX
 
 ### 24.1 Touch Interactions
-- [ ] Pull-to-refresh on all list pages
-- [ ] Swipe right to go back (iOS-style)
-- [ ] Long press on expense for context menu
-- [x] Swipe left to delete, swipe right to duplicate (delete done on expenses list via `ExpenseRow`; duplicate not yet)
-- [ ] Tap status bar to scroll to top
+- [x] Pull-to-refresh on all list pages (`usePullToRefresh` + `PullToRefresh` indicator — rubber-band drag at top of page, spinner hold, haptic tick; wired into dashboard (full cache refresh), expenses, bills, notes, income, categories, calendar, monthly; native browser PTR disabled via `overscroll-behavior-y: none`)
+- [x] Swipe right to go back (iOS-style) (`SwipeBack` component mounted globally in layout — left-edge 28px start zone, axis-locked, arrow-chip + edge-bar progress indicators, haptic on fire; suppressed while dialogs/mobile nav are open via `GESTURE_BLOCK_SELECTOR`)
+- [x] Long press on expense for context menu (done in Phase 19)
+- [x] Swipe left to delete, swipe right to duplicate (`ExpenseRow` now reveals a green Duplicate layer behind the row on swipe-right with haptic tick; touches starting in the swipe-back edge zone only track leftward so the two gestures never clash)
+- [x] Tap status bar to scroll to top (page headers tappable via `useTapScrollTop` — smooth scroll honoring reduced motion, clicks on nested buttons ignored; applied to dashboard, expenses, bills, notes, income, categories, calendar, monthly, insights)
 
 ## Phase 25: Insights & Analytics UX
 
@@ -526,6 +526,9 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/ProgressRing.tsx` | Circular progress ring (savings rate) | DONE |
 | `src/components/DayDetailDrawer.tsx` | Calendar day slide-in drawer (Phase 22) | DONE |
 | `src/components/CollapsibleSection.tsx` | Collapsible settings section w/ value subtitles (Phase 23) | DONE |
+| `src/components/PullToRefresh.tsx` | Pull-to-refresh indicator + `src/lib/usePullToRefresh.ts` hook (Phase 24) | DONE |
+| `src/components/SwipeBack.tsx` | iOS-style left-edge swipe-back navigation (Phase 24) | DONE |
+| `src/lib/useTapScrollTop.ts` | Tap-header-to-scroll-top hook (Phase 24) | DONE |
 | `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |

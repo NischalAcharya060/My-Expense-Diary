@@ -12,9 +12,11 @@ import { useExpenses, useRecurringPayments, useIncome } from "@/lib/store";
 import { formatCurrency, getToday, getCurrentMonth } from "@/lib/utils";
 import { format, differenceInDays } from "date-fns";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import BackButton from "@/components/BackButton";
+import PullToRefresh from "@/components/PullToRefresh";
 import { useToast } from "@/components/Toast";
 import VariableAmountModal from "@/components/VariableAmountModal";
 import type { RecurringPayment } from "@/types";
@@ -25,8 +27,8 @@ const Confetti = dynamic(() => import("@/components/Confetti"), { ssr: false });
 const HISTORY_PAGE_SIZE = 3;
 
 function BillsPageInner() {
-  const { expenses, loaded: expensesLoaded, addExpense, deleteExpense } = useExpenses();
-  const { payments, loaded: paymentsLoaded, deletePayment, updatePayment } = useRecurringPayments();
+  const { expenses, loaded: expensesLoaded, refetch: refetchExpenses, addExpense, deleteExpense } = useExpenses();
+  const { payments, loaded: paymentsLoaded, refetch: refetchPayments, deletePayment, updatePayment } = useRecurringPayments();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<RecurringPayment | null>(null);
   const [billPreset, setBillPreset] = useState<{ name: string; category: string } | null>(null);
@@ -52,7 +54,8 @@ function BillsPageInner() {
   const searchParams = useSearchParams();
   const { requireAuth, showAuthPrompt, setShowAuthPrompt } = useRequireAuth();
   const { toast } = useToast();
-  const { getMonthIncome } = useIncome();
+  const { getMonthIncome, refetch: refetchIncome } = useIncome();
+  const tapTop = useTapScrollTop();
 
   // Open the add modal from URL (?add=true) — used by the command palette.
   useEffect(() => {
@@ -264,11 +267,15 @@ function BillsPageInner() {
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
+      <PullToRefresh onRefresh={() => Promise.all([refetchExpenses(), refetchPayments(), refetchIncome()])} />
       {celebrate && <Confetti />}
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 pt-16 lg:pl-20">
         
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 header-gradient">
+        <div
+          {...tapTop}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 header-gradient cursor-pointer lg:cursor-default"
+        >
           <div className="flex items-center gap-1">
             <BackButton />
             <div>
