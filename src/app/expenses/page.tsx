@@ -107,6 +107,28 @@ function ExpensesPageInner() {
     const q = searchParams.get("q");
     if (q !== null) setSearchInput(q);
   }, [searchParams]);
+
+  // Deep-link category filter (?category=Food) — used by insights chart taps.
+  useEffect(() => {
+    const c = searchParams.get("category");
+    if (!c) return;
+    setFilterCategory((prev) => (prev === c ? prev : c));
+    if (!searchParams.get("month")) {
+      setDateRange((prev) => (prev === null ? prev : null));
+      setQuickFilter((prev) => (prev === "All" ? prev : "All"));
+    }
+  }, [searchParams]);
+
+  // Deep-link a calendar month (?month=YYYY-MM) — used by insights bar-chart taps.
+  useEffect(() => {
+    const m = searchParams.get("month");
+    if (!m || !/^\d{4}-\d{2}$/.test(m)) return;
+    const [y, mo] = m.split("-").map(Number);
+    const start = `${m}-01`;
+    const end = format(endOfMonth(new Date(y, mo - 1, 1)), "yyyy-MM-dd");
+    setDateRange((prev) => (prev?.start === start && prev?.end === end ? prev : { start, end }));
+    setQuickFilter("Custom");
+  }, [searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Debounce the committed search term + remember successful queries.

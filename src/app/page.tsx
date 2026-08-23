@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, memo, useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import dynamic from "next/dynamic";
 import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import { useTapScrollTop } from "@/lib/useTapScrollTop";
 import AuthPrompt from "@/components/AuthPrompt";
 import BudgetBar from "@/components/BudgetBar";
 import ProgressRing from "@/components/ProgressRing";
+import HealthScoreCard from "@/components/HealthScoreCard";
 import PullToRefresh from "@/components/PullToRefresh";
 
 const AddExpenseModal = dynamic(() => import("@/components/AddExpenseModal"), { ssr: false });
@@ -121,11 +122,39 @@ export default function DashboardPage() {
   const remaining = budgetAmount - monthTotal;
   
   const upcomingBills = getUpcomingBills(payments, expenses, todayStr).slice(0, 5);
+  const allUpcomingBills = getUpcomingBills(payments, expenses, todayStr);
 
   // Budget + savings progress values
   const budgetPct = budgetAmount > 0 ? (monthTotal / budgetAmount) * 100 : 0;
   const savingsRate = monthIncome > 0 ? (netBalance / monthIncome) * 100 : 0;
   const savingsRateDisplay = Math.round(Math.min(Math.max(savingsRate, 0), 100));
+
+  // Financial health score inputs (each component null when its data is missing)
+  const prevMonthDate = subMonths(new Date(year, month - 1, 1), 1);
+  const prevTotal = getMonthTotal(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1);
+  const overdueCount = allUpcomingBills.filter((b) => b.daysUntil < 0).length;
+  const curPrefix = `${year}-${String(month).padStart(2, "0")}`;
+  const prevPrefix = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const curCatTotals = new Map<string, number>();
+  const prevCatTotals = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.date.startsWith(curPrefix)) curCatTotals.set(e.category, (curCatTotals.get(e.category) || 0) + e.amount);
+    else if (e.date.startsWith(prevPrefix)) prevCatTotals.set(e.category, (prevCatTotals.get(e.category) || 0) + e.amount);
+  }
+  let topCategorySpike: { name: string; increasePct: number } | null = null;
+  for (const [name, v] of curCatTotals) {
+    const p = prevCatTotals.get(name) || 0;
+    if (p <= 0) continue;
+    const inc = ((v - p) / p) * 100;
+    if (!topCategorySpike || inc > topCategorySpike.increasePct) topCategorySpike = { name, increasePct: inc };
+  }
+  const healthInput = {
+    budgetUsagePct: budgetAmount > 0 ? budgetPct : null,
+    momChangePct: prevTotal > 0 ? ((monthTotal - prevTotal) / prevTotal) * 100 : null,
+    billsOnTimePct: payments.length > 0 ? Math.max(0, Math.round((1 - overdueCount / payments.length) * 100)) : null,
+    savingsRatePct: monthIncome > 0 ? savingsRate : null,
+    topCategorySpike,
+  };
 
   return (
     <div className="notebook-paper min-h-screen page-enter">
@@ -313,6 +342,9 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Financial health score gauge + tips */}
+        {expenses.length > 0 && <HealthScoreCard input={healthInput} />}
 
         {/* Recent expenses */}
         <div className="paper-card p-6 relative rotate-[0.5deg]">

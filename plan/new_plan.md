@@ -415,25 +415,25 @@
 ## Phase 25: Insights & Analytics UX
 
 ### 25.1 Interactive Charts
-- [ ] Tap on pie chart segment → filter expense list to that category (hover tooltips exist via recharts CustomTooltip; no tap interactions)
-- [ ] Tap on bar chart bar → navigate to that month's expenses
-- [ ] Long press on chart → show tooltip with exact values
-- [ ] Pinch to zoom on area chart
+- [x] Tap on pie chart segment → filter expense list to that category (CategoryPie takes onSelect; tap routes to /expenses?category=X&month=YYYY-MM; side progress rows are now accessible buttons doing the same)
+- [x] Tap on bar chart bar → navigate to that month's expenses (MonthlyComparisonBar datum gained a `key` (YYYY-MM) + onSelectMonth → /expenses?month=YYYY-MM)
+- [x] Long press on chart → show tooltip with exact values (InteractiveChart shell: 420ms hold pins a paper-card tooltip + dashed guide line at that x, haptic feedback, auto-dismisses in 3.5s; works on daily trend and 6-month bars — pie excluded since segment arcs don't map linearly to x)
+- [x] Pinch to zoom on area chart (two-finger pinch shrinks/expands visible window, min 7 points, center-anchored; single-finger horizontal drag pans while zoomed with axis-lock so vertical scroll still works; double-tap or Reset chip restores full range; spans >62 days auto-bucket weekly)
 
 ### 25.2 Time Range Selector
-- [ ] Toggle between: This Week, This Month, Last 3 Months, Last 6 Months, This Year, Custom
-- [ ] Show selected range prominently
-- [ ] Charts should animate when range changes
+- [x] Toggle between: This Week, This Month, Last 3 Months, Last 6 Months, This Year, Custom (RangeSelector chips + custom start/end date inputs; nav arrows shift week/month/3m/6m/year anchors, disabled for custom)
+- [x] Show selected range prominently (handwritten range label centered in the nav card above Total Outflow; all cards/charts derive from the selected window)
+- [x] Charts animate when range changes (charts keyed by range → recharts entrance animations replay on every range switch)
 
 ### 25.3 Comparison Views
-- [ ] Month-over-month comparison: "You spent 15% less than last month" (6-month MonthlyComparisonBar chart exists; no textual comparisons)
-- [ ] Category comparison: "Food spending increased by 20%"
-- [ ] Show trend arrows and percentages on all comparison cards
+- [x] Month-over-month comparison: "You spent 15% less than last month" (strip under the range card compares against the equal-length preceding window for ANY range type, not just months; green/red/neutral tones with TrendingDown/TrendingUp/Minus icons)
+- [x] Category comparison: "Food spending increased by 20%" (each category allocation row shows ▲/▼ % vs the previous period, "NEW" badge when a category had no prior spend)
+- [x] Show trend arrows and percentages on all comparison cards (comparison strip + category rows carry trend icons + rounded percentages with aria-labels)
 
 ### 25.4 Financial Health Score
-- [ ] Calculate a simple score based on: budget adherence, spending trends, bill punctuality
-- [ ] Show as a gauge/meter on dashboard
-- [ ] Tips to improve score: "Try reducing food spending by 10%"
+- [x] Calculate a simple score based on: budget adherence, spending trends, bill punctuality (src/lib/healthScore.ts: weighted components — budget 30pts, savings rate 25, MoM trend 20, bill punctuality 25; missing data renormalizes the scale instead of punishing)
+- [x] Show as a gauge/meter on dashboard (HealthScoreCard: semicircle SVG gauge with animated stroke-dasharray arc, score out of 100, tier label Excellent/Good/Fair/Needs Work, placed after the quick-stats grid)
+- [x] Tips to improve score: "Try reducing food spending by 10%" (top 3 contextual tips: budget pacing/over-budget, biggest category spike vs last month with copy matching this suggestion, savings-rate nudge, overdue-bill reminder, set-a-budget hint)
 
 ---
 
@@ -529,6 +529,10 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | `src/components/PullToRefresh.tsx` | Pull-to-refresh indicator + `src/lib/usePullToRefresh.ts` hook (Phase 24) | DONE |
 | `src/components/SwipeBack.tsx` | iOS-style left-edge swipe-back navigation (Phase 24) | DONE |
 | `src/lib/useTapScrollTop.ts` | Tap-header-to-scroll-top hook (Phase 24) | DONE |
+| `src/components/insights/RangeSelector.tsx` | Period chips (week/month/3m/6m/year/custom) + range math helpers (Phase 25.2) | DONE |
+| `src/components/insights/InteractiveChart.tsx` | Touch chart shell: long-press pinned values, pinch-zoom/pan/double-tap reset (Phase 25.1) | DONE |
+| `src/lib/healthScore.ts` | Financial health score components + tips (Phase 25.4) | DONE |
+| `src/components/HealthScoreCard.tsx` | Dashboard gauge card with score, tier, tips (Phase 25.4) | DONE |
 | `supabase-migrations/20260823_120000_phase23_delete_own_account.sql` | Account self-deletion RPC (Phase 23.2) | DONE |
 | `src/lib/validations.ts` | Zod schemas for all actions | DONE |
 | `src/app/actions/income.ts` | Income server actions | DONE |
@@ -547,10 +551,10 @@ Week 12:  Phase 12 (Code Quality) — DONE + Final QA & Testing
 | File | Changes | Status |
 |---|---|---|
 | `src/app/page.tsx` | Dashboard charts, income display, empty state CTA | PARTIAL (income display + empty-state CTA done; dashboard charts not) |
-| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | DONE (Phase 6.3/15) |
+| `src/app/expenses/page.tsx` | Date range filter, pagination, empty states, aria labels | DONE (Phase 6.3/15; + `?category=` / `?month=` deep links for Phase 25 chart taps) |
 | `src/app/bills/page.tsx` | Replace prompt(), confirm dialogs for deactivate, auth guard | DONE |
 | ~~`src/app/recurring/page.tsx`~~ | Page removed (replaced by /bills) | REMOVED |
-| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE |
+| `src/app/insights/page.tsx` | Auth guard, income charts, loading skeleton | DONE (+ Phase 25: range selector, comparisons, interactive charts) |
 | `src/app/calendar/page.tsx` | Auth guard, loading skeleton | DONE |
 | `src/app/monthly/page.tsx` | Income vs expense comparison, auth guard | DONE |
 | `src/app/notes/page.tsx` | Dark mode fixes, empty state | DONE |
