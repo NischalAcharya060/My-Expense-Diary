@@ -538,6 +538,7 @@ function SettingsContent() {
           icon={<Globe size={18} />}
           subtitle={`${country.name} · ${getCurrencySymbol()} ${country.currency}`}
           className="relative z-10"
+          allowOverflow
         >
           <p className="text-xs text-ink-light mb-3">Select your country to set the currency symbol</p>
           <div ref={countryRef} className="relative">

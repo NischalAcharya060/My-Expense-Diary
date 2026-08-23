@@ -11,6 +11,8 @@ interface Props {
   defaultOpen?: boolean;
   danger?: boolean;
   className?: string;
+  /** Allow absolutely-positioned children (e.g. dropdowns) to escape the card when open. */
+  allowOverflow?: boolean;
   children: React.ReactNode;
 }
 
@@ -22,6 +24,7 @@ export default function CollapsibleSection({
   defaultOpen = false,
   danger = false,
   className = "",
+  allowOverflow = false,
   children,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
@@ -68,7 +71,7 @@ export default function CollapsibleSection({
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <div className="overflow-hidden">
+        <div className={allowOverflow && open ? "overflow-visible" : "overflow-hidden"}>
           <div className="px-6 pb-6 pt-1">{children}</div>
         </div>
       </div>
