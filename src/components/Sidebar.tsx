@@ -91,10 +91,11 @@ export default function Sidebar() {
     [payments, expenses, todayStr]
   );
 
-  // Pages the user has already visited (drives the "New" badges).
+  // Pages the user has already visited (drives the "New" badges — logged-in only).
   const [visitedPaths, setVisitedPaths] = useState<string[]>([]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (!user) { setVisitedPaths([]); return; }
     try {
       const raw = localStorage.getItem(VISITED_KEY);
       const visited: string[] = raw ? JSON.parse(raw) : [];
@@ -106,7 +107,7 @@ export default function Sidebar() {
     } catch {
       setVisitedPaths([]);
     }
-  }, [pathname]);
+  }, [pathname, user]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const badgeCountFor = (href: string): number | null => {
@@ -114,7 +115,7 @@ export default function Sidebar() {
     return null;
   };
   const isNewFor = (href: string): boolean =>
-    NEW_FEATURE_PATHS.includes(href) && !visitedPaths.includes(href);
+    !!user && NEW_FEATURE_PATHS.includes(href) && !visitedPaths.includes(href);
 
   const toggleCollapse = () => {
     setCollapsed((prev) => {
